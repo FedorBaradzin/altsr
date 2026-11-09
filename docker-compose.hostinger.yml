@@ -30,7 +30,8 @@ services:
   backend:
     build:
       context: ./backend
-    env_file: deploy/.env.deploy
+    env_file:
+      - deploy/.env.deploy
     restart: unless-stopped
     command:
       - sh
@@ -53,7 +54,8 @@ services:
   worker:
     build:
       context: ./backend
-    env_file: deploy/.env.deploy
+    env_file:
+      - deploy/.env.deploy
     restart: unless-stopped
     command: ["python", "-m", "app.worker"]
     depends_on:
@@ -67,7 +69,8 @@ services:
   screener:
     build:
       context: ./backend
-    env_file: deploy/.env.deploy
+    env_file:
+      - deploy/.env.deploy
     restart: unless-stopped
     command: ["python", "-m", "app.screen_worker"]
     depends_on:
@@ -81,7 +84,8 @@ services:
   signals:
     build:
       context: ./backend
-    env_file: deploy/.env.deploy
+    env_file:
+      - deploy/.env.deploy
     restart: unless-stopped
     command: ["python", "-m", "app.signal_worker"]
     depends_on:
@@ -95,7 +99,8 @@ services:
   paper:
     build:
       context: ./backend
-    env_file: deploy/.env.deploy
+    env_file:
+      - deploy/.env.deploy
     restart: unless-stopped
     command: ["python", "-m", "app.paper_worker"]
     depends_on:
@@ -107,7 +112,8 @@ services:
   ai:
     build:
       context: ./backend
-    env_file: deploy/.env.deploy
+    env_file:
+      - deploy/.env.deploy
     restart: unless-stopped
     command: ["python", "-m", "app.ai_worker"]
     depends_on:
