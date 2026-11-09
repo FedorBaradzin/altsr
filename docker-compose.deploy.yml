@@ -1,14 +1,15 @@
-# ALTSR — единый прод-compose для Hostinger Docker Manager (деплой из Git).
-# Сборка из исходников, миграции авто, секреты в deploy/.env.deploy,
-# наружу открыт только Caddy (80/443) с авто-HTTPS для altsr.space.
+# ALTSR — единый прод-compose для Hostinger Docker Manager (деплой из Git URL).
+# Сборка из исходников, миграции авто, наружу только Caddy (80/443) с авто-HTTPS.
+# JWT_SECRET: если не задан переменной окружения стека — backend генерирует
+# стойкий секрет при первом старте и хранит его в volume (в git секретов нет).
 x-backend: &backend
   build: ./backend
   env_file: deploy/.env.deploy
   restart: unless-stopped
-  # Секреты и переключатели — из переменных окружения стека (Docker Manager).
-  # Пустые по умолчанию => fallback-режим. JWT_SECRET обязателен.
+  # Секреты/переключатели интеграций — из env стека (Docker Manager).
+  # Пусто => fallback-режим (кошелёк-вход, шаблонные статьи, оплата/Google/TG off).
   environment:
-    JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET as a stack env var in Docker Manager}
+    JWT_SECRET: ${JWT_SECRET:-}
     AI_ENABLED: ${AI_ENABLED:-false}
     AI_API_KEY: ${AI_API_KEY:-}
     GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
@@ -49,9 +50,18 @@ services:
 
   backend:
     <<: *backend
-    command: >
-      sh -c "alembic upgrade head &&
-             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    command:
+      - sh
+      - -c
+      - |
+        if [ -z "$$JWT_SECRET" ]; then
+          [ -f /secrets/jwt ] || python -c 'import secrets;print(secrets.token_hex(32))' > /secrets/jwt
+          export JWT_SECRET="$$(cat /secrets/jwt)"
+        fi
+        alembic upgrade head
+        exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - jwtdata:/secrets
     depends_on:
       postgres:
         condition: service_healthy
@@ -139,3 +149,4 @@ volumes:
   pgdata:
   caddy_data:
   caddy_config:
+  jwtdata:
