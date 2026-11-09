@@ -1,0 +1,149 @@
+# ALTSR — прод-compose для Hostinger Docker Manager (без YAML-якорей).
+# Сборка из исходников репозитория, миграции авто, наружу только Caddy (80/443).
+# Секретов в файле нет: JWT backend генерирует сам при первом старте,
+# ключи интеграций по умолчанию пустые (fallback-режим) — задаются позже.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: altsr
+      POSTGRES_PASSWORD: altsr
+      POSTGRES_DB: altsr
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U altsr"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    env_file: deploy/.env.deploy
+    restart: unless-stopped
+    command:
+      - sh
+      - -c
+      - |
+        if [ -z "$$JWT_SECRET" ]; then
+          [ -f /secrets/jwt ] || python -c 'import secrets;print(secrets.token_hex(32))' > /secrets/jwt
+          export JWT_SECRET="$$(cat /secrets/jwt)"
+        fi
+        alembic upgrade head
+        exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - jwtdata:/secrets
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./backend
+    env_file: deploy/.env.deploy
+    restart: unless-stopped
+    command: ["python", "-m", "app.worker"]
+    depends_on:
+      backend:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  screener:
+    build:
+      context: ./backend
+    env_file: deploy/.env.deploy
+    restart: unless-stopped
+    command: ["python", "-m", "app.screen_worker"]
+    depends_on:
+      backend:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  signals:
+    build:
+      context: ./backend
+    env_file: deploy/.env.deploy
+    restart: unless-stopped
+    command: ["python", "-m", "app.signal_worker"]
+    depends_on:
+      backend:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  paper:
+    build:
+      context: ./backend
+    env_file: deploy/.env.deploy
+    restart: unless-stopped
+    command: ["python", "-m", "app.paper_worker"]
+    depends_on:
+      backend:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+
+  ai:
+    build:
+      context: ./backend
+    env_file: deploy/.env.deploy
+    restart: unless-stopped
+    command: ["python", "-m", "app.ai_worker"]
+    depends_on:
+      backend:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE: https://altsr.space
+        NEXT_PUBLIC_WS_BASE: wss://altsr.space
+        NEXT_PUBLIC_SITE_URL: https://altsr.space
+        NEXT_PUBLIC_TELEGRAM_BOT: ""
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
+  jwtdata:
