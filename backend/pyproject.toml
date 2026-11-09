@@ -1,0 +1,57 @@
+[project]
+name = "altsr-backend"
+version = "0.0.0"
+description = "ALTSR — Early Token Radar: discovery + API (Фаза 0)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "httpx>=0.27",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "sqlalchemy[asyncio]>=2.0.35",
+    "asyncpg>=0.30",
+    "alembic>=1.14",
+    "redis>=5.2",
+    "websockets>=13.1",
+    "eth-account>=0.11",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "respx>=0.21",
+    "aiosqlite>=0.20",
+    "fakeredis>=2.26",
+    "asgi-lifespan>=2.1",
+    "ruff>=0.7",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B"]
+ignore = [
+    "B008",    # Depends(...) в дефолтах — идиома FastAPI
+    "UP017",   # timezone.utc оставляем ради явности
+    "B904",    # raise ... from в ретраях не нужен
+]
+
+[tool.ruff.lint.per-file-ignores]
+"app/reels/render.py" = ["E501"]   # длинные строки — внутри HTML/JS-шаблона рилса
+"app/ai/content.py" = ["E501"]     # длинные строки — текстовые шаблоны статей/промптов
+"app/assistant/faq.py" = ["E501"]  # длинные строки — тексты ответов FAQ
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["app", "app.api", "app.discovery"]

@@ -1,0 +1,55 @@
+{
+  "data": [
+    {
+      "id": "eth_0xpool1",
+      "type": "pool",
+      "attributes": {
+        "name": "PEPE2 / WETH",
+        "address": "0xpool1address",
+        "pool_created_at": "2026-11-09T04:30:00Z",
+        "reserve_in_usd": "18450.50",
+        "fdv_usd": "920000"
+      },
+      "relationships": {
+        "base_token": {"data": {"id": "eth_0xTOKENabc", "type": "token"}},
+        "dex": {"data": {"id": "uniswap_v3", "type": "dex"}}
+      }
+    },
+    {
+      "id": "eth_0xpool2",
+      "type": "pool",
+      "attributes": {
+        "name": "MOON / USDC",
+        "address": "0xpool2address",
+        "pool_created_at": "2026-11-09T04:31:00Z",
+        "reserve_in_usd": "500.00",
+        "fdv_usd": "12000"
+      },
+      "relationships": {
+        "base_token": {"data": {"id": "eth_0xTOKENdef", "type": "token"}},
+        "dex": {"data": {"id": "uniswap_v2", "type": "dex"}}
+      }
+    }
+  ],
+  "included": [
+    {
+      "id": "eth_0xTOKENabc",
+      "type": "token",
+      "attributes": {
+        "address": "0xTOKENabc",
+        "name": "Pepe Two",
+        "symbol": "PEPE2",
+        "twitter_handle": "pepe2coin"
+      }
+    },
+    {
+      "id": "eth_0xTOKENdef",
+      "type": "token",
+      "attributes": {
+        "address": "0xTOKENdef",
+        "name": "MoonCoin",
+        "symbol": "MOON"
+      }
+    }
+  ]
+}

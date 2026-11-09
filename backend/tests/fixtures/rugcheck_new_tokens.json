@@ -1,0 +1,18 @@
+[
+  {
+    "mint": "So11111SolMintAAA",
+    "symbol": "BONKJR",
+    "name": "Bonk Junior",
+    "createAt": "2026-11-09T04:32:00Z",
+    "liquidity": 7400.0,
+    "marketCap": 61000.0,
+    "twitter": "https://twitter.com/bonkjr"
+  },
+  {
+    "mint": "So11111SolMintBBB",
+    "symbol": "WIFHAT",
+    "name": "Wif Hat",
+    "createAt": 1762662800,
+    "liquidity": 250.5
+  }
+]

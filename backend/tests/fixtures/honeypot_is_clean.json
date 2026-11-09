@@ -1,0 +1,6 @@
+{
+  "token": {"address": "0xtokenabc", "name": "Pepe Two", "symbol": "PEPE2"},
+  "honeypotResult": {"isHoneypot": false},
+  "simulationSuccess": true,
+  "simulationResult": {"buyTax": 1.0, "sellTax": 3.0, "transferTax": 0}
+}

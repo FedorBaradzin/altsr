@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Crypto News</title>
+    <item>
+      <title>TokenX gets listed on Binance</title>
+      <link>https://news.example/tokenx-binance</link>
+      <description>TokenX announced a listing on Binance starting Friday.</description>
+      <pubDate>Mon, 09 Nov 2026 04:30:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>DeFi protocol suffers exploit, funds drained</title>
+      <link>https://news.example/defi-exploit</link>
+      <description>An attacker exploited a vulnerability and drained the pool.</description>
+      <pubDate>Mon, 09 Nov 2026 05:00:00 +0000</pubDate>
+    </item>
+  </channel>
+</rss>

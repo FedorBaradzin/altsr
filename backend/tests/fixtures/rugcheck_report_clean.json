@@ -1,0 +1,18 @@
+{
+  "mint": "So11111SolMintAAA",
+  "mintAuthority": null,
+  "freezeAuthority": null,
+  "rugged": false,
+  "score": 120,
+  "totalHolders": 410,
+  "risks": [
+    {"name": "Low liquidity", "level": "warn"}
+  ],
+  "markets": [
+    {"lp": {"lpLockedPct": 100}}
+  ],
+  "topHolders": [
+    {"pct": 4.2, "owner": "abc", "insider": false},
+    {"pct": 2.1, "owner": "def", "insider": false}
+  ]
+}

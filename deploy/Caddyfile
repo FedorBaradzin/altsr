@@ -1,0 +1,19 @@
+# Caddy: авто-HTTPS (Let's Encrypt) + reverse proxy для altsr.space
+# Требует: домен указывает A-записью на IP сервера, порты 80/443 открыты.
+
+altsr.space, www.altsr.space {
+	encode gzip
+
+	# API и WebSocket → backend
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+	handle /ws/* {
+		reverse_proxy backend:8000
+	}
+
+	# всё остальное → фронтенд (Next.js)
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "chainId": "ethereum",
+    "tokenAddress": "0xTOKENabc",
+    "url": "https://dexscreener.com/ethereum/0xTOKENabc",
+    "description": "Pepe Two community token",
+    "links": [
+      {"type": "twitter", "url": "https://twitter.com/pepe2coin"},
+      {"type": "telegram", "url": "https://t.me/pepe2"}
+    ]
+  },
+  {
+    "chainId": "solana",
+    "tokenAddress": "So11111SolMintCCC",
+    "url": "https://dexscreener.com/solana/So11111SolMintCCC",
+    "description": "Fresh solana meme"
+  }
+]

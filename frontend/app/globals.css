@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+:root {
+  --space: #05060B;
+  --panel: rgba(20, 25, 44, 0.55);
+  --line: rgba(130, 150, 210, 0.12);
+}
+
+html { scroll-behavior: smooth; }
+body {
+  background: #05060B;
+  color: #EAF0FF;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.glass {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+}
+.grad-text {
+  background: linear-gradient(90deg, #8B5CF6, #22D3EE);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.prose-altsr h1 { font-size: 1.9rem; font-weight: 700; margin: 0 0 1rem; line-height: 1.15; }
+.prose-altsr h2 { font-size: 1.25rem; font-weight: 600; margin: 1.8rem 0 .6rem; }
+.prose-altsr p { line-height: 1.75; margin: 0 0 1rem; color: #cdd6e6; }
+.prose-altsr ul { margin: 0 0 1rem 1.1rem; list-style: disc; }
+.prose-altsr li { line-height: 1.7; margin: .2rem 0; color: #cdd6e6; }
+.prose-altsr a { color: #8bd3ff; text-decoration: underline; }
+.prose-altsr em { color: #9AA6C4; font-style: italic; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
+}

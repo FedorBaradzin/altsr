@@ -1,0 +1,28 @@
+{
+  "code": 1,
+  "message": "OK",
+  "result": {
+    "0xtokenabc": {
+      "is_honeypot": "0",
+      "buy_tax": "0.01",
+      "sell_tax": "0.03",
+      "is_open_source": "1",
+      "is_mintable": "0",
+      "owner_change_balance": "0",
+      "can_take_back_ownership": "0",
+      "hidden_owner": "0",
+      "is_blacklisted": "0",
+      "transfer_pausable": "0",
+      "is_proxy": "0",
+      "is_true_token": "1",
+      "holder_count": "742",
+      "lp_holders": [
+        {"is_locked": 1, "percent": "0.92", "tag": "Unicrypt"}
+      ],
+      "holders": [
+        {"percent": "0.08", "tag": "", "is_locked": 0},
+        {"percent": "0.05", "tag": "", "is_locked": 0}
+      ]
+    }
+  }
+}
