@@ -1,7 +1,8 @@
 # ALTSR — прод-compose для Hostinger Docker Manager (без YAML-якорей).
 # Сборка из исходников репозитория, миграции авто, наружу только Caddy (80/443).
-# Секретов в файле нет: JWT backend генерирует сам при первом старте,
-# ключи интеграций по умолчанию пустые (fallback-режим) — задаются позже.
+# Секретов в файле нет: JWT backend генерирует сам при первом старте.
+# Ключи интеграций — через ${VAR} из server-side stack env (Docker Manager),
+# по умолчанию пустые/false → безопасный fallback-режим.
 services:
   postgres:
     image: postgres:16-alpine
@@ -32,6 +33,15 @@ services:
       context: ./backend
     env_file:
       - deploy/.env.deploy
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      NOWPAYMENTS_ENABLED: ${NOWPAYMENTS_ENABLED:-false}
+      NOWPAYMENTS_API_KEY: ${NOWPAYMENTS_API_KEY:-}
+      NOWPAYMENTS_IPN_SECRET: ${NOWPAYMENTS_IPN_SECRET:-}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
     restart: unless-stopped
     command:
       - sh
@@ -56,6 +66,15 @@ services:
       context: ./backend
     env_file:
       - deploy/.env.deploy
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      NOWPAYMENTS_ENABLED: ${NOWPAYMENTS_ENABLED:-false}
+      NOWPAYMENTS_API_KEY: ${NOWPAYMENTS_API_KEY:-}
+      NOWPAYMENTS_IPN_SECRET: ${NOWPAYMENTS_IPN_SECRET:-}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
     restart: unless-stopped
     command: ["python", "-m", "app.worker"]
     depends_on:
@@ -71,6 +90,15 @@ services:
       context: ./backend
     env_file:
       - deploy/.env.deploy
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      NOWPAYMENTS_ENABLED: ${NOWPAYMENTS_ENABLED:-false}
+      NOWPAYMENTS_API_KEY: ${NOWPAYMENTS_API_KEY:-}
+      NOWPAYMENTS_IPN_SECRET: ${NOWPAYMENTS_IPN_SECRET:-}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
     restart: unless-stopped
     command: ["python", "-m", "app.screen_worker"]
     depends_on:
@@ -86,6 +114,15 @@ services:
       context: ./backend
     env_file:
       - deploy/.env.deploy
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      NOWPAYMENTS_ENABLED: ${NOWPAYMENTS_ENABLED:-false}
+      NOWPAYMENTS_API_KEY: ${NOWPAYMENTS_API_KEY:-}
+      NOWPAYMENTS_IPN_SECRET: ${NOWPAYMENTS_IPN_SECRET:-}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
     restart: unless-stopped
     command: ["python", "-m", "app.signal_worker"]
     depends_on:
@@ -101,6 +138,15 @@ services:
       context: ./backend
     env_file:
       - deploy/.env.deploy
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      NOWPAYMENTS_ENABLED: ${NOWPAYMENTS_ENABLED:-false}
+      NOWPAYMENTS_API_KEY: ${NOWPAYMENTS_API_KEY:-}
+      NOWPAYMENTS_IPN_SECRET: ${NOWPAYMENTS_IPN_SECRET:-}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
     restart: unless-stopped
     command: ["python", "-m", "app.paper_worker"]
     depends_on:
@@ -114,6 +160,15 @@ services:
       context: ./backend
     env_file:
       - deploy/.env.deploy
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      NOWPAYMENTS_ENABLED: ${NOWPAYMENTS_ENABLED:-false}
+      NOWPAYMENTS_API_KEY: ${NOWPAYMENTS_API_KEY:-}
+      NOWPAYMENTS_IPN_SECRET: ${NOWPAYMENTS_IPN_SECRET:-}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
     restart: unless-stopped
     command: ["python", "-m", "app.ai_worker"]
     depends_on:
@@ -129,7 +184,7 @@ services:
         NEXT_PUBLIC_API_BASE: https://altsr.space
         NEXT_PUBLIC_WS_BASE: wss://altsr.space
         NEXT_PUBLIC_SITE_URL: https://altsr.space
-        NEXT_PUBLIC_TELEGRAM_BOT: ""
+        NEXT_PUBLIC_TELEGRAM_BOT: ${NEXT_PUBLIC_TELEGRAM_BOT:-}
     restart: unless-stopped
     depends_on:
       - backend
