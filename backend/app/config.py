@@ -112,9 +112,20 @@ class Settings(BaseSettings):
 
     # --- Контент-движок: SEO-статьи из новостей (оригинальный разбор, не копия) ---
     content_enabled: bool = Field(default=True, alias="CONTENT_ENABLED")
-    articles_per_day: int = Field(default=5, alias="ARTICLES_PER_DAY")
+    articles_per_day: int = Field(default=5, alias="ARTICLES_PER_DAY")  # тем/день
     content_lang: str = Field(default="en", alias="CONTENT_LANG")
+    # Языки SEO-статей: на каждую тему генерируем версию на каждом языке.
+    content_langs_raw: str = Field(default="en,ru", alias="CONTENT_LANGS")
     site_url: str = Field(default="https://altsr.app", alias="SITE_URL")
+
+    @property
+    def content_langs(self) -> list[str]:
+        seen: list[str] = []
+        for x in self.content_langs_raw.split(","):
+            v = x.strip().lower()
+            if v and v not in seen:
+                seen.append(v)
+        return seen or [self.content_lang]
 
     # --- Metricool: авто-постинг статей в соцсети (OFF по умолчанию) ---
     metricool_enabled: bool = Field(default=False, alias="METRICOOL_ENABLED")

@@ -109,6 +109,12 @@ const ru: Dict = {
   "tour.s5.t": "Консультант 24/7",
   "tour.s5.x": "Нажмите, чтобы спросить что угодно о платформе в любое время.",
 
+  "blog.back": "← ALTSR",
+  "blog.title": "Крипто-новости и ресёрч токенов",
+  "blog.sub": "Оригинальные, нейтральные разборы событий по новым токенам. Скрининг вместо хайпа — не инвест-рекомендация.",
+  "blog.empty": "Пока нет статей. Движок публикует новые материалы каждый день.",
+  "blog.source": "источник",
+
   "assistant.open": "Открыть консультанта",
   "assistant.greeting": "Привет! Я консультант ALTSR. Спросите про скрининг, сигналы, бумажную симуляцию или тарифы.",
   "assistant.title": "Консультант ALTSR · 24/7",
@@ -216,6 +222,12 @@ const en: Dict = {
   "tour.s4.x": "On the right — fresh BUY signals with a \"where to buy\" block, and news with an AI breakdown.",
   "tour.s5.t": "24/7 consultant",
   "tour.s5.x": "Tap to ask anything about the platform, any time.",
+
+  "blog.back": "← ALTSR",
+  "blog.title": "Crypto News & Token Research",
+  "blog.sub": "Original, neutral breakdowns of new-token events. Screening over hype — not financial advice.",
+  "blog.empty": "No articles yet. The engine publishes new pieces daily.",
+  "blog.source": "source",
 
   "assistant.open": "Open the consultant",
   "assistant.greeting": "Hi! I'm the ALTSR consultant. Ask about screening, signals, paper simulation or pricing.",

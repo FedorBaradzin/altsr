@@ -76,13 +76,17 @@ async def generate_articles(session: AsyncSession, s: Settings, http: HttpClient
     """Собрать до дневной планки оригинальных SEO-статей из классифицированных новостей."""
     if not s.content_enabled:
         return 0
+    langs = s.content_langs
     start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    today = (
+    # Дневная планка — по ТЕМАМ (на каждую тему — версия на каждом языке).
+    today_topics = (
         await session.execute(
-            select(func.count()).select_from(Article).where(Article.published_at >= start)
+            select(func.count(func.distinct(Article.news_id))).where(
+                Article.published_at >= start
+            )
         )
     ).scalar_one()
-    remaining = s.articles_per_day - today
+    remaining = s.articles_per_day - today_topics
     if remaining <= 0:
         return 0
 
@@ -97,19 +101,20 @@ async def generate_articles(session: AsyncSession, s: Settings, http: HttpClient
     rows = (await session.execute(stmt)).scalars().all()
     made = 0
     for n in rows:
-        art = await generate_article(
-            title=n.title, summary=n.summary, catalyst=n.catalyst,
-            source_name=n.source, source_url=n.url, s=s, http=http,
-        )
-        slug = await _unique_slug(session, slugify(art["title"]))
-        session.add(Article(
-            slug=slug, lang=art["lang"], title=art["title"],
-            meta_description=art["meta_description"], keywords=art["keywords"],
-            body=art["body"], source_url=n.url, source_name=n.source, news_id=n.id,
-            model=art["model"], status="published", published_at=datetime.now(timezone.utc),
-        ))
-        await session.flush()
-        made += 1
+        for lang in langs:
+            art = await generate_article(
+                title=n.title, summary=n.summary, catalyst=n.catalyst,
+                source_name=n.source, source_url=n.url, s=s, http=http, lang=lang,
+            )
+            slug = await _unique_slug(session, slugify(art["title"]))
+            session.add(Article(
+                slug=slug, lang=art["lang"], title=art["title"],
+                meta_description=art["meta_description"], keywords=art["keywords"],
+                body=art["body"], source_url=n.url, source_name=n.source, news_id=n.id,
+                model=art["model"], status="published", published_at=datetime.now(timezone.utc),
+            ))
+            await session.flush()
+            made += 1
     return made
 
 

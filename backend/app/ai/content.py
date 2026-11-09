@@ -22,7 +22,21 @@ DISCLAIMER = ("Disclaimer: this article is for information only, not financial a
              "Trading new tokens is extremely high-risk — most new tokens go to zero.")
 
 
+_TRANSLIT = {
+    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e",
+    "ж": "zh", "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m",
+    "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u",
+    "ф": "f", "х": "h", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "sch",
+    "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya",
+}
+
+
+def _translit(text: str) -> str:
+    return "".join(_TRANSLIT.get(ch, _TRANSLIT.get(ch.lower(), ch)) for ch in text)
+
+
 def slugify(text: str, max_len: int = 80) -> str:
+    text = _translit(text)
     text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
     text = re.sub(r"[^a-zA-Z0-9\s-]", "", text).strip().lower()
     text = re.sub(r"[\s_-]+", "-", text)
@@ -89,9 +103,13 @@ def _sanitize(d: dict[str, Any], lang: str, source_name, source_url) -> dict[str
             "body": body, "model": d.get("model", "llm"), "lang": lang}
 
 
+_LANG_NAME = {"en": "English", "ru": "Russian", "es": "Spanish", "de": "German"}
+
+
 async def _llm_article(title, summary, catalyst, lang, s, http, source_name, source_url):
+    lang_name = _LANG_NAME.get(lang, lang)
     sys = (
-        f"You are a crypto writer. Write an ORIGINAL SEO article in {lang} about the news below. "
+        f"You are a crypto writer. Write an ORIGINAL SEO article in {lang_name} about the news below. "
         "Do NOT copy the source text — synthesize in your own words. Neutral, useful, no hype, "
         "no price predictions. Return strict JSON: "
         '{"title": "<=60 chars, keyword-rich", "meta_description": "<=155 chars", '
@@ -123,8 +141,9 @@ async def _llm_article(title, summary, catalyst, lang, s, http, source_name, sou
 async def generate_article(
     *, title: str, summary: str | None, catalyst: str | None,
     source_name: str | None, source_url: str | None, s: Settings, http: HttpClient,
+    lang: str | None = None,
 ) -> dict[str, Any]:
-    lang = s.content_lang
+    lang = lang or s.content_lang
     if s.ai_enabled and s.ai_api_key:
         res = await _llm_article(title, summary, catalyst, lang, s, http, source_name, source_url)
         if res is not None:
