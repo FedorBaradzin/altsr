@@ -21,18 +21,29 @@ export default function Tour() {
     if (typeof window !== "undefined" && !localStorage.getItem(KEY)) setPhase("welcome");
   }, []);
 
+  // Only READ the element's position — never scroll from here. This runs on
+  // every scroll/resize event, so scrolling here would feed back into itself
+  // and hang the page (the smooth scroll restarts on every frame it emits).
   const measure = useCallback(() => {
     const el = document.querySelector(STEPS[i]?.sel);
-    if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); setRect(el.getBoundingClientRect()); }
-    else setRect(null);
+    setRect(el ? el.getBoundingClientRect() : null);
   }, [i]);
 
   useEffect(() => {
     if (phase !== "tour") return;
-    const t = setTimeout(measure, 120);
+    // Scroll to the step exactly once, when the step changes.
+    const el = document.querySelector(STEPS[i]?.sel);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Re-measure a few times while the smooth scroll settles, then track
+    // further scroll/resize so the highlight follows without re-scrolling.
+    const timers = [setTimeout(measure, 60), setTimeout(measure, 250), setTimeout(measure, 500)];
     window.addEventListener("resize", measure);
     window.addEventListener("scroll", measure, true);
-    return () => { clearTimeout(t); window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure, true); };
+    return () => {
+      timers.forEach(clearTimeout);
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure, true);
+    };
   }, [phase, i, measure]);
 
   const finish = () => { localStorage.setItem(KEY, "1"); setPhase(null); setI(0); };
