@@ -1,0 +1,141 @@
+# ALTSR — единый прод-compose для Hostinger Docker Manager (деплой из Git).
+# Сборка из исходников, миграции авто, секреты в deploy/.env.deploy,
+# наружу открыт только Caddy (80/443) с авто-HTTPS для altsr.space.
+x-backend: &backend
+  build: ./backend
+  env_file: deploy/.env.deploy
+  restart: unless-stopped
+  # Секреты и переключатели — из переменных окружения стека (Docker Manager).
+  # Пустые по умолчанию => fallback-режим. JWT_SECRET обязателен.
+  environment:
+    JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET as a stack env var in Docker Manager}
+    AI_ENABLED: ${AI_ENABLED:-false}
+    AI_API_KEY: ${AI_API_KEY:-}
+    GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+    TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+    NOWPAYMENTS_API_KEY: ${NOWPAYMENTS_API_KEY:-}
+    NOWPAYMENTS_IPN_SECRET: ${NOWPAYMENTS_IPN_SECRET:-}
+    METRICOOL_ENABLED: ${METRICOOL_ENABLED:-false}
+    METRICOOL_USER_TOKEN: ${METRICOOL_USER_TOKEN:-}
+    METRICOOL_USER_ID: ${METRICOOL_USER_ID:-}
+    METRICOOL_BLOG_ID: ${METRICOOL_BLOG_ID:-}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: altsr
+      POSTGRES_PASSWORD: altsr
+      POSTGRES_DB: altsr
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U altsr"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    <<: *backend
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    <<: *backend
+    command: ["python", "-m", "app.worker"]
+    depends_on:
+      backend:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  screener:
+    <<: *backend
+    command: ["python", "-m", "app.screen_worker"]
+    depends_on:
+      backend:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  signals:
+    <<: *backend
+    command: ["python", "-m", "app.signal_worker"]
+    depends_on:
+      backend:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  paper:
+    <<: *backend
+    command: ["python", "-m", "app.paper_worker"]
+    depends_on:
+      backend:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+
+  ai:
+    <<: *backend
+    command: ["python", "-m", "app.ai_worker"]
+    depends_on:
+      backend:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE: https://altsr.space
+        NEXT_PUBLIC_WS_BASE: wss://altsr.space
+        NEXT_PUBLIC_SITE_URL: https://altsr.space
+        NEXT_PUBLIC_TELEGRAM_BOT: ""
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
