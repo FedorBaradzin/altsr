@@ -115,6 +115,13 @@ const ru: Dict = {
   "blog.empty": "Пока нет статей. Движок публикует новые материалы каждый день.",
   "blog.source": "источник",
 
+  "nav.reels": "Рилсы",
+  "reels.title": "Рилсы выгодных сделок",
+  "reels.sub": "Лучшие прибыльные сделки бумажного счёта. Откройте рилс и запишите экран для Instagram / TikTok / Shorts.",
+  "reels.empty": "Пока нет прибыльных закрытых сделок для рилсов. Загляните позже.",
+  "reels.open": "Открыть рилс ↗",
+  "reels.profit": "прибыль",
+
   "assistant.open": "Открыть консультанта",
   "assistant.greeting": "Привет! Я консультант ALTSR. Спросите про скрининг, сигналы, бумажную симуляцию или тарифы.",
   "assistant.title": "Консультант ALTSR · 24/7",
@@ -228,6 +235,13 @@ const en: Dict = {
   "blog.sub": "Original, neutral breakdowns of new-token events. Screening over hype — not financial advice.",
   "blog.empty": "No articles yet. The engine publishes new pieces daily.",
   "blog.source": "source",
+
+  "nav.reels": "Reels",
+  "reels.title": "Reels of winning trades",
+  "reels.sub": "Your paper account's best winners. Open a reel and screen-record it for Instagram / TikTok / Shorts.",
+  "reels.empty": "No winning closed trades yet. Check back later.",
+  "reels.open": "Open reel ↗",
+  "reels.profit": "profit",
 
   "assistant.open": "Open the consultant",
   "assistant.greeting": "Hi! I'm the ALTSR consultant. Ask about screening, signals, paper simulation or pricing.",

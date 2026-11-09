@@ -91,9 +91,46 @@ async def paper_positions(
     )
 
 
+@router.get("/reels/top")
+async def top_reels(
+    session: AsyncSession = Depends(get_session),
+    limit: int = Query(default=12, ge=1, le=50),
+    min_pnl_pct: float = Query(default=5.0, description="минимальная прибыль, %"),
+) -> dict:
+    """Лучшие прибыльные сделки — исходные данные для рилсов (выгодные сделки)."""
+    rows = (
+        await session.execute(
+            select(PaperPosition)
+            .where(
+                PaperPosition.status == "closed",
+                PaperPosition.pnl_pct.is_not(None),
+                PaperPosition.pnl_pct >= min_pnl_pct,
+            )
+            .order_by(PaperPosition.pnl_pct.desc())
+            .limit(limit)
+        )
+    ).scalars().all()
+    items = [
+        {
+            "id": p.id,
+            "symbol": p.symbol or p.address[:8],
+            "chain": p.chain,
+            "pnl_pct": round(p.pnl_pct or 0.0, 1),
+            "pnl_usd": round(p.realized_pnl_usd, 0),
+            "exit_reason": p.exit_reason,
+            "closed_at": p.closed_at.isoformat() if p.closed_at else None,
+            "reel_url": f"/api/paper/positions/{p.id}/reel",
+        }
+        for p in rows
+    ]
+    return {"items": items, "total": len(items)}
+
+
 @router.get("/positions/{position_id}/reel", response_class=HTMLResponse)
 async def position_reel(
-    position_id: int, session: AsyncSession = Depends(get_session)
+    position_id: int,
+    session: AsyncSession = Depends(get_session),
+    lang: str = Query(default="ru"),
 ) -> HTMLResponse:
     """Рилс (вертикальный анимированный ролик) по позиции — как запись экрана платформы."""
     pos = (
@@ -124,7 +161,7 @@ async def position_reel(
         exit_reason=pos.exit_reason,
         confidence=signal.confidence if signal else None,
     )
-    return HTMLResponse(content=render_reel_html(data))
+    return HTMLResponse(content=render_reel_html(data, lang))
 
 
 def _unrealized_pct(p: PaperPosition) -> float:

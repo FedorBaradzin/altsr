@@ -68,6 +68,7 @@ export default function Dashboard() {
           <nav data-tour="account" className="flex items-center gap-5 text-sm text-muted">
             <Link href="/pricing" className="hidden hover:text-ink sm:inline">{t("nav.pricing")}</Link>
             <Link href="/blog" className="hidden hover:text-ink sm:inline">{t("nav.blog")}</Link>
+            <Link href="/reels" className="hidden hover:text-ink sm:inline">{t("nav.reels")}</Link>
             <LangSwitcher />
             {me ? (
               <span className="rounded-full px-3 py-1 text-xs" style={{ background: "rgba(139,92,246,.18)", color: "#c4b5fd" }}>

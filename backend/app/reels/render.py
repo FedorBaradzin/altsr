@@ -49,18 +49,34 @@ def _spark_path(pnl_pct: float, w: int = 360, h: int = 90) -> str:
     return "M" + " L".join(pts)
 
 
-def render_reel_html(d: ReelData) -> str:
+_LABELS = {
+    "ru": {
+        "closed": "ПОЗИЦИЯ ЗАКРЫТА", "open": "ОТКРЫТАЯ ПОЗИЦИЯ", "running": "ведётся",
+        "entry": "Вход", "exit": "Выход", "reason": "ПРИЧИНА ВЫХОДА",
+        "disc": "Бумажная симуляция · не инвест-рекомендация · ~98% новых токенов обнуляются",
+    },
+    "en": {
+        "closed": "POSITION CLOSED", "open": "OPEN POSITION", "running": "running",
+        "entry": "Entry", "exit": "Exit", "reason": "EXIT REASON",
+        "disc": "Paper simulation · not financial advice · ~98% of new tokens go to zero",
+    },
+}
+
+
+def render_reel_html(d: ReelData, lang: str = "ru") -> str:
+    lx = _LABELS.get(lang, _LABELS["ru"])
     vcol = _vcolor(d.verdict)
     pnl_sign = "+" if d.pnl_pct >= 0 else ""
     pnl_col = "#34D399" if d.pnl_pct >= 0 else "#F87171"
-    status_label = "ПОЗИЦИЯ ЗАКРЫТА" if d.status == "closed" else "ОТКРЫТАЯ ПОЗИЦИЯ"
-    reason = html.escape(d.exit_reason or ("ведётся" if d.status == "open" else "—"))
+    status_label = lx["closed"] if d.status == "closed" else lx["open"]
+    reason = html.escape(d.exit_reason or (lx["running"] if d.status == "open" else "—"))
     sym = html.escape(d.symbol)
     chain = html.escape(d.chain)
     spark = _spark_path(d.pnl_pct)
     conf = f"{round(d.confidence * 100)}%" if d.confidence is not None else "—"
 
     return _TEMPLATE \
+        .replace("{{HTMLLANG}}", "en" if lang == "en" else "ru") \
         .replace("{{SYM}}", sym) \
         .replace("{{CHAIN}}", chain) \
         .replace("{{VERDICT}}", html.escape(d.verdict)) \
@@ -75,11 +91,15 @@ def render_reel_html(d: ReelData) -> str:
         .replace("{{PNLCOL}}", pnl_col) \
         .replace("{{REASON}}", reason) \
         .replace("{{CONF}}", conf) \
+        .replace("{{L_ENTRY}}", lx["entry"]) \
+        .replace("{{L_EXIT}}", lx["exit"]) \
+        .replace("{{L_REASON}}", lx["reason"]) \
+        .replace("{{DISC}}", lx["disc"]) \
         .replace("{{SPARK}}", spark)
 
 
 _TEMPLATE = """<!DOCTYPE html>
-<html lang="ru"><head><meta charset="utf-8">
+<html lang="{{HTMLLANG}}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ALTSR reel · {{SYM}}</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
@@ -144,10 +164,10 @@ html,body{margin:0;height:100%;background:#05060B;overflow:hidden;font-family:In
       <style>@keyframes draw{to{stroke-dashoffset:0}}</style>
     </svg>
 
-    <div class="row reveal r4"><span>Вход <b>{{ENTRY}}</b></span><span>Выход <b>{{LAST}}</b></span></div>
+    <div class="row reveal r4"><span>{{L_ENTRY}} <b>{{ENTRY}}</b></span><span>{{L_EXIT}} <b>{{LAST}}</b></span></div>
 
-    <div class="reason reveal r5"><div class="l">ПРИЧИНА ВЫХОДА</div><div style="margin-top:4px">{{REASON}}</div></div>
-    <div class="disc reveal r5">Бумажная симуляция · не инвест-рекомендация · ~98% новых токенов обнуляются</div>
+    <div class="reason reveal r5"><div class="l">{{L_REASON}}</div><div style="margin-top:4px">{{REASON}}</div></div>
+    <div class="disc reveal r5">{{DISC}}</div>
   </div>
 </div>
 <script>

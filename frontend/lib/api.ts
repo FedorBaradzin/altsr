@@ -176,3 +176,24 @@ export function explorerUrl(t: Token): string {
   if (t.chain === "bsc") return `https://bscscan.com/token/${t.address}`;
   return `https://dexscreener.com/${t.chain}/${t.address}`;
 }
+
+export type TopReel = {
+  id: number;
+  symbol: string;
+  chain: string;
+  pnl_pct: number;
+  pnl_usd: number;
+  exit_reason: string | null;
+  closed_at: string | null;
+  reel_url: string;
+};
+
+export async function fetchTopReels(limit = 12): Promise<{ items: TopReel[]; total: number }> {
+  const res = await fetch(`${API_BASE}/api/paper/reels/top?limit=${limit}`, { next: { revalidate: 120 } });
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  return res.json();
+}
+
+export function reelUrl(id: number, lang: string): string {
+  return `${API_BASE}/api/paper/positions/${id}/reel?lang=${lang}`;
+}
