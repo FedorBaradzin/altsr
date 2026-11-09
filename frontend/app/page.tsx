@@ -1,20 +1,26 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import GalaxyHero from "@/components/GalaxyHero";
-
-const FEATURES = [
-  ["⚡", "Быстрый поиск новинок", "Лента только что созданных пар в реальном времени."],
-  ["🛡", "Анти-скам скрининг", "GoPlus · RugCheck · honeypot.is → вердикт PASS / REVIEW / BLOCK."],
-  ["📈", "Симуляция стратегий", "Бумажный вход/выход с честной статистикой до реальных денег."],
-];
-const PIPELINE = [
-  ["Discover", "Поиск новинок", "#22D3EE"],
-  ["Safety", "Анти-скам проверки", "#34D399"],
-  ["Signal", "Оценка и рейтинг", "#8B5CF6"],
-  ["Paper", "Симуляция стратегии", "#FBBF24"],
-  ["AI", "Новости, контекст, риск", "#A78BFA"],
-];
+import LangSwitcher from "@/components/LangSwitcher";
+import { LANG_COOKIE, normalizeLang, translate } from "@/lib/i18n";
 
 export default function Landing() {
+  const lang = normalizeLang(cookies().get(LANG_COOKIE)?.value);
+  const t = (k: string) => translate(lang, k);
+
+  const FEATURES: [string, string][] = [
+    ["⚡", t("feat.discover.t")],
+    ["🛡", t("feat.safety.t")],
+    ["📈", t("feat.sim.t")],
+  ];
+  const PIPELINE: [string, string, string][] = [
+    [t("pipe.discover.n"), t("pipe.discover.s"), "#22D3EE"],
+    [t("pipe.safety.n"), t("pipe.safety.s"), "#34D399"],
+    [t("pipe.signal.n"), t("pipe.signal.s"), "#8B5CF6"],
+    [t("pipe.paper.n"), t("pipe.paper.s"), "#FBBF24"],
+    [t("pipe.ai.n"), t("pipe.ai.s"), "#A78BFA"],
+  ];
+
   return (
     <main>
       {/* HERO */}
@@ -27,32 +33,34 @@ export default function Landing() {
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl font-sg text-xl font-bold text-[#0a0b16]"
               style={{ background: "linear-gradient(135deg,#10B981,#22D3EE)", boxShadow: "0 0 30px rgba(139,92,246,.5)" }}>◎</div>
-            <div><div className="font-sg text-lg font-bold">ALTSR</div><div className="-mt-0.5 text-[11px] text-muted">Early Crypto Radar</div></div>
+            <div><div className="font-sg text-lg font-bold">ALTSR</div><div className="-mt-0.5 text-[11px] text-muted">{t("brand.tagline")}</div></div>
           </div>
           <nav className="hidden items-center gap-7 text-sm text-muted md:flex">
-            <Link href="/app" className="hover:text-ink">Радар</Link>
-            <Link href="/pricing" className="hover:text-ink">Тарифы</Link>
-            <Link href="/blog" className="hover:text-ink">Блог</Link>
-            <a href="#how" className="hover:text-ink">О системе</a>
+            <Link href="/app" className="hover:text-ink">{t("nav.radar")}</Link>
+            <Link href="/pricing" className="hover:text-ink">{t("nav.pricing")}</Link>
+            <Link href="/blog" className="hover:text-ink">{t("nav.blog")}</Link>
+            <a href="#how" className="hover:text-ink">{t("nav.about")}</a>
           </nav>
-          <Link href="/app" className="glass px-4 py-2 text-sm">Войти в радар →</Link>
+          <div className="flex items-center gap-3">
+            <LangSwitcher />
+            <Link href="/app" className="glass px-4 py-2 text-sm">{t("nav.enter")}</Link>
+          </div>
         </header>
 
         <div className="absolute left-5 top-[26%] z-10 max-w-[620px] rounded-3xl p-7 md:left-9 md:p-8"
           style={{ background: "linear-gradient(100deg,rgba(5,6,11,.78) 0%,rgba(5,6,11,.72) 44%,rgba(5,6,11,.4) 68%,transparent 94%)", backdropFilter: "blur(6px)" }}>
-          <p className="mb-2 text-xs tracking-[3px] text-violet">CRYPTO NEURAL UNIVERSE</p>
+          <p className="mb-2 text-xs tracking-[3px] text-violet">{t("hero.eyebrow")}</p>
           <h1 className="font-sg text-[clamp(34px,5vw,60px)] font-bold leading-[1.03]"
             style={{ textShadow: "0 2px 30px rgba(5,6,11,.75)" }}>
-            Ранний радар <span className="grad-text">новых криптотокенов</span>
+            {t("hero.title1")} <span className="grad-text">{t("hero.title2")}</span>
           </h1>
           <p className="mb-6 mt-4 max-w-[440px] text-[16px] leading-relaxed text-muted">
-            Каждый токен — светящийся объект, экосистема — галактика. Находим новинки, проверяем
-            на скам, даём сигнал и симулируем вход на бумаге.
+            {t("hero.sub")}
           </p>
           <div className="flex flex-wrap gap-6">
-            {FEATURES.map(([i, t]) => (
-              <div key={t} className="flex items-center gap-3 text-sm text-[#C7D0EA]">
-                <span className="glass flex h-9 w-9 items-center justify-center">{i}</span>{t}
+            {FEATURES.map(([i, label]) => (
+              <div key={label} className="flex items-center gap-3 text-sm text-[#C7D0EA]">
+                <span className="glass flex h-9 w-9 items-center justify-center">{i}</span>{label}
               </div>
             ))}
           </div>
@@ -61,8 +69,8 @@ export default function Landing() {
 
       {/* HOW IT WORKS */}
       <section id="how" className="mx-auto max-w-5xl px-6 py-20">
-        <p className="mb-1 text-xs tracking-[3px] text-violet">КАК РАБОТАЕТ</p>
-        <h2 className="mb-8 font-sg text-2xl font-bold">Вселенная данных — в рабочем терминале</h2>
+        <p className="mb-1 text-xs tracking-[3px] text-violet">{t("how.eyebrow")}</p>
+        <h2 className="mb-8 font-sg text-2xl font-bold">{t("how.title")}</h2>
         <div className="flex flex-wrap items-center gap-3">
           {PIPELINE.map(([name, sub, color], i) => (
             <div key={name} className="flex items-center gap-3">
@@ -77,12 +85,11 @@ export default function Landing() {
         </div>
         <div className="mt-10 flex flex-wrap gap-3">
           <Link href="/app" className="rounded-xl px-5 py-3 font-sg text-sm font-semibold text-[#06231c]"
-            style={{ background: "linear-gradient(135deg,#10B981,#22D3EE)" }}>Открыть радар</Link>
-          <Link href="/blog" className="glass px-5 py-3 text-sm">Читать блог</Link>
+            style={{ background: "linear-gradient(135deg,#10B981,#22D3EE)" }}>{t("cta.openRadar")}</Link>
+          <Link href="/blog" className="glass px-5 py-3 text-sm">{t("cta.readBlog")}</Link>
         </div>
         <p className="mt-8 text-xs leading-relaxed text-dim">
-          Не инвест-рекомендация. Торговля новыми токенами — крайне высокий риск полной потери
-          средств. ~98% новых токенов обнуляются. Платформа про скрининг и симуляцию.
+          {t("disc.landing")}
         </p>
       </section>
     </main>

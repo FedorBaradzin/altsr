@@ -9,6 +9,8 @@ import {
 } from "@/lib/api";
 import { getToken, setToken, fetchMe, type Me } from "@/lib/auth";
 import Tour from "@/components/Tour";
+import LangSwitcher from "@/components/LangSwitcher";
+import { useLang } from "@/components/LangProvider";
 
 const vcol = (v: string | null) =>
   v === "PASS" ? "#34D399" : v === "REVIEW" ? "#FBBF24" : v === "BLOCK" ? "#F87171" : "#8B5CF6";
@@ -22,6 +24,7 @@ function Badge({ v, risk }: { v: string | null; risk: number | null }) {
 }
 
 export default function Dashboard() {
+  const { t } = useLang();
   const [tokens, setTokens] = useState<Token[]>([]);
   const [paper, setPaper] = useState<PaperSummary | null>(null);
   const [signals, setSignals] = useState<Signal[]>([]);
@@ -41,18 +44,18 @@ export default function Dashboard() {
 
   const load = useCallback(async () => {
     try {
-      const [t, p, s, n] = await Promise.all([
+      const [tk, p, s, n] = await Promise.all([
         fetchTokens({ limit: 40 }), fetchPaperSummary().catch(() => null),
         fetchSignals(10).catch(() => ({ items: [] as Signal[], total: 0 })),
         fetchNews(8).catch(() => ({ items: [] as NewsItem[], total: 0 })),
       ]);
-      setTokens(t.items); setPaper(p); setSignals(s.items); setNews(n.items); setErr(null);
+      setTokens(tk.items); setPaper(p); setSignals(s.items); setNews(n.items); setErr(null);
     } catch (e) { setErr(String(e)); }
   }, []);
 
   useEffect(() => { load(); const id = setInterval(load, 15000); return () => clearInterval(id); }, [load]);
 
-  const openRisk = async (t: Token) => setSel({ t, s: await fetchSafety(t.id).catch(() => null) });
+  const openRisk = async (tk: Token) => setSel({ t: tk, s: await fetchSafety(tk.id).catch(() => null) });
 
   return (
     <main className="min-h-screen" style={{ background: "radial-gradient(60% 40% at 80% 0%,rgba(139,92,246,.08),transparent 60%),#05060B" }}>
@@ -60,19 +63,20 @@ export default function Dashboard() {
         <header className="mb-5 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl font-sg font-bold text-[#0a0b16]" style={{ background: "linear-gradient(135deg,#10B981,#22D3EE)" }}>◎</div>
-            <div><div className="font-sg font-bold">ALTSR</div><div className="-mt-0.5 text-[10px] text-muted">Early Crypto Radar</div></div>
+            <div><div className="font-sg font-bold">ALTSR</div><div className="-mt-0.5 text-[10px] text-muted">{t("brand.tagline")}</div></div>
           </Link>
           <nav data-tour="account" className="flex items-center gap-5 text-sm text-muted">
-            <Link href="/pricing" className="hover:text-ink">Тарифы</Link>
-            <Link href="/blog" className="hover:text-ink">Блог</Link>
+            <Link href="/pricing" className="hidden hover:text-ink sm:inline">{t("nav.pricing")}</Link>
+            <Link href="/blog" className="hidden hover:text-ink sm:inline">{t("nav.blog")}</Link>
+            <LangSwitcher />
             {me ? (
               <span className="rounded-full px-3 py-1 text-xs" style={{ background: "rgba(139,92,246,.18)", color: "#c4b5fd" }}>
-                {me.display_name || "Аккаунт"} · {me.tier}
+                {me.display_name || t("nav.account")} · {me.tier}
               </span>
             ) : (
-              <Link href="/login" className="glass px-3 py-1.5 text-xs">Войти</Link>
+              <Link href="/login" className="glass px-3 py-1.5 text-xs">{t("nav.login")}</Link>
             )}
-            <span className="flex items-center gap-2 text-[#7df3c0]"><span className="h-2 w-2 rounded-full" style={{ background: "#34D399", boxShadow: "0 0 0 4px rgba(52,211,153,.15)" }} />live</span>
+            <span className="flex items-center gap-2 text-[#7df3c0]"><span className="h-2 w-2 rounded-full" style={{ background: "#34D399", boxShadow: "0 0 0 4px rgba(52,211,153,.15)" }} />{t("dash.live")}</span>
           </nav>
         </header>
 
@@ -80,13 +84,13 @@ export default function Dashboard() {
         {paper && (
           <div data-tour="paper" className="glass mb-5 flex flex-wrap items-center gap-5 px-5 py-4">
             <div className="pr-4" style={{ borderRight: "1px solid var(--line)" }}>
-              <div className="text-[11px] text-muted">Бумажный счёт</div>
+              <div className="text-[11px] text-muted">{t("dash.paperAccount")}</div>
               <div className="font-sg text-xl font-bold">${paper.equity.toLocaleString()}</div>
             </div>
-            <Stat l="Доходность" v={`${paper.return_pct >= 0 ? "+" : ""}${paper.return_pct}%`} up={paper.return_pct >= 0} />
-            <Stat l="Win-rate" v={paper.win_rate != null ? `${Math.round(paper.win_rate * 100)}%` : "—"} />
-            <Stat l="Позиции" v={`${paper.open_positions} откр.`} />
-            <Stat l="Реализ. P&L" v={`${paper.realized_pnl >= 0 ? "+" : ""}$${Math.abs(paper.realized_pnl).toLocaleString()}`} up={paper.realized_pnl >= 0} />
+            <Stat l={t("dash.return")} v={`${paper.return_pct >= 0 ? "+" : ""}${paper.return_pct}%`} up={paper.return_pct >= 0} />
+            <Stat l={t("dash.winrate")} v={paper.win_rate != null ? `${Math.round(paper.win_rate * 100)}%` : "—"} />
+            <Stat l={t("dash.positions")} v={`${paper.open_positions} ${t("dash.positionsSuffix")}`} />
+            <Stat l={t("dash.realizedPnl")} v={`${paper.realized_pnl >= 0 ? "+" : ""}$${Math.abs(paper.realized_pnl).toLocaleString()}`} up={paper.realized_pnl >= 0} />
           </div>
         )}
 
@@ -94,44 +98,46 @@ export default function Dashboard() {
           {/* feed */}
           <div data-tour="feed" className="glass overflow-hidden">
             <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: "var(--line)" }}>
-              <h2 className="font-sg text-[15px] font-semibold">Лента токенов</h2>
+              <h2 className="font-sg text-[15px] font-semibold">{t("feed.title")}</h2>
             </div>
-            {err && <p className="px-5 py-3 text-sm text-block">Нет связи с API ({err}). Запустите backend.</p>}
-            <table className="w-full text-sm">
-              <thead><tr className="text-left text-[11px] uppercase tracking-wider text-dim">
-                <th className="px-5 py-3 font-semibold">Токен</th><th className="px-2 py-3 font-semibold">Вердикт</th>
-                <th className="px-2 py-3 font-semibold">Сигнал</th><th className="px-2 py-3 text-right font-semibold">Ликв.</th>
-                <th className="px-5 py-3 font-semibold" />
-              </tr></thead>
-              <tbody>
-                {tokens.map((t) => (
-                  <tr key={t.id} className="cursor-pointer border-t hover:bg-violet/5" style={{ borderColor: "var(--line)" }} onClick={() => openRisk(t)}>
-                    <td className="px-5 py-3"><b className="font-sg">{t.symbol || t.address.slice(0, 8)}</b> <span className="text-[11px] text-dim">· {t.chain}</span></td>
-                    <td className="px-2 py-3"><Badge v={t.verdict} risk={t.risk_score} /></td>
-                    <td className="px-2 py-3">{t.signal_confidence != null ? <span className="rounded-md px-2 py-0.5 text-xs font-semibold" style={{ background: "rgba(139,92,246,.18)", color: "#c4b5fd" }}>⚡ {Math.round(t.signal_confidence * 100)}%</span> : <span className="text-dim">—</span>}</td>
-                    <td className="px-2 py-3 text-right font-sg">{fmt(t.liquidity_usd)}</td>
-                    <td className="px-5 py-3">{t.verdict === "BLOCK" ? <span className="text-dim">заблок.</span> : <a href={buyUrl(t)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="rounded-lg px-3 py-1 text-xs" style={{ background: "rgba(139,92,246,.16)", border: "1px solid rgba(139,92,246,.4)", color: "#d8ccff" }}>купить ↗</a>}</td>
-                  </tr>
-                ))}
-                {tokens.length === 0 && !err && <tr><td colSpan={5} className="px-5 py-10 text-center text-muted">Лента наполнится, когда запущен discovery-воркер.</td></tr>}
-              </tbody>
-            </table>
+            {err && <p className="px-5 py-3 text-sm text-block">{t("feed.noApi", { err })}</p>}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="text-left text-[11px] uppercase tracking-wider text-dim">
+                  <th className="px-5 py-3 font-semibold">{t("col.token")}</th><th className="px-2 py-3 font-semibold">{t("col.verdict")}</th>
+                  <th className="px-2 py-3 font-semibold">{t("col.signal")}</th><th className="px-2 py-3 text-right font-semibold">{t("col.liq")}</th>
+                  <th className="px-5 py-3 font-semibold" />
+                </tr></thead>
+                <tbody>
+                  {tokens.map((tk) => (
+                    <tr key={tk.id} className="cursor-pointer border-t hover:bg-violet/5" style={{ borderColor: "var(--line)" }} onClick={() => openRisk(tk)}>
+                      <td className="px-5 py-3"><b className="font-sg">{tk.symbol || tk.address.slice(0, 8)}</b> <span className="text-[11px] text-dim">· {tk.chain}</span></td>
+                      <td className="px-2 py-3"><Badge v={tk.verdict} risk={tk.risk_score} /></td>
+                      <td className="px-2 py-3">{tk.signal_confidence != null ? <span className="rounded-md px-2 py-0.5 text-xs font-semibold" style={{ background: "rgba(139,92,246,.18)", color: "#c4b5fd" }}>⚡ {Math.round(tk.signal_confidence * 100)}%</span> : <span className="text-dim">—</span>}</td>
+                      <td className="px-2 py-3 text-right font-sg">{fmt(tk.liquidity_usd)}</td>
+                      <td className="px-5 py-3">{tk.verdict === "BLOCK" ? <span className="text-dim">{t("act.blocked")}</span> : <a href={buyUrl(tk)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="rounded-lg px-3 py-1 text-xs" style={{ background: "rgba(139,92,246,.16)", border: "1px solid rgba(139,92,246,.4)", color: "#d8ccff" }}>{t("act.buy")}</a>}</td>
+                    </tr>
+                  ))}
+                  {tokens.length === 0 && !err && <tr><td colSpan={5} className="px-5 py-10 text-center text-muted">{t("feed.empty")}</td></tr>}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* right column */}
           <div data-tour="right" className="flex flex-col gap-[18px]">
-            <Panel title="⚡ Сигналы">
-              {signals.length === 0 ? <Empty text="Пока нет BUY-сигналов." /> : signals.slice(0, 4).map((s) => (
+            <Panel title={t("panel.signals")}>
+              {signals.length === 0 ? <Empty text={t("empty.signals")} /> : signals.slice(0, 4).map((s) => (
                 <div key={s.id} className="border-t px-5 py-3" style={{ borderColor: "var(--line)" }}>
                   <div className="flex items-center justify-between"><b className="font-sg">{s.symbol || s.address.slice(0, 8)} <span className="text-[11px] text-dim">{s.chain}</span></b>
                     <span className="rounded-md px-2 py-0.5 text-xs font-semibold" style={{ background: "rgba(139,92,246,.18)", color: "#c4b5fd" }}>BUY {Math.round(s.confidence * 100)}%</span></div>
-                  {s.venues?.[0] && <a href={s.venues[0].url} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs text-cyan">{s.venues[0].name} · купить ↗</a>}
+                  {s.venues?.[0] && <a href={s.venues[0].url} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs text-cyan">{s.venues[0].name} · {t("act.buy")}</a>}
                 </div>
               ))}
             </Panel>
 
-            <Panel title="📰 Новости">
-              {news.length === 0 ? <Empty text="Нет новостей." /> : news.slice(0, 5).map((n) => (
+            <Panel title={t("panel.news")}>
+              {news.length === 0 ? <Empty text={t("empty.news")} /> : news.slice(0, 5).map((n) => (
                 <div key={n.id} className="border-t px-5 py-3" style={{ borderColor: "var(--line)" }}>
                   <div className="text-[13.5px]">{n.title}</div>
                   <div className="mt-1.5 flex flex-wrap gap-1.5 text-[11px]">
@@ -145,7 +151,7 @@ export default function Dashboard() {
         </div>
 
         <div className="mt-5 flex gap-2.5 rounded-xl px-4 py-3 text-[12.5px] leading-relaxed" style={{ background: "rgba(251,191,36,.14)", border: "1px solid rgba(251,191,36,.26)", color: "#fce3ad" }}>
-          <span>⚠</span><span>Не инвест-рекомендация. ~98% новых токенов обнуляются. PASS означает прохождение проверок, не гарантию роста. DYOR.</span>
+          <span>⚠</span><span>{t("disc.dash")}</span>
         </div>
       </div>
 
@@ -155,23 +161,23 @@ export default function Dashboard() {
           <div className="fixed inset-0 z-20" style={{ background: "rgba(3,4,9,.6)", backdropFilter: "blur(3px)" }} onClick={() => setSel(null)} />
           <aside className="fixed right-0 top-0 z-30 h-full w-[420px] max-w-[92vw] overflow-y-auto p-6" style={{ background: "#0A0C16", borderLeft: "1px solid var(--line)" }}>
             <button onClick={() => setSel(null)} className="glass absolute right-4 top-4 h-8 w-8 rounded-lg">✕</button>
-            <div className="text-xs tracking-[2px] text-violet">TOKEN INTELLIGENCE</div>
+            <div className="text-xs tracking-[2px] text-violet">{t("drawer.intel")}</div>
             <h2 className="mt-1 font-sg text-2xl font-bold">{sel.t.symbol || sel.t.address.slice(0, 8)} <Badge v={sel.t.verdict} risk={sel.t.risk_score} /></h2>
             <div className="mb-4 font-mono text-xs text-dim">{sel.t.chain} · {sel.t.address.slice(0, 20)}…</div>
             <div className="mb-3 flex items-center gap-4">
               <Ring v={sel.t.verdict} risk={sel.t.risk_score ?? 0} />
-              <div><div className="text-xs text-muted">Ликвидность</div><div className="font-sg text-xl font-bold">{fmt(sel.t.liquidity_usd)}</div></div>
+              <div><div className="text-xs text-muted">{t("drawer.liquidity")}</div><div className="font-sg text-xl font-bold">{fmt(sel.t.liquidity_usd)}</div></div>
             </div>
             {sel.s?.flags?.length ? (
               <>
-                <div className="mb-2 mt-4 text-[11px] uppercase tracking-wider text-dim">Проверки</div>
+                <div className="mb-2 mt-4 text-[11px] uppercase tracking-wider text-dim">{t("drawer.checks")}</div>
                 {sel.s.flags.map((f, i) => (
                   <div key={i} className="flex gap-2 py-1 text-[13px]"><span style={{ color: f.severity === "hard" ? "#fca5a5" : f.severity === "soft" ? "#fcd34d" : "#9AA6C4" }}>{f.severity === "hard" ? "✕" : f.severity === "soft" ? "!" : "·"}</span><span>{f.message}</span></div>
                 ))}
               </>
-            ) : <p className="mt-4 text-sm text-muted">Риск-отчёт ещё готовится.</p>}
-            {sel.t.verdict !== "BLOCK" && <a href={buyUrl(sel.t)} target="_blank" rel="noreferrer" className="mt-5 inline-block rounded-lg px-4 py-2 text-sm" style={{ background: "rgba(139,92,246,.16)", border: "1px solid rgba(139,92,246,.4)", color: "#d8ccff" }}>купить ↗</a>}
-            <p className="mt-5 text-[11px] leading-relaxed text-dim">Детекция ловит часть схем. PASS ≠ «безопасно» и тем более ≠ «вырастет». Не инвест-рекомендация.</p>
+            ) : <p className="mt-4 text-sm text-muted">{t("drawer.pending")}</p>}
+            {sel.t.verdict !== "BLOCK" && <a href={buyUrl(sel.t)} target="_blank" rel="noreferrer" className="mt-5 inline-block rounded-lg px-4 py-2 text-sm" style={{ background: "rgba(139,92,246,.16)", border: "1px solid rgba(139,92,246,.4)", color: "#d8ccff" }}>{t("act.buy")}</a>}
+            <p className="mt-5 text-[11px] leading-relaxed text-dim">{t("drawer.disclaimer")}</p>
           </aside>
         </>
       )}

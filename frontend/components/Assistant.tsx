@@ -1,14 +1,16 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useLang } from "@/components/LangProvider";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 type Msg = { role: "user" | "assistant"; content: string };
 
 export default function Assistant() {
+  const { t } = useLang();
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([
-    { role: "assistant", content: "Привет! Я консультант ALTSR. Спросите про скрининг, сигналы, бумажную симуляцию или тарифы." },
+    { role: "assistant", content: t("assistant.greeting") },
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -28,7 +30,7 @@ export default function Assistant() {
       const data = await res.json();
       setMsgs((m) => [...m, { role: "assistant", content: data.answer || "…" }]);
     } catch {
-      setMsgs((m) => [...m, { role: "assistant", content: "Связь прервалась, попробуйте ещё раз." }]);
+      setMsgs((m) => [...m, { role: "assistant", content: t("assistant.error") }]);
     } finally {
       setBusy(false);
       setTimeout(() => boxRef.current?.scrollTo(0, boxRef.current.scrollHeight), 50);
@@ -38,7 +40,8 @@ export default function Assistant() {
   return (
     <>
       <button
-        aria-label="Открыть консультанта"
+        aria-label={t("assistant.open")}
+        data-tour="assistant"
         onClick={() => setOpen((o) => !o)}
         className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full text-2xl text-[#06231c] shadow-xl"
         style={{ background: "linear-gradient(135deg,#8B5CF6,#22D3EE)", boxShadow: "0 8px 30px rgba(139,92,246,.5)" }}
@@ -49,8 +52,8 @@ export default function Assistant() {
       {open && (
         <div className="glass fixed bottom-24 right-5 z-40 flex h-[460px] w-[340px] max-w-[92vw] flex-col overflow-hidden rounded-2xl">
           <div className="border-b px-4 py-3" style={{ borderColor: "var(--line)" }}>
-            <div className="font-sg text-sm font-semibold">Консультант ALTSR · 24/7</div>
-            <div className="text-[11px] text-muted">Отвечаю про платформу. Не инвест-совет.</div>
+            <div className="font-sg text-sm font-semibold">{t("assistant.title")}</div>
+            <div className="text-[11px] text-muted">{t("assistant.sub")}</div>
           </div>
           <div ref={boxRef} className="flex-1 space-y-2.5 overflow-y-auto px-3 py-3">
             {msgs.map((m, i) => (
@@ -65,14 +68,14 @@ export default function Assistant() {
                 </span>
               </div>
             ))}
-            {busy && <div className="text-[12px] text-muted">печатает…</div>}
+            {busy && <div className="text-[12px] text-muted">{t("assistant.typing")}</div>}
           </div>
           <div className="flex gap-2 border-t p-2.5" style={{ borderColor: "var(--line)" }}>
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && send()}
-              placeholder="Ваш вопрос…"
+              placeholder={t("assistant.placeholder")}
               className="flex-1 rounded-lg px-3 py-2 text-sm outline-none"
               style={{ background: "rgba(10,12,22,.6)", border: "1px solid var(--line)", color: "#EAF0FF" }}
             />
