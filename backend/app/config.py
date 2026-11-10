@@ -46,6 +46,24 @@ class Settings(BaseSettings):
     momentum_min_change_h1: float = Field(default=0.0, alias="MOMENTUM_MIN_CHANGE_H1")
     momentum_min_buy_sell: float = Field(default=1.2, alias="MOMENTUM_MIN_BUY_SELL")
 
+    # --- Технические индикаторы (T1, рычаги ①③) ---
+    # Гейт входа по индикаторам. Консервативно выключен: включается, когда есть
+    # ряды цен/свечей (приходят из OHLCV-источника, T10). Пороги — примеры, не рекомендация.
+    indicators_enabled: bool = Field(default=False, alias="INDICATORS_ENABLED")
+    # Нет данных для индикатора → блокировать (True) или пропускать его проверку (False).
+    indicators_require_data: bool = Field(default=False, alias="INDICATORS_REQUIRE_DATA")
+    indicator_roc_period: int = Field(default=1, alias="INDICATOR_ROC_PERIOD")
+    indicator_roc_min: float = Field(default=0.0, alias="INDICATOR_ROC_MIN")
+    indicator_buy_sell_min: float = Field(default=1.3, alias="INDICATOR_BUY_SELL_MIN")
+    indicator_aroon_period: int = Field(default=14, alias="INDICATOR_AROON_PERIOD")
+    indicator_aroon_osc_min: float = Field(default=0.0, alias="INDICATOR_AROON_OSC_MIN")
+    indicator_atr_period: int = Field(default=14, alias="INDICATOR_ATR_PERIOD")
+    # Движение (ATR, % от цены) должно перекрывать издержки fee+spread+slippage.
+    indicator_cost_floor_pct: float = Field(default=2.0, alias="INDICATOR_COST_FLOOR_PCT")
+    indicator_require_vol_rising: bool = Field(
+        default=True, alias="INDICATOR_REQUIRE_VOL_RISING"
+    )
+
     # --- Safety / анти-скам (Фаза 1) ---
     goplus_base_url: str = Field(
         default="https://api.gopluslabs.io/api/v1", alias="GOPLUS_BASE_URL"
