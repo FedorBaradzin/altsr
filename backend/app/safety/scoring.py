@@ -57,6 +57,21 @@ def evaluate(f: SafetyFindings) -> SafetyResult:
     if f.rugged is True:
         red.append(RedFlag("rugged", "hard", "Помечен как rugged источником данных"))
         hard = True
+    # ---- Явные сигналы «вредоносный/скам» от провайдеров (parity с GeckoTerminal/Coinbase) ----
+    if f.is_airdrop_scam is True:
+        red.append(RedFlag("airdrop_scam", "hard", "Помечен как airdrop-скам"))
+        hard = True
+    if f.honeypot_same_creator is True:
+        red.append(RedFlag("honeypot_same_creator", "hard",
+                           "Создатель уже выпускал ханипоты"))
+        hard = True
+    if f.cannot_sell_all is True:
+        red.append(RedFlag("cannot_sell_all", "hard",
+                           "Нельзя продать весь баланс (ханипот-подобно)"))
+        hard = True
+    if f.is_fake_token is True:
+        red.append(RedFlag("fake_token", "hard", "Поддельный токен (копия известного)"))
+        hard = True
 
     # ---------- SOFT-FLAG (вес в risk_score) ----------
     risk = 0
@@ -74,6 +89,14 @@ def evaluate(f: SafetyFindings) -> SafetyResult:
             red.append(RedFlag("unverified_contract", "soft", "Контракт не верифицирован", 25))
         if f.is_proxy is True:
             red.append(RedFlag("proxy", "soft", "Upgradeable/proxy-контракт", 12))
+        if f.tax_modifiable is True:
+            red.append(RedFlag("tax_modifiable", "soft",
+                              "Владелец может менять налог/slippage (риск налога до 100%)", 25))
+        if f.cannot_buy is True:
+            red.append(RedFlag("cannot_buy", "soft", "Покупка заблокирована контрактом", 18))
+        if f.trading_cooldown is True:
+            red.append(RedFlag("trading_cooldown", "soft",
+                              "Задержка между сделками (может мешать продаже)", 10))
         if f.is_true_token is False:
             red.append(RedFlag("fake_token", "soft",
                               "Признан не настоящим токеном (is_true_token=false)", 20))

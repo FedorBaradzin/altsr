@@ -16,6 +16,7 @@ export type Token = {
   verdict: "PASS" | "REVIEW" | "BLOCK" | null;
   risk_score: number | null;
   signal_confidence: number | null;
+  is_malicious?: boolean;
 };
 
 export type TokenList = {
@@ -106,6 +107,7 @@ export type Safety = {
   verdict: string;
   sources: string | null;
   flags: { code: string; severity: string; message: string }[];
+  is_malicious?: boolean;
 };
 export async function fetchSafety(tokenId: number): Promise<Safety | null> {
   const res = await fetch(`${API_BASE}/api/tokens/${tokenId}/safety`, { cache: "no-store" });

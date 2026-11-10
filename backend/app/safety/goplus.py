@@ -52,6 +52,15 @@ def _i(v: Any) -> int | None:
     return int(f) if f is not None else None
 
 
+def _fake_token(v: Any) -> bool | None:
+    """GoPlus fake_token: объект {value:0/1} или плоский флаг."""
+    if v is None:
+        return None
+    if isinstance(v, dict):
+        return _b(v.get("value"))
+    return _b(v)
+
+
 def _top_holder_pct(data: dict) -> float | None:
     """Макс. доля не-пулового, не-сожжённого холдера."""
     holders = data.get("holders") or []
@@ -99,6 +108,15 @@ def parse_evm(addr: str, data: dict) -> SafetyFindings:
         top_holder_pct=top,
         holder_count=_i(data.get("holder_count")),
         is_true_token=_b(data.get("is_true_token")),
+        # Явные сигналы «вредоносный/скам» — то, по чему помечают malicious.
+        is_airdrop_scam=_b(data.get("is_airdrop_scam")),
+        honeypot_same_creator=_b(data.get("honeypot_with_same_creator")),
+        cannot_sell_all=_b(data.get("cannot_sell_all")),
+        cannot_buy=_b(data.get("cannot_buy")),
+        is_fake_token=_fake_token(data.get("fake_token")),
+        tax_modifiable=_b(data.get("slippage_modifiable"))
+        or _b(data.get("personal_slippage_modifiable")),
+        trading_cooldown=_b(data.get("trading_cooldown")),
         sources=["goplus"],
         raw={"goplus": data},
     )
