@@ -8,7 +8,7 @@ import {
   type Overview, type AdminUser, type AdminPayment,
 } from "@/lib/admin";
 
-const TIERS = ["free", "pro", "trader", "team"];
+const TIERS = ["free", "pro", "autonomous"];
 
 export default function AdminPage() {
   const router = useRouter();
