@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..config import Settings
 from ..discovery.base import HttpClient
 from ..models import SafetyReport, Token
-from . import goplus, honeypot_is, rugcheck
+from . import cross_source, goplus, honeypot_is, rugcheck
 from .base import SafetyFindings, SafetyResult
 from .scoring import evaluate
 
@@ -44,15 +44,33 @@ async def screen_token(
 
     results = await asyncio.gather(*providers, return_exceptions=True)
 
+    # Сохраняем находки каждого провайдера отдельно — нужно для кросс-проверки (T10),
+    # и параллельно сливаем в общий merged для скоринга. Падение одного провайдера
+    # (исключение) не валит скрининг: просто пропускаем его.
+    provider_findings: list[SafetyFindings] = []
     merged = SafetyFindings(chain=chain, address=address)
     for res in results:
         if isinstance(res, Exception):
             logger.warning("safety-провайдер упал для %s:%s — %s", chain, address, res)
             continue
+        provider_findings.append(res)
         merged.merge(res)
     merged.chain = chain
     merged.address = address
-    return evaluate(merged)
+
+    result = evaluate(merged)
+
+    # T10: кросс-проверка двух независимых провайдеров. Расхождение → REVIEW.
+    # Деградирует мягко: если выжил лишь один провайдер — single_source без штрафа.
+    if settings.cross_source_enabled and provider_findings:
+        agreement = cross_source.cross_check(
+            provider_findings[0],
+            provider_findings[1] if len(provider_findings) > 1 else None,
+            penalty=settings.cross_source_confidence_penalty,
+        )
+        result = cross_source.apply_agreement(result, agreement)
+
+    return result
 
 
 async def store_result(session: AsyncSession, token: Token, result: SafetyResult) -> SafetyReport:

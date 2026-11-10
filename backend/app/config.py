@@ -75,6 +75,18 @@ class Settings(BaseSettings):
     screen_batch_size: int = Field(default=20, alias="SCREEN_BATCH_SIZE")
     screen_interval_seconds: int = Field(default=15, alias="SCREEN_INTERVAL_SECONDS")
 
+    # --- Cross-source (T10) ---
+    # Кросс-проверка сигналов между независимыми источниками для роста доверия.
+    # Консервативно выключено: при включении расхождение двух safety-провайдеров
+    # поднимает PASS → REVIEW, а подтверждение тренда по OHLCV — независимый сигнал.
+    # Флаг rugcheck_enabled (второй safety-провайдер для Solana) объявлен выше, в
+    # блоке discovery, и по умолчанию тоже False (их /report отдаёт HTTP 400).
+    cross_source_enabled: bool = Field(default=False, alias="CROSS_SOURCE_ENABLED")
+    # Штраф уверенности (доля 0..1), который снимается при расхождении источников.
+    cross_source_confidence_penalty: float = Field(
+        default=0.25, alias="CROSS_SOURCE_CONFIDENCE_PENALTY"
+    )
+
     # --- Signal engine (Фаза 2) ---
     signal_min_liquidity_usd: float = Field(default=5000.0, alias="SIGNAL_MIN_LIQUIDITY_USD")
     signal_min_age_minutes: int = Field(default=0, alias="SIGNAL_MIN_AGE_MINUTES")
