@@ -95,6 +95,12 @@ class Settings(BaseSettings):
     # Просадка реализованного P&L от старта, после которой сессия стоп + kill-switch.
     session_stop_pct: float = Field(default=0.20, alias="SESSION_STOP_PCT")
 
+    # --- Позиционный сайзинг по conviction (T7, рычаг ⑥) ---
+    sizing_enabled: bool = Field(default=False, alias="SIZING_ENABLED")
+    sizing_min_confidence: float = Field(default=0.5, alias="SIZING_MIN_CONFIDENCE")
+    sizing_min_pos_pct: float = Field(default=0.002, alias="SIZING_MIN_POS_PCT")
+    sizing_max_pos_pct: float = Field(default=0.01, alias="SIZING_MAX_POS_PCT")
+
     # --- Hard-rules R1–R6 (T4, видео 70/71) ---
     hard_rules_enabled: bool = Field(default=False, alias="HARD_RULES_ENABLED")
     hr_min_volume_usd: float = Field(default=0.0, alias="HR_MIN_VOLUME_USD")
