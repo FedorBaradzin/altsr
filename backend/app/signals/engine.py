@@ -93,11 +93,13 @@ def evaluate_entry(inp: SignalInput, s: Settings) -> SignalDecision:
         else:
             if inp.price_change_m5 <= s.momentum_min_change_m5:
                 return SignalDecision(
-                    False, rejected=f"m5 {inp.price_change_m5:+.1f}% ≤ {s.momentum_min_change_m5:+.1f}%"
+                    False,
+                    rejected=f"m5 {inp.price_change_m5:+.1f}% ≤ {s.momentum_min_change_m5:+.1f}%",
                 )
             if inp.price_change_h1 <= s.momentum_min_change_h1:
                 return SignalDecision(
-                    False, rejected=f"h1 {inp.price_change_h1:+.1f}% ≤ {s.momentum_min_change_h1:+.1f}%"
+                    False,
+                    rejected=f"h1 {inp.price_change_h1:+.1f}% ≤ {s.momentum_min_change_h1:+.1f}%",
                 )
             if (
                 inp.buys_m5 is not None and inp.sells_m5 is not None

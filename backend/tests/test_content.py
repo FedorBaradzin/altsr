@@ -42,6 +42,7 @@ async def test_articles_respect_daily_cap(respx_mock):
     s = get_settings()
     s.news_feeds = "https://news.example/rss"
     s.articles_per_day = 1               # планка = 1
+    s.content_langs_raw = "en"           # один язык → 1 тема = 1 статья (планка по темам)
     respx_mock.get("https://news.example/rss").mock(
         return_value=httpx.Response(200, text=_rss())
     )

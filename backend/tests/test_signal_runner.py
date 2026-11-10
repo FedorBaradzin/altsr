@@ -38,6 +38,7 @@ async def test_signal_created_with_venues_and_dedup():
     await create_all()
     await _seed_pass_token()
     settings = get_settings()
+    settings.momentum_enabled = False  # тест о venues/дедупе, не о моментуме (без live-данных)
 
     created = await run_batch(settings)  # notifier без конфига → no-op
     assert created == 1
@@ -75,7 +76,9 @@ async def test_api_signals_and_venues(client):
     from app.signals.runner import run_batch
 
     token_id = await _seed_pass_token()
-    await run_batch(get_settings())
+    s = get_settings()
+    s.momentum_enabled = False  # тест об API/venues, не о моментуме (без live-данных)
+    await run_batch(s)
 
     r = await client.get("/api/signals")
     body = r.json()
