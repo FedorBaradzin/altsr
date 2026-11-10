@@ -34,6 +34,16 @@ class SafetyFindings:
     top_holder_pct: float | None = None     # доля топ-1 (без пула/burn) 0..1
     holder_count: int | None = None
 
+    # Явные сигналы «вредоносный/скам» от провайдеров (то, по чему GeckoTerminal/Coinbase
+    # ставят метку «скам-токен»). None = провайдер не дал данных.
+    is_airdrop_scam: bool | None = None          # помечен как airdrop-скам
+    honeypot_same_creator: bool | None = None    # создатель уже делал ханипоты
+    cannot_sell_all: bool | None = None          # нельзя продать весь баланс (ханипот-подобно)
+    cannot_buy: bool | None = None               # нельзя купить
+    is_fake_token: bool | None = None            # поддельный/копия токена
+    tax_modifiable: bool | None = None           # владелец может менять налог/slippage (→100%)
+    trading_cooldown: bool | None = None         # задержка между сделками
+
     # Прочее
     rugged: bool | None = None
     is_true_token: bool | None = None
@@ -82,3 +92,14 @@ class SafetyResult:
 
     def red_flags_as_dicts(self) -> list[dict[str, Any]]:
         return [f.as_dict() for f in self.red_flags]
+
+    # Коды, по которым показываем явную метку «скам-токен» (как GeckoTerminal/Coinbase).
+    MALICIOUS_CODES = frozenset({
+        "honeypot", "airdrop_scam", "honeypot_same_creator",
+        "cannot_sell_all", "fake_token", "rugged",
+    })
+
+    @property
+    def is_malicious(self) -> bool:
+        """True → в UI красная плашка «Помечен как скам-токен, можете потерять средства»."""
+        return any(f.code in self.MALICIOUS_CODES for f in self.red_flags)
