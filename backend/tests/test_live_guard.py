@@ -9,6 +9,7 @@ from app.live.executor import (
     attempt_live_buy,
     preflight,
 )
+from app.risk.killswitch import KillSwitchState, trip
 
 
 def _enabled_settings():
@@ -54,6 +55,27 @@ def test_over_trade_limit_refused():
 def test_no_confirmation_refused():
     pf = preflight(_enabled_settings(), verdict="PASS", honeypot_ok=True, trade_usd=50, confirmed=False)
     assert not pf.allowed
+
+
+def test_killswitch_active_refuses_even_when_all_gates_pass():
+    # Аварийная остановка перекрывает все пройденные предохранители (ТЗ §6, AC-15).
+    ks = trip("admin_manual")
+    pf = preflight(_enabled_settings(), verdict="PASS", honeypot_ok=True,
+                   trade_usd=50, confirmed=True, killswitch=ks)
+    assert not pf.allowed
+    assert "аварийная остановка" in pf.reason
+
+
+def test_killswitch_inactive_does_not_block():
+    pf = preflight(_enabled_settings(), verdict="PASS", honeypot_ok=True,
+                   trade_usd=50, confirmed=True, killswitch=KillSwitchState(active=False))
+    assert pf.allowed
+
+
+async def test_attempt_live_buy_killswitch_refuses():
+    with pytest.raises(LiveTradingDisabled):
+        await attempt_live_buy(_enabled_settings(), verdict="PASS", honeypot_ok=True,
+                               trade_usd=50, confirmed=True, killswitch=trip("admin_manual"))
 
 
 async def test_attempt_live_buy_disabled_raises():

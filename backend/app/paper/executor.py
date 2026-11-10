@@ -148,9 +148,15 @@ def _minutes(a: datetime, b: datetime) -> float:
 
 async def open_from_signals(
     session: AsyncSession, s: Settings, get_price: PriceFn, now: datetime,
-    *, redis=None,
+    killswitch=None, *, redis=None,
 ) -> int:
     acc = await get_or_create_account(session, s)
+
+    # Аварийная остановка → никаких новых входов (ТЗ §6, AC-15).
+    if killswitch is not None and getattr(killswitch, "active", False):
+        logger.info("Аварийная остановка активна (%s) — новые входы остановлены",
+                    getattr(killswitch, "reason", None))
+        return 0
 
     # Дневной лимит убытка → стоп новых покупок.
     if await _today_realized(session, now) <= -abs(s.paper_daily_loss_limit_usd):

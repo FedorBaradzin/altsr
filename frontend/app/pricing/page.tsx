@@ -16,17 +16,14 @@ type Plan = { id: string; name: string; price: number; highlight?: boolean; feat
 
 const PLANS: Plan[] = [
   { id: "free", name: "Free", price: 0, features: {
-    ru: ["Лента с задержкой", "Базовый вердикт", "3 сигнала/день"],
-    en: ["Delayed feed", "Basic verdict", "3 signals/day"] } },
-  { id: "pro", name: "Pro", price: 29, highlight: true, features: {
-    ru: ["Real-time лента", "Полная риск-карточка", "Сигналы без лимита", "Telegram-алерты", "Бумажный портфель"],
-    en: ["Real-time feed", "Full risk card", "Unlimited signals", "Telegram alerts", "Paper portfolio"] } },
-  { id: "trader", name: "Trader", price: 79, features: {
-    ru: ["Всё из Pro", "Профили риска", "Несколько портфелей", "Ранний доступ", "API (лимит)"],
-    en: ["Everything in Pro", "Risk profiles", "Multiple portfolios", "Early access", "API (rate-limited)"] } },
-  { id: "team", name: "Team / API", price: 199, features: {
-    ru: ["Всё из Trader", "Полный API + SLA", "От 5 мест"],
-    en: ["Everything in Trader", "Full API + SLA", "5+ seats"] } },
+    ru: ["Лента с задержкой", "Базовый вердикт", "3 сигнала/день", "Демо бумажной торговли"],
+    en: ["Delayed feed", "Basic verdict", "3 signals/day", "Paper-trading demo"] } },
+  { id: "pro", name: "Pro", price: 49, highlight: true, features: {
+    ru: ["Real-time лента", "Полная риск-карточка", "Сигналы без лимита", "Telegram-алерты", "Бумажный портфель", "История и фильтры"],
+    en: ["Real-time feed", "Full risk card", "Unlimited signals", "Telegram alerts", "Paper portfolio", "History & filters"] } },
+  { id: "autonomous", name: "Autonomous", price: 89, features: {
+    ru: ["Всё из Pro", "Подвязка Telegram (бот + уведомления)", "Автоторговля (Delegation / Vault)", "Онлайн-поддержка 24/7", "Прямая связь в Telegram", "Расширенный риск-контроль"],
+    en: ["Everything in Pro", "Telegram integration (bot + alerts)", "Autotrading (Delegation / Vault)", "24/7 online support", "Direct Telegram support", "Advanced risk controls"] } },
 ];
 
 export default function Pricing() {
@@ -45,7 +42,7 @@ export default function Pricing() {
       <h1 className="mb-2 font-sg text-3xl font-bold">{t("pricing.title")}</h1>
       <p className="mb-10 max-w-xl text-muted">{t("pricing.sub")}</p>
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
+      <div className="mx-auto grid max-w-4xl grid-cols-1 gap-5 md:grid-cols-3">
         {PLANS.map((p) => (
           <div key={p.id} className="glass flex flex-col p-6" style={p.highlight ? { borderColor: "rgba(139,92,246,.5)" } : undefined}>
             <div className="font-sg text-lg font-semibold">{p.name}</div>

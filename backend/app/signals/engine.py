@@ -252,6 +252,12 @@ def _confidence(
 
 
 def _heuristic_confidence(inp: SignalInput, s: Settings) -> float:
+    """Уверенность входа [0..1]: статическая база + рыночная динамика.
+
+    ВАЖНО: динамическая часть (моментум/давление покупок/оборот) повышает
+    ОЖИДАЕМУЮ ЦЕННОСТЬ и качество РАНЖИРОВАНИЯ уже прошедших ворота входов —
+    это НЕ гарантия прибыли (большинство новых токенов идут в ноль).
+    """
     c = 0.5
     # Низкий риск → выше уверенность.
     if inp.risk_score is not None and s.signal_max_risk > 0:
@@ -262,11 +268,43 @@ def _heuristic_confidence(inp: SignalInput, s: Settings) -> float:
     # Достаточно холдеров.
     if inp.holder_count is not None and inp.holder_count >= 100:
         c += 0.10
-    # Моментум усиливает уверенность: сильный рост h1 + перевес покупок.
-    if inp.price_change_h1 is not None:
-        c += 0.15 * min(1.0, max(0.0, inp.price_change_h1 / 50.0))
-    if inp.buys_m5 is not None and inp.sells_m5 is not None:
-        ratio = inp.buys_m5 / max(1, inp.sells_m5)
-        if ratio >= 1.5:
-            c += 0.08
+    # Рыночная динамика: рост m5/h1, давление покупок, оборот к ликвидности.
+    c += _momentum_confidence(inp, s)
     return round(min(1.0, max(0.0, c)), 3)
+
+
+def _momentum_confidence(inp: SignalInput, s: Settings) -> float:
+    """Неотрицательный вклад рыночной динамики в уверенность.
+
+    Считается по НАЛИЧИЮ данных моментума, независимо от гейта momentum_enabled:
+    гейты решают, входить ли вообще, а этот вклад ранжирует прошедшие входы по
+    силе краткосрочного роста и перевеса покупок. Все веса — из Settings.
+    """
+    bonus = 0.0
+    # Краткосрочный рост m5/h1: больше рост → больше вклад (падение = 0).
+    if inp.price_change_m5 is not None and s.signal_conf_mom_m5_scale > 0:
+        bonus += s.signal_conf_w_mom_m5 * min(
+            1.0, max(0.0, inp.price_change_m5 / s.signal_conf_mom_m5_scale)
+        )
+    if inp.price_change_h1 is not None and s.signal_conf_mom_h1_scale > 0:
+        bonus += s.signal_conf_w_mom_h1 * min(
+            1.0, max(0.0, inp.price_change_h1 / s.signal_conf_mom_h1_scale)
+        )
+    # Давление покупок: buys/sells выше опорного (~1.3) → плавно растущий вклад.
+    if (
+        inp.buys_m5 is not None and inp.sells_m5 is not None
+        and (inp.buys_m5 + inp.sells_m5) > 0 and s.signal_conf_buy_sell_ref > 0
+    ):
+        ratio = inp.buys_m5 / max(1, inp.sells_m5)
+        ref = s.signal_conf_buy_sell_ref
+        if ratio > ref:
+            # Максимум вклада при ratio ≥ 2×ref.
+            bonus += s.signal_conf_w_buy_pressure * min(1.0, (ratio - ref) / ref)
+    # Здоровый оборот: vol_h1 относительно ликвидности → выше вклад.
+    if (
+        inp.vol_h1 is not None and inp.liquidity_usd is not None
+        and inp.liquidity_usd > 0 and s.signal_conf_vol_liq_ref > 0
+    ):
+        turnover = inp.vol_h1 / inp.liquidity_usd
+        bonus += s.signal_conf_w_volume * min(1.0, turnover / s.signal_conf_vol_liq_ref)
+    return bonus

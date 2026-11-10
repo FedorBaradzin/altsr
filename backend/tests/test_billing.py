@@ -52,8 +52,11 @@ async def _login_wallet(client) -> tuple[str, str]:
 
 async def test_tiers_endpoint(client):
     r = await client.get("/api/billing/tiers")
-    ids = {t["id"] for t in r.json()}
-    assert {"free", "pro", "trader", "team"} <= ids
+    tiers = {t["id"]: t for t in r.json()}
+    assert {"free", "pro", "autonomous"} <= set(tiers)
+    assert tiers["free"]["price_usd"] == 0
+    assert tiers["pro"]["price_usd"] == 49
+    assert tiers["autonomous"]["price_usd"] == 89
 
 
 async def test_full_wallet_login_checkout_ipn_upgrade(client):

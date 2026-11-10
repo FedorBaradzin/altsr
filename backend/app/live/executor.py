@@ -18,6 +18,7 @@ import logging
 from dataclasses import dataclass
 
 from ..config import Settings
+from ..risk.killswitch import KillSwitchState
 
 logger = logging.getLogger("altsr.live.executor")
 
@@ -39,8 +40,12 @@ def preflight(
     honeypot_ok: bool,
     trade_usd: float,
     confirmed: bool,
+    killswitch: KillSwitchState | None = None,
 ) -> LivePreflight:
     """Проверить все предохранители. Возвращает allowed + причину отказа."""
+    # Аварийная остановка перекрывает всё: пока активна — никаких новых входов.
+    if killswitch is not None and killswitch.active:
+        return LivePreflight(False, f"аварийная остановка активна ({killswitch.reason})")
     if not s.live_trading_enabled:
         return LivePreflight(False, "LIVE_TRADING_ENABLED=false — живая торговля выключена")
     if not s.live_wallet_address or not s.live_private_rpc:
@@ -78,10 +83,11 @@ async def attempt_live_buy(
     honeypot_ok: bool,
     trade_usd: float,
     confirmed: bool = False,
+    killswitch: KillSwitchState | None = None,
 ) -> str:
     """Единственная точка входа живой покупки. Отказывает, пока не пройдены ВСЕ предохранители."""
     pf = preflight(s, verdict=verdict, honeypot_ok=honeypot_ok,
-                   trade_usd=trade_usd, confirmed=confirmed)
+                   trade_usd=trade_usd, confirmed=confirmed, killswitch=killswitch)
     if not pf.allowed:
         logger.warning("Live-покупка отклонена: %s", pf.reason)
         raise LiveTradingDisabled(pf.reason)

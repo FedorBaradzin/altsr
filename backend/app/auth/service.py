@@ -14,7 +14,9 @@ from ..db import get_session
 from ..models import User
 from .tokens import issue_token, verify_token
 
-TIER_RANK = {"free": 0, "pro": 1, "trader": 2, "team": 3}
+# Ранг тарифа для гейтинга доступа. Старые id (trader/team) сохранены как алиасы
+# верхнего уровня, чтобы ранее оплатившие пользователи не теряли доступ.
+TIER_RANK = {"free": 0, "pro": 1, "autonomous": 2, "trader": 2, "team": 2}
 
 # Простой in-memory nonce-store для входа кошельком (на один инстанс).
 # Для мульти-инстанса заменить на Redis.

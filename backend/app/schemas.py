@@ -38,10 +38,23 @@ class TokenOut(BaseModel):
             return {}
 
 
+# Коды «вредоносный/скам» (источник истины — SafetyResult.MALICIOUS_CODES).
+_MALICIOUS_CODES = frozenset({
+    "honeypot", "airdrop_scam", "honeypot_same_creator",
+    "cannot_sell_all", "fake_token", "rugged",
+})
+
+
+def is_malicious_flags(flags: list) -> bool:
+    """True → токен помечен как скам (для красной плашки в UI)."""
+    return any(isinstance(f, dict) and f.get("code") in _MALICIOUS_CODES for f in flags)
+
+
 class TokenWithSafety(TokenOut):
     verdict: str | None = None
     risk_score: int | None = None
     signal_confidence: float | None = None
+    is_malicious: bool = False
 
 
 class TokenList(BaseModel):
@@ -238,6 +251,7 @@ class SafetyOut(BaseModel):
     created_at: datetime
     sources: str | None
     flags: list = []
+    is_malicious: bool = False
 
     @classmethod
     def from_report(cls, r) -> SafetyOut:
@@ -254,6 +268,7 @@ class SafetyOut(BaseModel):
             created_at=r.created_at,
             sources=r.sources,
             flags=flags,
+            is_malicious=is_malicious_flags(flags),
         )
 
 
