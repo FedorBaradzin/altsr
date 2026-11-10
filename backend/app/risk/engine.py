@@ -73,7 +73,7 @@ def _entry_checks(
     equity = portfolio.equity_usd
 
     # Безопасность (AC-08): во вход допускаем только разрешённые вердикты (по умолчанию PASS).
-    if intent.safety_verdict not in policy.allowed_safety_verdicts:
+    if policy.enforce_safety and intent.safety_verdict not in policy.allowed_safety_verdicts:
         reasons.append(RiskReason(
             "safety_not_passed",
             f"Вердикт безопасности {intent.safety_verdict} не допущен к входу"))
@@ -100,31 +100,31 @@ def _entry_checks(
             "max_open_positions",
             f"Открыто {portfolio.open_count} позиций ≥ лимита {policy.max_open_positions}"))
 
-    # Проскальзывание (None = нет данных → fail-closed).
-    if intent.expected_slippage_pct is None:
-        reasons.append(RiskReason("slippage_unknown", "Нет оценки проскальзывания"))
-    elif intent.expected_slippage_pct > policy.max_slippage_pct:
-        reasons.append(RiskReason(
-            "slippage_exceeded",
-            f"Проскальзывание {intent.expected_slippage_pct*100:.2f}% "
-            f"> лимита {policy.max_slippage_pct*100:.2f}%"))
+    # Гейты рыночных данных (проскальзывание/ликвидность/TTL). None = нет данных → fail-closed.
+    if policy.enforce_market_data:
+        if intent.expected_slippage_pct is None:
+            reasons.append(RiskReason("slippage_unknown", "Нет оценки проскальзывания"))
+        elif intent.expected_slippage_pct > policy.max_slippage_pct:
+            reasons.append(RiskReason(
+                "slippage_exceeded",
+                f"Проскальзывание {intent.expected_slippage_pct*100:.2f}% "
+                f"> лимита {policy.max_slippage_pct*100:.2f}%"))
 
-    # Ликвидность (None = нет данных → fail-closed).
-    if intent.liquidity_usd is None:
-        reasons.append(RiskReason("liquidity_unknown", "Нет данных о ликвидности"))
-    elif intent.liquidity_usd < policy.min_liquidity_usd:
-        reasons.append(RiskReason(
-            "liquidity_too_low",
-            f"Ликвидность ${intent.liquidity_usd:.0f} < минимума ${policy.min_liquidity_usd:.0f}"))
+        if intent.liquidity_usd is None:
+            reasons.append(RiskReason("liquidity_unknown", "Нет данных о ликвидности"))
+        elif intent.liquidity_usd < policy.min_liquidity_usd:
+            reasons.append(RiskReason(
+                "liquidity_too_low",
+                f"Ликвидность ${intent.liquidity_usd:.0f} < минимума "
+                f"${policy.min_liquidity_usd:.0f}"))
 
-    # Возраст котировки / TTL (None = нет данных → fail-closed).
-    if intent.quote_age_seconds is None:
-        reasons.append(RiskReason("quote_age_unknown", "Нет данных о возрасте котировки"))
-    elif intent.quote_age_seconds > policy.max_quote_age_seconds:
-        reasons.append(RiskReason(
-            "quote_too_old",
-            f"Котировка {intent.quote_age_seconds:.0f}с старше TTL "
-            f"{policy.max_quote_age_seconds:.0f}с"))
+        if intent.quote_age_seconds is None:
+            reasons.append(RiskReason("quote_age_unknown", "Нет данных о возрасте котировки"))
+        elif intent.quote_age_seconds > policy.max_quote_age_seconds:
+            reasons.append(RiskReason(
+                "quote_too_old",
+                f"Котировка {intent.quote_age_seconds:.0f}с старше TTL "
+                f"{policy.max_quote_age_seconds:.0f}с"))
 
     # Дневной лимит убытка: при превышении новые входы запрещены.
     daily_loss_limit_usd = policy.daily_loss_limit_pct * equity

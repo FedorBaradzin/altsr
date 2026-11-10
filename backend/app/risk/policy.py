@@ -24,6 +24,11 @@ class RiskPolicy:
     max_quote_age_seconds: float     # TTL котировки
     allowed_safety_verdicts: tuple[str, ...] = field(default=("PASS",))
     block_on_stale_data: bool = True
+    # Какие группы гейтов входа включены. В paper-режиме данные safety/котировки
+    # проверены выше по конвейеру и недоступны на шаге исполнения — там их выключаем,
+    # оставляя лимиты портфеля. Для live оба True (полный набор проверок).
+    enforce_safety: bool = True
+    enforce_market_data: bool = True   # проскальзывание, ликвидность, возраст котировки
 
 
 # Начальные тестовые значения (ТЗ §6). ТОЛЬКО для paper/симуляции.

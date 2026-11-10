@@ -17,11 +17,62 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import Settings
 from ..models import PaperAccount, PaperPosition, Signal, Token
+from ..risk.engine import evaluate as risk_evaluate
+from ..risk.policy import RiskPolicy
+from ..risk.types import PortfolioState, TradeIntent
+from ..risk.types import Position as RiskPosition
 from .exits import ExitConfig, PositionState, evaluate_exit
 
 logger = logging.getLogger("altsr.paper.executor")
 
 PriceFn = Callable[[str, str], Awaitable[float | None]]
+
+
+def paper_risk_policy(s: Settings) -> RiskPolicy:
+    """Risk-policy для paper: лимиты портфеля из настроек бумажной торговли.
+
+    Safety и рыночные гейты (проскальзывание/ликвидность/TTL) в paper выключены —
+    эти проверки уже выполнены выше по конвейеру (safety + signal), а на шаге бумажного
+    исполнения достоверных котировок DEX нет. Для live оба гейта будут включены.
+    """
+    start = max(float(s.paper_start_balance), 1.0)
+    exposure_frac = (s.paper_max_positions * s.paper_position_size_usd / start) * 1.2
+    return RiskPolicy(
+        version="paper-v1",
+        max_position_pct=max(0.02, (s.paper_position_size_usd / start) * 3.0),
+        max_exposure_pct=max(0.25, exposure_frac),
+        daily_loss_limit_pct=max(s.paper_daily_loss_limit_usd / start, 1e-6),
+        max_open_positions=s.paper_max_positions,
+        max_slippage_pct=1.0,
+        min_liquidity_usd=0.0,
+        max_quote_age_seconds=1e9,
+        enforce_safety=False,
+        enforce_market_data=False,
+    )
+
+
+async def _portfolio_state(
+    session: AsyncSession, acc: PaperAccount, now: datetime
+) -> PortfolioState:
+    """Снимок бумажного портфеля для Risk Engine: equity, открытые позиции, дневной P&L."""
+    open_positions = (
+        await session.execute(select(PaperPosition).where(PaperPosition.status == "open"))
+    ).scalars().all()
+    risk_positions: list[RiskPosition] = []
+    gross = 0.0
+    for p in open_positions:
+        ratio = (p.last_price / p.entry_price) if p.entry_price else 1.0
+        value = p.size_usd * p.remaining_fraction * ratio
+        gross += value
+        risk_positions.append(RiskPosition(f"{p.chain}:{p.address}", value))
+    equity = acc.cash + gross
+    realized_today = await _today_realized(session, now)
+    return PortfolioState(
+        equity_usd=equity,
+        open_positions=tuple(risk_positions),
+        realized_pnl_today_usd=realized_today,
+        data_fresh=True,
+    )
 
 
 def config_from_settings(s: Settings) -> ExitConfig:
@@ -87,6 +138,7 @@ async def open_from_signals(
         logger.info("Дневной лимит убытка достигнут — новые покупки остановлены")
         return 0
 
+    policy = paper_risk_policy(s)
     opened = 0
     # Сигналы без бумажной позиции.
     stmt = (
@@ -107,6 +159,28 @@ async def open_from_signals(
         # качественнее сделок (снижает просадку и повышает win-rate).
         if (sig.confidence or 0.0) < s.signal_min_confidence:
             continue
+
+        # Единый гейт: Risk Engine проверяет лимиты портфеля перед КАЖДЫМ входом.
+        intent = TradeIntent(
+            side="BUY",
+            token_key=f"{sig.chain}:{sig.address}",
+            chain=sig.chain,
+            token_address=sig.address,
+            notional_usd=s.paper_position_size_usd,
+            recipient="paper",
+            safety_verdict="PASS",
+            strategy="paper",
+            is_exit=False,
+        )
+        state = await _portfolio_state(session, acc, now)
+        decision = risk_evaluate(intent, policy, state, now=now)
+        if decision.blocked:
+            logger.info(
+                "Risk Engine заблокировал вход %s:%s — %s",
+                sig.chain, sig.address, ", ".join(r.code for r in decision.reasons),
+            )
+            continue
+
         price = await get_price(sig.chain, sig.address)
         if price is None or price <= 0:
             continue
