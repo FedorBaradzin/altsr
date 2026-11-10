@@ -58,7 +58,7 @@ async def collect_once(
         rugcheck.fetch_new_tokens(http, settings.rugcheck_base_url),
         dexscreener.fetch_latest_profiles(http, settings.dexscreener_base_url),
     ]
-    if settings.birdeye_enabled:
+    if settings.birdeye_active:
         coros.append(_safe_birdeye(http, settings, alerter))
 
     results = await asyncio.gather(*coros, return_exceptions=True)

@@ -189,6 +189,11 @@ class Settings(BaseSettings):
     def birdeye_chain_list(self) -> list[str]:
         return [c.strip().lower() for c in self.birdeye_chains.split(",") if c.strip()]
 
+    @property
+    def birdeye_active(self) -> bool:
+        """Birdeye включается явным флагом ИЛИ самим наличием ключа (удобнее в настройке)."""
+        return self.birdeye_enabled or bool(self.birdeye_api_key)
+
     # CORS для фронтенда.
     cors_origins: str = Field(default="http://localhost:3000", alias="CORS_ORIGINS")
 
