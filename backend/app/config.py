@@ -88,6 +88,13 @@ class Settings(BaseSettings):
     signal_batch_size: int = Field(default=30, alias="SIGNAL_BATCH_SIZE")
     signal_interval_seconds: int = Field(default=20, alias="SIGNAL_INTERVAL_SECONDS")
 
+    # --- Session controller «ночная смена» (T5, видео 70) ---
+    session_enabled: bool = Field(default=False, alias="SESSION_ENABLED")
+    # Потолок одновременно развёрнутого капитала (0 = без лимита).
+    session_budget_cap_usd: float = Field(default=0.0, alias="SESSION_BUDGET_CAP_USD")
+    # Просадка реализованного P&L от старта, после которой сессия стоп + kill-switch.
+    session_stop_pct: float = Field(default=0.20, alias="SESSION_STOP_PCT")
+
     # --- Hard-rules R1–R6 (T4, видео 70/71) ---
     hard_rules_enabled: bool = Field(default=False, alias="HARD_RULES_ENABLED")
     hr_min_volume_usd: float = Field(default=0.0, alias="HR_MIN_VOLUME_USD")
