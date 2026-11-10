@@ -67,6 +67,19 @@ class Settings(BaseSettings):
     # Минимальная уверенность сигнала для входа (0..1). Выше порог → меньше,
     # но качественнее входов, меньше просадок.
     signal_min_confidence: float = Field(default=0.0, alias="SIGNAL_MIN_CONFIDENCE")
+    # Веса динамической части уверенности: краткосрочный моментум (m5/h1),
+    # давление покупок и оборот к ликвидности. Повышают ожидаемую ценность и
+    # качество ранжирования входов — это НЕ гарантия прибыли (большинство новых
+    # токенов идут в ноль). Применяются только к входам, уже прошедшим ворота.
+    signal_conf_w_mom_m5: float = Field(default=0.10, alias="SIGNAL_CONF_W_MOM_M5")
+    signal_conf_w_mom_h1: float = Field(default=0.12, alias="SIGNAL_CONF_W_MOM_H1")
+    signal_conf_w_buy_pressure: float = Field(default=0.10, alias="SIGNAL_CONF_W_BUY_PRESSURE")
+    signal_conf_w_volume: float = Field(default=0.08, alias="SIGNAL_CONF_W_VOLUME")
+    # Опорные точки нормировки вкладов (в % роста, отношении buys/sells и обороте).
+    signal_conf_mom_m5_scale: float = Field(default=10.0, alias="SIGNAL_CONF_MOM_M5_SCALE")
+    signal_conf_mom_h1_scale: float = Field(default=50.0, alias="SIGNAL_CONF_MOM_H1_SCALE")
+    signal_conf_buy_sell_ref: float = Field(default=1.3, alias="SIGNAL_CONF_BUY_SELL_REF")
+    signal_conf_vol_liq_ref: float = Field(default=1.0, alias="SIGNAL_CONF_VOL_LIQ_REF")
     signal_batch_size: int = Field(default=30, alias="SIGNAL_BATCH_SIZE")
     signal_interval_seconds: int = Field(default=20, alias="SIGNAL_INTERVAL_SECONDS")
 
