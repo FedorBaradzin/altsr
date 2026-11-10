@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ALTSR 2.0 — The Intelligence Behind Every Signal</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon_32.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#080C14">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -20,10 +25,10 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;overflow-x:hidden;position:relative}
-.cosmos{position:fixed;inset:0;z-index:0;background:#070a12 url(cosmos.png) center/cover no-repeat;opacity:.62;pointer-events:none}
+.cosmos{position:fixed;inset:0;z-index:0;background:#070a12 url(/landing/cosmos.png) center/cover no-repeat;opacity:.62;pointer-events:none}
 #universe{position:fixed;inset:0;z-index:0;pointer-events:none}
 .hero,.strip,.sec,.final,.foot{position:relative;z-index:1}
-.planet{position:absolute;left:0;right:0;bottom:0;height:560px;background:url(planet.png) center bottom/cover no-repeat;mix-blend-mode:screen;z-index:0;pointer-events:none}
+.planet{position:absolute;left:0;right:0;bottom:0;height:560px;background:url(/landing/planet.png) center bottom/cover no-repeat;mix-blend-mode:screen;z-index:0;pointer-events:none}
 @media(max-width:700px){.planet{height:320px}}
 .num{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 .up{color:var(--emerald)} .down{color:var(--danger)}
@@ -279,7 +284,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
     <a href="#how" data-i="nav_strat">Стратегии</a>
     <a href="#how" data-i="nav_auto">Автоторговля</a>
     <a href="#pricing" data-i="nav_pricing">Тарифы</a>
-    <a href="#" data-i="nav_docs">Docs</a>
+    <a href="/blog" data-i="nav_blog">Блог</a>
   </div>
   <div class="nav-actions">
     <div class="lang-sw"><button data-lang="ru" class="on">RU</button><button data-lang="en">EN</button></div>
@@ -355,48 +360,21 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
 
 <section class="sec" id="perf" style="padding-top:20px"><div class="wrap">
   <div class="sec-head reveal">
-    <div class="eyebrow">Verified Performance</div>
-    <h2 data-i="perf_h">Каждый сигнал. Каждая сделка. Каждый результат.</h2>
-    <p data-i="perf_p">Прозрачная статистика с проверяемой историей. Режимы не смешиваются — вы всегда видите, это реальная торговля, бумажная симуляция на живых данных или бэктест.</p>
+    <div class="eyebrow">Platform Tour</div>
+    <h2 data-i="perf_h">Посмотри, как работает ALTSR</h2>
+    <p data-i="perf_p">Видео-тур по платформе с озвучкой: радар, вердикты PASS / REVIEW / BLOCK, разбор токена, автоторговля и тарифы — за полторы минуты.</p>
   </div>
-  <div class="card reveal">
-    <div class="perf-tabs">
-      <button data-mode="live"><span class="d" style="background:var(--emerald)"></span>Live Trading</button>
-      <button class="on" data-mode="paper"><span class="d" style="background:var(--cyan)"></span>Paper Trading</button>
-      <button data-mode="backtest"><span class="d" style="background:var(--muted)"></span>Backtest</button>
-      <span style="margin-left:auto;align-self:center;font-size:11px;color:var(--faint)" data-i="pt_note">Forward paper · демо-данные · с 1 апр 2026</span>
+  <div class="card reveal" style="padding:14px">
+    <div class="perf-tabs" style="margin-bottom:12px">
+      <button class="on" data-vlang="ru"><span class="d" style="background:var(--signal)"></span>Русский</button>
+      <button data-vlang="en"><span class="d" style="background:var(--cyan)"></span>English</button>
+      <span style="margin-left:auto;align-self:center;font-size:11px;color:var(--faint)" data-i="tour_note">~1.5 мин · со звуком</span>
     </div>
-    <div class="perf-body">
-      <div class="perf-main" id="perfMain">
-        <div class="kpis">
-          <div class="kpi"><div class="v up">+127.9%</div><div class="k" data-i="kpi1">Доходность (демо)</div></div>
-          <div class="kpi"><div class="v up">+$12,790</div><div class="k" data-i="kpi2">Реализ. P&L</div></div>
-          <div class="kpi"><div class="v">64.3%</div><div class="k">Win rate</div></div>
-          <div class="kpi"><div class="v down">−12.8%</div><div class="k" data-i="kpi4">Макс. просадка</div></div>
-        </div>
-        <div class="equity">
-          <span class="eq-note">DEMO</span>
-          <svg viewBox="0 0 900 230" width="100%" height="230" preserveAspectRatio="none" id="eqsvg">
-            <defs><linearGradient id="eqfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34D399" stop-opacity=".28"/><stop offset="1" stop-color="#34D399" stop-opacity="0"/></linearGradient></defs>
-            <g stroke="#15202f" stroke-width="1"><line x1="0" y1="50" x2="900" y2="50"/><line x1="0" y1="110" x2="900" y2="110"/><line x1="0" y1="170" x2="900" y2="170"/></g>
-            <path id="eqarea" d="" fill="url(#eqfill)"/>
-            <path id="eqline" d="" fill="none" stroke="#34D399" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle id="eqdot" r="4.5" fill="#34D399" opacity="0"/>
-          </svg>
-          <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--faint);margin-top:8px;padding:0 2px"><span>1 апр</span><span>1 мая</span><span>1 июн</span><span>1 июл</span><span data-i="eq_today">сегодня</span></div>
-        </div>
-        <div class="perf-foot">
-          <div class="pf"><div class="pi"><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2 8h12M8 2v12" stroke="currentColor" stroke-width="1.4"/></svg></div><div><div class="pk" data-i="pf1">Закрытых сделок</div><div class="pv">482</div></div></div>
-          <div class="pf"><div class="pi"><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M5 5h4a2 2 0 010 4H6a2 2 0 000 4h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></div><div><div class="pk" data-i="pf2">Комиссии</div><div class="pv">$1,210</div></div></div>
-          <div class="pf"><div class="pi"><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 11l4-4 3 3 4-5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div><div class="pk" data-i="pf3">Средний слиппедж</div><div class="pv">0.42%</div></div></div>
-          <div class="pf"><div class="pi"><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="2.5" y="3" width="11" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 6h11M6 1.5v3" stroke="currentColor" stroke-width="1.3"/></svg></div><div><div class="pk" data-i="pf4">Начало стратегии</div><div class="pv">1 апр 2026</div></div></div>
-        </div>
-      </div>
-      <div class="perf-empty" id="perfEmpty">
-        <div class="ei"><svg width="22" height="22" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7.5" stroke="currentColor" stroke-width="1.4"/><path d="M10 6v4l2.5 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></div>
-        <h4 data-i="empty_h">Live-результаты пока недоступны</h4>
-        <p data-i="empty_p">Реальная торговля ещё не запущена. Здесь появятся исполненные on-chain сделки со ссылками на explorer, когда они будут. Демо-данные показаны отдельно во вкладке Paper.</p>
-      </div>
+    <div style="position:relative;border-radius:14px;overflow:hidden;background:#05060A;border:1px solid var(--line)">
+      <video id="tourVid" controls playsinline preload="metadata" poster="/landing/tour_poster.jpg" style="display:block;width:100%;height:auto;aspect-ratio:16/9;background:#05060A">
+        <source id="tourSrc" src="/landing/altsr_tour_ru.mp4" type="video/mp4">
+        Ваш браузер не поддерживает видео.
+      </video>
     </div>
   </div>
 </div></section>
@@ -556,7 +534,7 @@ const I={
   radar_card:'Live Token Radar — Топ-10',radar_live:'Обновляется в реальном времени',
   th_tok:'Токен',th_vd:'Вердикт',th_sig:'Сигнал',th_price:'Цена',th_liq:'Ликв.',th_mom:'Моментум 1ч',th_bs:'Buy/Sell',
   lock_t:'Ещё 200+ токенов в полной версии',lock_s:'Полная лента, фильтры, история, алерты и расширенная аналитика',lock_btn:'Разблокировать полный радар',
-  perf_h:'Каждый сигнал. Каждая сделка. Каждый результат.',perf_p:'Прозрачная статистика с проверяемой историей. Режимы не смешиваются — вы всегда видите, это реальная торговля, бумажная симуляция на живых данных или бэктест.',
+  perf_h:'Посмотри, как работает ALTSR',perf_p:'Видео-тур по платформе с озвучкой: радар, вердикты PASS / REVIEW / BLOCK, разбор токена, автоторговля и тарифы — за полторы минуты.',tour_note:'~1.5 мин · со звуком',nav_blog:'Блог',
   pt_note:'Forward paper · демо-данные · с 1 апр 2026',kpi1:'Доходность (демо)',kpi2:'Реализ. P&L',kpi4:'Макс. просадка',eq_today:'сегодня',
   pf1:'Закрытых сделок',pf2:'Комиссии',pf3:'Средний слиппедж',pf4:'Начало стратегии',
   empty_h:'Live-результаты пока недоступны',empty_p:'Реальная торговля ещё не запущена. Здесь появятся исполненные on-chain сделки со ссылками на explorer, когда они будут. Демо-данные показаны отдельно во вкладке Paper.',
@@ -578,7 +556,7 @@ const I={
   radar_card:'Live Token Radar — Top 10',radar_live:'Updating in real time',
   th_tok:'Token',th_vd:'Verdict',th_sig:'Signal',th_price:'Price',th_liq:'Liq.',th_mom:'Momentum 1h',th_bs:'Buy/Sell',
   lock_t:'200+ more tokens in the full version',lock_s:'Full feed, filters, history, alerts and advanced analytics',lock_btn:'Unlock the full radar',
-  perf_h:'Every signal. Every trade. Every result.',perf_p:'Transparent stats with verifiable history. Modes never mix — you always know whether it is real trading, forward paper on live data, or a backtest.',
+  perf_h:'See how ALTSR works',perf_p:'A narrated video tour of the platform: radar, PASS / REVIEW / BLOCK verdicts, token breakdown, auto-trading and plans — in about ninety seconds.',tour_note:'~1.5 min · with sound',nav_blog:'Blog',
   pt_note:'Forward paper · demo data · since Apr 1, 2026',kpi1:'Return (demo)',kpi2:'Realized P&L',kpi4:'Max drawdown',eq_today:'today',
   pf1:'Closed trades',pf2:'Fees',pf3:'Avg slippage',pf4:'Strategy start',
   empty_h:'Live results not yet available',empty_p:'Real trading has not launched yet. Executed on-chain trades with explorer links will appear here once they exist. Demo data is shown separately under the Paper tab.',
@@ -712,19 +690,13 @@ function renderPrices(){document.getElementById('prices').innerHTML=PLANS[lang].
   <ul>${p.li.map(x=>`<li>${CK}${x}</li>`).join('')}</ul>
   <button class="btn ${p.feat?'btn-primary':'btn-ghost'}">${p.btn}</button>${p.soon?`<div class="soon">${p.soon}</div>`:''}</div>`}).join('')}
 
-function setMode(m){mode=m;document.querySelectorAll('.perf-tabs button[data-mode]').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
- document.getElementById('perfMain').style.display=m==='live'?'none':'block';document.getElementById('perfEmpty').style.display=m==='live'?'flex':'none'}
-document.querySelectorAll('.perf-tabs button[data-mode]').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+var tourFiles={ru:'/landing/altsr_tour_ru.mp4',en:'/landing/altsr_tour_en.mp4'};
+document.querySelectorAll('.perf-tabs button[data-vlang]').forEach(b=>b.addEventListener('click',()=>{var v=document.getElementById('tourVid'),s=document.getElementById('tourSrc');if(!v||!s)return;document.querySelectorAll('.perf-tabs button[data-vlang]').forEach(x=>x.classList.toggle('on',x===b));var was=!v.paused;s.src=tourFiles[b.dataset.vlang];v.load();if(was){v.play().catch(()=>{});}}));
 document.querySelectorAll('[data-bill]').forEach(b=>b.addEventListener('click',()=>{bill=b.dataset.bill;document.querySelectorAll('[data-bill]').forEach(x=>x.classList.toggle('on',x===b));document.getElementById('billSave').style.display=bill==='yr'?'inline':'none';renderPrices()}));
 function setLang(l){lang=l;document.querySelectorAll('.lang-sw button').forEach(b=>b.classList.toggle('on',b.dataset.lang===l));applyStatic();renderTable();select(sel);renderSteps();renderPrices()}
 document.querySelectorAll('.lang-sw button').forEach(b=>b.addEventListener('click',()=>setLang(b.dataset.lang)));
 
-(function(){const pts=[14,20,16,34,30,52,46,70,64,96,88,126,118,150,145,178,170,200,205,228];const Wd=900,Hd=230,max=235,step=Wd/(pts.length-1);
- const co=pts.map((v,i)=>[i*step,Hd-(v/max)*Hd]);const line=co.map((c,i)=>`${i?'L':'M'}${c[0].toFixed(1)} ${c[1].toFixed(1)}`).join(' ');
- const lp=document.getElementById('eqline'),ap=document.getElementById('eqarea'),dot=document.getElementById('eqdot');
- lp.setAttribute('d',line);ap.setAttribute('d',line+` L${Wd} ${Hd} L0 ${Hd} Z`);const last=co[co.length-1];dot.setAttribute('cx',last[0]);dot.setAttribute('cy',last[1]);
- const len=lp.getTotalLength();lp.style.strokeDasharray=len;lp.style.strokeDashoffset=len;ap.style.opacity=0;
- new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){lp.style.transition='stroke-dashoffset 1.8s ease-out';lp.style.strokeDashoffset=0;ap.style.transition='opacity 1.6s ease';ap.style.opacity=1;setTimeout(()=>dot.style.opacity=1,1500);}}),{threshold:.3}).observe(document.getElementById('eqsvg'))})();
+
 
 function count(el,to){let c=0;const step=to/60;const t=setInterval(()=>{c+=step;if(c>=to){c=to;clearInterval(t)}el.textContent=Math.floor(c).toLocaleString('en-US')},18)}
 const seen=new Set();
