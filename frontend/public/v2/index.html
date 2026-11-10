@@ -751,8 +751,8 @@ window.addEventListener('scroll',()=>{let cur='radar';secs.forEach(s=>{if(s&&win
    toast({ic:'🔒',bg:s[1],tn:'<span style="filter:blur(4px);letter-spacing:1px">$'+s[0]+'</span> · BUY '+conf+'%',ts:(lang==='en'?'Coin hidden — unlock radar':'Монета скрыта — открой радар'),amt:'+$'+amt.toFixed(0),accent:s[1]});bumpEarn(amt);}
  if(!reduce){setTimeout(()=>{popSignal();setInterval(popSignal,5400);},2800);
    setInterval(()=>{if(document.hasFocus())bumpEarn(Math.floor(Math.random()*34+6));},3600);}
- const tg=()=>toast({ic:'✈',bg:'linear-gradient(135deg,#22D3EE,#8B5CF6)',tn:lang==='en'?'Telegram consultation':'Консультация в Telegram',ts:lang==='en'?'Demo — @ALTSR_support would open':'Демо — открылся бы чат @ALTSR_support',ttl:5200,accent:'#22D3EE'});
- const help=()=>toast({ic:'●',bg:'#34D399',tn:lang==='en'?'24/7 support':'Поддержка 24/7',ts:lang==='en'?'Demo — live chat would open':'Демо — открылся бы онлайн-чат',ttl:5200,accent:'#34D399'});
+const tg=()=>window.open('https://t.me/altsr_manager','_blank','noopener');
+const help=()=>window.open('https://t.me/altsr_manager','_blank','noopener');
  document.getElementById('supTg').addEventListener('click',tg);
  document.getElementById('supHelp').addEventListener('click',help);
  const go=id=>{const el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth'});};
