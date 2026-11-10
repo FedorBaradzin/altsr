@@ -176,6 +176,19 @@ class Settings(BaseSettings):
     birdeye_api_key: str = Field(default="", alias="BIRDEYE_API_KEY")
     helius_api_key: str = Field(default="", alias="HELIUS_API_KEY")
 
+    # --- Birdeye: ранний discovery (new_listing). Ключ — только в .env/env. ---
+    birdeye_enabled: bool = Field(default=False, alias="BIRDEYE_ENABLED")
+    birdeye_base_url: str = Field(
+        default="https://public-api.birdeye.so", alias="BIRDEYE_BASE_URL"
+    )
+    # Сети Birdeye для new_listing (их имена: solana, ethereum, base, bsc, ...).
+    birdeye_chains: str = Field(default="solana", alias="BIRDEYE_CHAINS")
+    birdeye_new_listing_limit: int = Field(default=20, alias="BIRDEYE_NEW_LISTING_LIMIT")
+
+    @property
+    def birdeye_chain_list(self) -> list[str]:
+        return [c.strip().lower() for c in self.birdeye_chains.split(",") if c.strip()]
+
     # CORS для фронтенда.
     cors_origins: str = Field(default="http://localhost:3000", alias="CORS_ORIGINS")
 

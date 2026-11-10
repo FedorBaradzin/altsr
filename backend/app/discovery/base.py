@@ -144,3 +144,32 @@ class HttpClient:
                     await asyncio.sleep(backoff)
         logger.error("GET %s исчерпал ретраи: %s", url, last_exc)
         return None
+
+    async def get_json_status(self, url: str, **kwargs: Any) -> tuple[int | None, Any]:
+        """GET → (status_code, json|None). Ретраит 429/5xx как get_json, но отдаёт код.
+
+        Нужен источникам, которым важен конкретный статус (напр. исчерпание кредитов
+        провайдера): по коду вызывающий решает, слать ли системный алерт.
+        """
+        assert self._client is not None, "HttpClient используется вне контекста"
+        last_status: int | None = None
+        for attempt in range(self._max_retries):
+            try:
+                resp = await self._client.get(url, **kwargs)
+                last_status = resp.status_code
+                if resp.status_code in (429, 500, 502, 503, 504):
+                    raise httpx.HTTPStatusError(
+                        "retryable", request=resp.request, response=resp
+                    )
+                if resp.status_code >= 400:
+                    return resp.status_code, None
+                return resp.status_code, resp.json()
+            except (httpx.HTTPError, json.JSONDecodeError) as exc:
+                backoff = min(2**attempt, 10) + (0.1 * attempt)
+                logger.warning(
+                    "GET(status) %s попытка %d/%d: %s; backoff %.1fs",
+                    url, attempt + 1, self._max_retries, exc, backoff,
+                )
+                if attempt + 1 < self._max_retries:
+                    await asyncio.sleep(backoff)
+        return last_status, None
