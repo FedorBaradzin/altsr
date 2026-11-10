@@ -44,3 +44,16 @@ class TelegramNotifier:
         finally:
             if owns:
                 await client.__aexit__(None, None, None)
+
+
+async def notify_digest(
+    settings: Settings, text: str, *, http: HttpClient | None = None
+) -> bool:
+    """Тонкий хук шины событий (T8): отправить дайджест/сессионную сводку в Telegram.
+
+    No-op (возвращает False) без ``EVENTBUS_ENABLED`` или без настроенного Telegram —
+    поведение существующих уведомлений не меняется.
+    """
+    if not settings.eventbus_enabled:
+        return False
+    return await TelegramNotifier(settings).send(text, http=http)

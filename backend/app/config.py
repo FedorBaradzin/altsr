@@ -181,6 +181,15 @@ class Settings(BaseSettings):
     def news_feed_list(self) -> list[str]:
         return [u.strip() for u in self.news_feeds.split(",") if u.strip()]
 
+    # --- Event bus (T8) ---
+    # Шина доменных событий → Redis pub/sub (бэкенд только эмитит). OFF по умолчанию.
+    eventbus_enabled: bool = Field(default=False, alias="EVENTBUS_ENABLED")
+    # Тихие часы: пер-событийные уведомления копим в дайджест, а не шлём сразу.
+    quiet_hours_start: int = Field(default=23, alias="QUIET_HOURS_START")
+    quiet_hours_end: int = Field(default=8, alias="QUIET_HOURS_END")
+    # Когда собирать и слать дайджест за тихие часы ("HH:MM", локальное время воркера).
+    digest_at: str = Field(default="08:00", alias="DIGEST_AT")
+
     # --- Telegram (уведомления) ---
     telegram_bot_token: str = Field(default="", alias="TELEGRAM_BOT_TOKEN")
     telegram_chat_id: str = Field(default="", alias="TELEGRAM_CHAT_ID")
