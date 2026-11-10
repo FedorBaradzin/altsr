@@ -39,7 +39,7 @@ export default function Landing() {
             <Link href="/app" className="hover:text-ink">{t("nav.radar")}</Link>
             <Link href="/pricing" className="hover:text-ink">{t("nav.pricing")}</Link>
             <Link href="/blog" className="hover:text-ink">{t("nav.blog")}</Link>
-            <Link href="/reels" className="hover:text-ink">{t("nav.reels")}</Link>
+            <Link href="/journal" className="hover:text-ink">{t("nav.journal")}</Link>
             <a href="#how" className="hover:text-ink">{t("nav.about")}</a>
           </nav>
           <div className="flex items-center gap-3">

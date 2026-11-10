@@ -6,9 +6,10 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..auth.service import require_admin
 from ..config import get_settings
 from ..db import get_session
-from ..models import PaperAccount, PaperPosition, SafetyReport, Signal
+from ..models import PaperAccount, PaperPosition, SafetyReport, Signal, User
 from ..paper.executor import config_from_settings
 from ..paper.exits import build_plan
 from ..reels.render import ReelData, render_reel_html
@@ -96,8 +97,9 @@ async def top_reels(
     session: AsyncSession = Depends(get_session),
     limit: int = Query(default=12, ge=1, le=50),
     min_pnl_pct: float = Query(default=5.0, description="минимальная прибыль, %"),
+    _admin: User = Depends(require_admin),
 ) -> dict:
-    """Лучшие прибыльные сделки — исходные данные для рилсов (выгодные сделки)."""
+    """Лучшие прибыльные сделки — исходные данные для рилсов (только админ)."""
     rows = (
         await session.execute(
             select(PaperPosition)
@@ -131,8 +133,9 @@ async def position_reel(
     position_id: int,
     session: AsyncSession = Depends(get_session),
     lang: str = Query(default="ru"),
+    _admin: User = Depends(require_admin),
 ) -> HTMLResponse:
-    """Рилс (вертикальный анимированный ролик) по позиции — как запись экрана платформы."""
+    """Рилс (вертикальный анимированный ролик) по позиции — только админ."""
     pos = (
         await session.execute(select(PaperPosition).where(PaperPosition.id == position_id))
     ).scalar_one_or_none()

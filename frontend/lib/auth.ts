@@ -17,6 +17,7 @@ export function clearToken() {
 export type Me = {
   id: number; auth_method: string; email: string | null;
   display_name: string | null; tier: string; tier_expires_at: string | null;
+  is_admin?: boolean;
 };
 
 export async function fetchMe(): Promise<Me | null> {

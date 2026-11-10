@@ -203,6 +203,7 @@ class UserOut(BaseModel):
     display_name: str | None
     tier: str
     tier_expires_at: datetime | None
+    is_admin: bool = False
 
 
 class AuthToken(BaseModel):

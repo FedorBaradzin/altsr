@@ -12,6 +12,7 @@ from ..auth.service import (
     current_user,
     effective_tier,
     get_or_create_user,
+    is_admin,
     new_nonce,
     session_token,
     take_nonce,
@@ -25,10 +26,11 @@ from ..schemas import AuthToken, NonceOut, UserOut
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
-def _user_out(u: User) -> UserOut:
+def _user_out(u: User, settings: Settings | None = None) -> UserOut:
     return UserOut(id=u.id, auth_method=u.auth_method, email=u.email,
                    display_name=u.display_name, tier=effective_tier(u),
-                   tier_expires_at=u.tier_expires_at)
+                   tier_expires_at=u.tier_expires_at,
+                   is_admin=is_admin(u, settings) if settings else False)
 
 
 # ---------- Wallet ----------
@@ -51,7 +53,7 @@ async def wallet_verify(
     user = await get_or_create_user(session, "wallet", address.lower(),
                                     display_name=address[:6] + "…" + address[-4:])
     await session.commit()
-    return AuthToken(token=session_token(user, settings), user=_user_out(user))
+    return AuthToken(token=session_token(user, settings), user=_user_out(user, settings))
 
 
 # ---------- Telegram ----------
@@ -66,7 +68,7 @@ async def telegram_verify(
     name = " ".join(x for x in parts if x) or data.get("username")
     user = await get_or_create_user(session, "telegram", str(data["id"]), display_name=name)
     await session.commit()
-    return AuthToken(token=session_token(user, settings), user=_user_out(user))
+    return AuthToken(token=session_token(user, settings), user=_user_out(user, settings))
 
 
 # ---------- Google ----------
@@ -95,5 +97,6 @@ async def google_callback(
 
 
 @router.get("/me", response_model=UserOut)
-async def me(user: User = Depends(current_user)) -> UserOut:
-    return _user_out(user)
+async def me(user: User = Depends(current_user),
+             settings: Settings = Depends(get_settings)) -> UserOut:
+    return _user_out(user, settings)

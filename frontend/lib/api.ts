@@ -197,3 +197,27 @@ export async function fetchTopReels(limit = 12): Promise<{ items: TopReel[]; tot
 export function reelUrl(id: number, lang: string): string {
   return `${API_BASE}/api/paper/positions/${id}/reel?lang=${lang}`;
 }
+
+// --- Public journal of winning trades ---
+export type JournalTrade = {
+  id: number;
+  symbol: string | null;
+  chain: string;
+  pnl_pct: number | null;
+  realized_pnl_usd: number;
+  exit_reason: string | null;
+  opened_at: string;
+  closed_at: string | null;
+};
+
+export async function fetchWinningTrades(limit = 50): Promise<JournalTrade[]> {
+  const res = await fetch(`${API_BASE}/api/paper/positions?status=closed&limit=${limit}`, {
+    next: { revalidate: 60 },
+  });
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  const data = await res.json();
+  const items: JournalTrade[] = (data.items ?? data ?? []) as JournalTrade[];
+  return items
+    .filter((p) => (p.realized_pnl_usd ?? 0) > 0)
+    .sort((a, b) => (b.pnl_pct ?? 0) - (a.pnl_pct ?? 0));
+}
