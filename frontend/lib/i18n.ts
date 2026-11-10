@@ -19,7 +19,10 @@ const ru: Dict = {
   "nav.pricing": "Тарифы",
   "nav.blog": "Блог",
   "nav.about": "О системе",
+  "nav.support": "Поддержка",
   "nav.enter": "Войти в радар →",
+  "contact.manager": "Менеджер в Telegram",
+  "contact.support247": "Поддержка 24/7 — пишите менеджеру",
   "nav.login": "Войти",
   "nav.account": "Аккаунт",
 
@@ -204,7 +207,10 @@ const en: Dict = {
   "nav.pricing": "Pricing",
   "nav.blog": "Blog",
   "nav.about": "How it works",
+  "nav.support": "Support",
   "nav.enter": "Open radar →",
+  "contact.manager": "Manager on Telegram",
+  "contact.support247": "24/7 support — message the manager",
   "nav.login": "Sign in",
   "nav.account": "Account",
 
