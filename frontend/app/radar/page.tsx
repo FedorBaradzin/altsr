@@ -182,6 +182,11 @@ export default function Dashboard() {
             <div className="text-xs tracking-[2px] text-violet">{t("drawer.intel")}</div>
             <h2 className="mt-1 font-sg text-2xl font-bold">{sel.t.symbol || sel.t.address.slice(0, 8)} <Badge v={sel.t.verdict} risk={sel.t.risk_score} /></h2>
             <div className="mb-4 font-mono text-xs text-dim">{sel.t.chain} · {sel.t.address.slice(0, 20)}…</div>
+            {(sel.t.verdict === "BLOCK" || sel.t.is_malicious || sel.s?.is_malicious) && (
+              <div className="mb-4 flex items-start gap-2 rounded-lg px-3 py-2 text-[13px] font-medium" style={{ background: "rgba(248,113,113,.12)", border: "1px solid rgba(248,113,113,.45)", color: "#fca5a5" }}>
+                <span>⚠</span><span>{t("safety.scam")}</span>
+              </div>
+            )}
             <div className="mb-3 flex items-center gap-4">
               <Ring v={sel.t.verdict} risk={sel.t.risk_score ?? 0} />
               <div><div className="text-xs text-muted">{t("drawer.liquidity")}</div><div className="font-sg text-xl font-bold">{fmt(sel.t.liquidity_usd)}</div></div>

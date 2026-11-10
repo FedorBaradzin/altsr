@@ -89,6 +89,7 @@ const ru: Dict = {
   "drawer.liquidity": "Ликвидность",
   "drawer.checks": "Проверки",
   "drawer.pending": "Риск-отчёт ещё готовится.",
+  "safety.scam": "Помечен как скам-токен — вы можете потерять свои средства.",
   "drawer.disclaimer":
     "Детекция ловит часть схем. PASS ≠ «безопасно» и тем более ≠ «вырастет». Не инвест-рекомендация.",
 
@@ -273,6 +274,7 @@ const en: Dict = {
   "drawer.liquidity": "Liquidity",
   "drawer.checks": "Checks",
   "drawer.pending": "The risk report is still being prepared.",
+  "safety.scam": "Flagged as a scam token — you may lose your funds.",
   "drawer.disclaimer":
     "Detection catches some schemes. PASS ≠ \"safe\" and definitely ≠ \"will rise.\" Not financial advice.",
 
