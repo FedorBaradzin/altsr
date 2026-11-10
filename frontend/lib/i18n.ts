@@ -122,6 +122,16 @@ const ru: Dict = {
   "reels.open": "Открыть рилс ↗",
   "reels.profit": "прибыль",
 
+  "pricing.title": "Тарифы",
+  "pricing.sub": "Оплата криптой через NOWPayments. Это скрининг и симуляция, а не инвест-рекомендация.",
+  "pricing.perMonth": "/мес",
+  "pricing.startFree": "Начать бесплатно",
+  "pricing.payCrypto": "Оплатить криптой",
+  "pricing.creating": "Создаём счёт…",
+  "pricing.payUnavailable": "Оплата временно недоступна.",
+  "pricing.invoiceFailed": "Не удалось создать счёт.",
+  "pricing.disclaimer": "ALTSR не обещает доходность; ~98% новых токенов обнуляются. Оформите Terms of Service до коммерческого запуска.",
+
   "login.title": "Вход в радар",
   "login.sub": "Выберите способ входа. Ничего не нужно заполнять.",
   "login.disclaimer": "Продолжая, вы соглашаетесь, что ALTSR — инструмент скрининга и симуляции, а не инвест-рекомендация.",
@@ -256,6 +266,16 @@ const en: Dict = {
   "reels.empty": "No winning closed trades yet. Check back later.",
   "reels.open": "Open reel ↗",
   "reels.profit": "profit",
+
+  "pricing.title": "Pricing",
+  "pricing.sub": "Pay with crypto via NOWPayments. This is screening and simulation, not financial advice.",
+  "pricing.perMonth": "/mo",
+  "pricing.startFree": "Start for free",
+  "pricing.payCrypto": "Pay with crypto",
+  "pricing.creating": "Creating invoice…",
+  "pricing.payUnavailable": "Payments are temporarily unavailable.",
+  "pricing.invoiceFailed": "Could not create the invoice.",
+  "pricing.disclaimer": "ALTSR does not promise returns; ~98% of new tokens go to zero. Add Terms of Service before a commercial launch.",
 
   "login.title": "Sign in to the radar",
   "login.sub": "Pick a sign-in method. Nothing to fill in.",
