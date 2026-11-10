@@ -83,3 +83,17 @@ async def test_entry_allowed_when_equity_healthy():
         opened = await open_from_signals(sess, s, _price_fn(1.0), now)
         await sess.commit()
     assert opened == 1
+
+
+async def test_active_killswitch_halts_paper_opens():
+    """Аварийная остановка перекрывает бумажные входы (ТЗ §6, AC-15)."""
+    from app.risk.killswitch import trip
+
+    await create_all()
+    await _seed_signal()
+    s = get_settings()
+    now = datetime.now(timezone.utc)
+    async with get_sessionmaker()() as sess:
+        opened = await open_from_signals(sess, s, _price_fn(1.0), now, trip("admin_manual"))
+        await sess.commit()
+    assert opened == 0

@@ -7,6 +7,7 @@ import logging
 from .config import get_settings
 from .db import create_all
 from .paper.runner import run_forever
+from .redis_client import make_redis
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,7 +18,8 @@ logging.basicConfig(
 async def main() -> None:
     settings = get_settings()
     await create_all()
-    await run_forever(settings)
+    redis = await make_redis()  # для чтения аварийной остановки (общей для воркеров)
+    await run_forever(settings, redis=redis)
 
 
 if __name__ == "__main__":
