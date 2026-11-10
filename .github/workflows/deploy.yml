@@ -1,0 +1,57 @@
+name: Deploy to VPS
+
+# Авто-деплой на сервер Hostinger при пуше в main (или вручную — кнопкой Run workflow).
+# Повторяет ручной runbook: свежий clone → копирование в /docker/altsr (сохраняя .env)
+# → пересборка и перезапуск контейнеров. Секреты сервера хранятся в GitHub Secrets,
+# в коде их нет.
+#
+# Требуются Secrets (Settings → Secrets and variables → Actions):
+#   SERVER_HOST        — IP или домен VPS
+#   SERVER_USER        — пользователь SSH (например root)
+#   SERVER_SSH_KEY     — приватный SSH-ключ (весь файл, с BEGIN/END)
+#   SERVER_PORT        — (необязательно) порт SSH, по умолчанию 22
+#   SERVER_APP_DIR     — (необязательно) путь к стеку, по умолчанию /docker/altsr
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          command_timeout: 30m
+          script: |
+            set -e
+            APP_DIR="${{ secrets.SERVER_APP_DIR }}"
+            APP_DIR="${APP_DIR:-/docker/altsr}"
+            echo "Деплой в $APP_DIR"
+
+            rm -rf /tmp/altsr_fresh
+            git clone --depth 1 https://github.com/FedorBaradzin/altsr /tmp/altsr_fresh
+
+            # Копируем код, НЕ трогая .env (секреты живут только на сервере).
+            cp -r /tmp/altsr_fresh/backend  "$APP_DIR"/
+            cp -r /tmp/altsr_fresh/frontend "$APP_DIR"/
+            cp -r /tmp/altsr_fresh/deploy   "$APP_DIR"/
+            cp /tmp/altsr_fresh/docker-compose.hostinger.yml "$APP_DIR"/docker-compose.yml
+
+            cd "$APP_DIR"
+            docker compose build --no-cache backend worker screener signals paper frontend
+            docker compose up -d --force-recreate backend worker screener signals paper frontend
+
+            rm -rf /tmp/altsr_fresh
+            echo "Готово. Активные контейнеры:"
+            docker compose ps
