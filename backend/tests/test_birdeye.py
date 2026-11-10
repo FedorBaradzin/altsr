@@ -148,3 +148,34 @@ async def test_runner_fires_topup_alert_when_birdeye_401(respx_mock):
 
     assert tokens == []
     assert any(code == "birdeye_credits" for code, _ in alerter.calls)
+
+
+@respx.mock(assert_all_called=False)
+async def test_birdeye_throttled_by_interval(respx_mock, fake_redis):
+    """В пределах интервала Birdeye опрашивается один раз (экономия CU)."""
+    from app.config import get_settings
+    from app.discovery.runner import collect_once
+
+    s = get_settings()
+    s.birdeye_enabled = True
+    s.birdeye_api_key = "k"
+    object.__setattr__(s, "birdeye_chains", "solana")
+    object.__setattr__(s, "gecko_networks", "eth")
+    s.birdeye_interval_seconds = 180
+
+    respx_mock.get(url__startswith=f"{s.gecko_base_url}/networks/").mock(
+        return_value=httpx.Response(200, json={"data": [], "included": []}))
+    respx_mock.get(f"{s.rugcheck_base_url}/stats/new_tokens").mock(
+        return_value=httpx.Response(200, json=[]))
+    respx_mock.get(f"{s.dexscreener_base_url}/token-profiles/latest/v1").mock(
+        return_value=httpx.Response(200, json=[]))
+    be = respx_mock.get(url__startswith=LISTING_URL).mock(
+        return_value=httpx.Response(200, json={"success": True, "data": {"items": [_ITEM]}}))
+
+    async with HttpClient() as http:
+        first = await collect_once(http, s, redis=fake_redis)
+        second = await collect_once(http, s, redis=fake_redis)
+
+    assert be.call_count == 1  # второй проход в пределах интервала — Birdeye пропущен
+    assert any(t.source == "birdeye" for t in first)
+    assert all(t.source != "birdeye" for t in second)

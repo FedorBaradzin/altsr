@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 
 from ..config import Settings, get_settings
 from ..db import get_sessionmaker
@@ -20,12 +21,43 @@ from .dedup import upsert_tokens
 logger = logging.getLogger("altsr.discovery.runner")
 
 PUBSUB_CHANNEL = "altsr:new_tokens"
+BIRDEYE_LAST_KEY = "altsr:birdeye:last_fetch"
+
+
+async def _birdeye_due(redis, interval: int, now_ts: float) -> bool:
+    """Пора ли снова опрашивать Birdeye. Без Redis или при interval<=0 — всегда да."""
+    if redis is None or interval <= 0:
+        return True
+    try:
+        raw = await redis.get(BIRDEYE_LAST_KEY)
+    except Exception:  # noqa: BLE001 — троттлинг не должен ронять тик
+        return True
+    if not raw:
+        return True
+    try:
+        last = float(raw.decode() if isinstance(raw, bytes) else raw)
+    except (ValueError, TypeError, AttributeError):
+        return True
+    return (now_ts - last) >= interval
+
+
+async def _mark_birdeye(redis, now_ts: float) -> None:
+    if redis is None:
+        return
+    try:
+        await redis.set(BIRDEYE_LAST_KEY, str(now_ts))
+    except Exception:  # noqa: BLE001
+        pass
 
 
 async def _safe_birdeye(
-    http: HttpClient, settings: Settings, alerter: SystemAlerter | None
+    http: HttpClient, settings: Settings, alerter: SystemAlerter | None, redis=None
 ) -> list:
-    """Birdeye с перехватом исчерпания кредитов → системный алерт «пополни счёт»."""
+    """Birdeye с троттлингом (экономия CU) и перехватом исчерпания кредитов → алерт."""
+    now_ts = time.time()
+    if not await _birdeye_due(redis, settings.birdeye_interval_seconds, now_ts):
+        return []
+    await _mark_birdeye(redis, now_ts)  # отмечаем попытку сразу (и для ошибок — ждём интервал)
     try:
         return await birdeye.fetch_new_listings(
             http,
@@ -48,7 +80,7 @@ async def _safe_birdeye(
 
 
 async def collect_once(
-    http: HttpClient, settings: Settings, *, alerter: SystemAlerter | None = None
+    http: HttpClient, settings: Settings, *, alerter: SystemAlerter | None = None, redis=None
 ) -> list:
     """Один проход по всем источникам. Возвращает список NormalizedToken."""
     coros = [
@@ -59,7 +91,7 @@ async def collect_once(
         dexscreener.fetch_latest_profiles(http, settings.dexscreener_base_url),
     ]
     if settings.birdeye_active:
-        coros.append(_safe_birdeye(http, settings, alerter))
+        coros.append(_safe_birdeye(http, settings, alerter, redis))
 
     results = await asyncio.gather(*coros, return_exceptions=True)
     tokens = []
@@ -78,7 +110,7 @@ async def run_tick(settings: Settings, redis=None) -> int:
         timeout=settings.http_timeout_seconds,
         max_retries=settings.http_max_retries,
     ) as http:
-        tokens = await collect_once(http, settings, alerter=alerter)
+        tokens = await collect_once(http, settings, alerter=alerter, redis=redis)
 
     async with get_sessionmaker()() as session:
         result = await upsert_tokens(

@@ -197,6 +197,9 @@ class Settings(BaseSettings):
     # Сети Birdeye для new_listing (их имена: solana, ethereum, base, bsc, ...).
     birdeye_chains: str = Field(default="solana", alias="BIRDEYE_CHAINS")
     birdeye_new_listing_limit: int = Field(default=20, alias="BIRDEYE_NEW_LISTING_LIMIT")
+    # Отдельный интервал опроса Birdeye (сек): реже общего цикла discovery, чтобы
+    # экономить CU и укладываться в бесплатный лимит. 0 = каждый тик. По умолчанию 3 мин.
+    birdeye_interval_seconds: int = Field(default=180, alias="BIRDEYE_INTERVAL_SECONDS")
 
     @property
     def birdeye_chain_list(self) -> list[str]:
