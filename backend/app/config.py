@@ -110,6 +110,14 @@ class Settings(BaseSettings):
     # Рост налога на продажу (абсолютные проценты) считается критическим изменением.
     paper_sell_tax_jump_pct: float = Field(default=5.0, alias="PAPER_SELL_TAX_JUMP_PCT")
 
+    # --- Reviewer (T6) — пост-трейд разбор + авто-блеклист ---
+    # Мастер-гейт: включает учёт блеклиста на входе executor. Консервативно OFF.
+    reviewer_enabled: bool = Field(default=False, alias="REVIEWER_ENABLED")
+    # При убытке автоматически вносить токен в карантин (блеклист).
+    blacklist_on_loss: bool = Field(default=True, alias="BLACKLIST_ON_LOSS")
+    # Сколько держать токен в карантине (сек). По умолчанию — сутки.
+    blacklist_ttl_seconds: int = Field(default=86_400, alias="BLACKLIST_TTL_SECONDS")
+
     # --- Live-исполнение (Фаза 5). ВЫКЛЮЧЕНО по умолчанию. Реальные деньги. ---
     live_trading_enabled: bool = Field(default=False, alias="LIVE_TRADING_ENABLED")
     live_require_confirmation: bool = Field(default=True, alias="LIVE_REQUIRE_CONFIRMATION")

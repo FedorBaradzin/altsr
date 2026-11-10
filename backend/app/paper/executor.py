@@ -23,6 +23,7 @@ from ..risk.policy import RiskPolicy
 from ..risk.types import PortfolioState, TradeIntent
 from ..risk.types import Position as RiskPosition
 from .exits import ExitConfig, PositionState, evaluate_exit
+from .reviewer import is_blacklisted
 
 logger = logging.getLogger("altsr.paper.executor")
 
@@ -146,7 +147,8 @@ def _minutes(a: datetime, b: datetime) -> float:
 
 
 async def open_from_signals(
-    session: AsyncSession, s: Settings, get_price: PriceFn, now: datetime
+    session: AsyncSession, s: Settings, get_price: PriceFn, now: datetime,
+    *, redis=None,
 ) -> int:
     acc = await get_or_create_account(session, s)
 
@@ -176,6 +178,13 @@ async def open_from_signals(
         # качественнее сделок (снижает просадку и повышает win-rate).
         if (sig.confidence or 0.0) < s.signal_min_confidence:
             continue
+
+        # Reviewer-гейт (T6): не входим в токен, пока он в карантине после убытка.
+        # Активен только при reviewer_enabled и переданном redis — иначе поведение прежнее.
+        if s.reviewer_enabled and redis is not None:
+            if await is_blacklisted(redis, sig.chain, sig.address):
+                logger.info("Токен %s:%s в блеклисте — вход пропущен", sig.chain, sig.address)
+                continue
 
         # Единый гейт: Risk Engine проверяет лимиты портфеля перед КАЖДЫМ входом.
         intent = TradeIntent(
