@@ -36,7 +36,7 @@ export default function Landing() {
             <div><div className="font-sg text-lg font-bold">ALTSR</div><div className="-mt-0.5 text-[11px] text-muted">{t("brand.tagline")}</div></div>
           </div>
           <nav className="hidden items-center gap-7 text-sm text-muted md:flex">
-            <Link href="/app" className="hover:text-ink">{t("nav.radar")}</Link>
+            <Link href="/radar" className="hover:text-ink">{t("nav.radar")}</Link>
             <Link href="/pricing" className="hover:text-ink">{t("nav.pricing")}</Link>
             <Link href="/blog" className="hover:text-ink">{t("nav.blog")}</Link>
             <Link href="/journal" className="hover:text-ink">{t("nav.journal")}</Link>
@@ -44,7 +44,7 @@ export default function Landing() {
           </nav>
           <div className="flex items-center gap-3">
             <LangSwitcher />
-            <Link href="/app" className="glass px-4 py-2 text-sm">{t("nav.enter")}</Link>
+            <Link href="/radar" className="glass px-4 py-2 text-sm">{t("nav.enter")}</Link>
           </div>
         </header>
 
@@ -85,7 +85,7 @@ export default function Landing() {
           ))}
         </div>
         <div className="mt-10 flex flex-wrap gap-3">
-          <Link href="/app" className="rounded-xl px-5 py-3 font-sg text-sm font-semibold text-[#06231c]"
+          <Link href="/radar" className="rounded-xl px-5 py-3 font-sg text-sm font-semibold text-[#06231c]"
             style={{ background: "linear-gradient(135deg,#10B981,#22D3EE)" }}>{t("cta.openRadar")}</Link>
           <Link href="/blog" className="glass px-5 py-3 text-sm">{t("cta.readBlog")}</Link>
         </div>

@@ -143,7 +143,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <main className="min-h-screen" style={{ background: "#05060B" }}>
       <div className="mx-auto max-w-5xl px-6 py-8">
         <header className="mb-6 flex items-center justify-between">
-          <Link href="/app" className="flex items-center gap-2 text-sm text-muted hover:text-ink">← В приложение</Link>
+          <Link href="/radar" className="flex items-center gap-2 text-sm text-muted hover:text-ink">← В приложение</Link>
           <h1 className="font-sg text-lg font-bold">Админ-панель</h1>
         </header>
         {children}

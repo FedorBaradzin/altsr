@@ -19,7 +19,7 @@ export default function AuthButtons() {
 
   const run = async (kind: "wallet" | "wc", fn: () => Promise<unknown>) => {
     setErr(null); setBusy(kind);
-    try { await fn(); router.push("/app"); }
+    try { await fn(); router.push("/radar"); }
     catch (e) {
       const code = (e as Error)?.message || "";
       setErr(ERR_KEY[code] ? t(ERR_KEY[code]) : String(code || e));
@@ -30,7 +30,7 @@ export default function AuthButtons() {
   if (typeof window !== "undefined") {
     (window as any).onTelegramAuth = async (user: Record<string, unknown>) => {
       const me = await telegramVerify(user);
-      if (me) router.push("/app"); else setErr(t("auth.tgFailed"));
+      if (me) router.push("/radar"); else setErr(t("auth.tgFailed"));
     };
   }
 

@@ -32,7 +32,7 @@ export default function JournalPage() {
       style={{ minHeight: "100vh", background: "radial-gradient(60% 40% at 80% 0%,rgba(52,211,153,.08),transparent 60%),#05060B" }}
     >
       <nav className="mb-6 flex items-center justify-between text-sm text-muted">
-        <Link href="/app" className="hover:underline">← ALTSR</Link>
+        <Link href="/radar" className="hover:underline">← ALTSR</Link>
         <LangSwitcher />
       </nav>
 

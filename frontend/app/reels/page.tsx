@@ -31,7 +31,7 @@ export default function ReelsPage() {
   return (
     <main className="mx-auto max-w-5xl px-5 py-10" style={{ minHeight: "100vh", background: "radial-gradient(60% 40% at 80% 0%,rgba(139,92,246,.08),transparent 60%),#05060B" }}>
       <nav className="mb-6 flex items-center justify-between text-sm text-muted">
-        <Link href="/app" className="hover:underline">← ALTSR</Link>
+        <Link href="/radar" className="hover:underline">← ALTSR</Link>
         <LangSwitcher />
       </nav>
 
