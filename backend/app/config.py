@@ -46,6 +46,24 @@ class Settings(BaseSettings):
     momentum_min_change_h1: float = Field(default=0.0, alias="MOMENTUM_MIN_CHANGE_H1")
     momentum_min_buy_sell: float = Field(default=1.2, alias="MOMENTUM_MIN_BUY_SELL")
 
+    # --- Технические индикаторы (T1, рычаги ①③) ---
+    # Гейт входа по индикаторам. Консервативно выключен: включается, когда есть
+    # ряды цен/свечей (приходят из OHLCV-источника, T10). Пороги — примеры, не рекомендация.
+    indicators_enabled: bool = Field(default=False, alias="INDICATORS_ENABLED")
+    # Нет данных для индикатора → блокировать (True) или пропускать его проверку (False).
+    indicators_require_data: bool = Field(default=False, alias="INDICATORS_REQUIRE_DATA")
+    indicator_roc_period: int = Field(default=1, alias="INDICATOR_ROC_PERIOD")
+    indicator_roc_min: float = Field(default=0.0, alias="INDICATOR_ROC_MIN")
+    indicator_buy_sell_min: float = Field(default=1.3, alias="INDICATOR_BUY_SELL_MIN")
+    indicator_aroon_period: int = Field(default=14, alias="INDICATOR_AROON_PERIOD")
+    indicator_aroon_osc_min: float = Field(default=0.0, alias="INDICATOR_AROON_OSC_MIN")
+    indicator_atr_period: int = Field(default=14, alias="INDICATOR_ATR_PERIOD")
+    # Движение (ATR, % от цены) должно перекрывать издержки fee+spread+slippage.
+    indicator_cost_floor_pct: float = Field(default=2.0, alias="INDICATOR_COST_FLOOR_PCT")
+    indicator_require_vol_rising: bool = Field(
+        default=True, alias="INDICATOR_REQUIRE_VOL_RISING"
+    )
+
     # --- Safety / анти-скам (Фаза 1) ---
     goplus_base_url: str = Field(
         default="https://api.gopluslabs.io/api/v1", alias="GOPLUS_BASE_URL"
@@ -56,6 +74,18 @@ class Settings(BaseSettings):
     # Сколько токенов скринить за один тик screener-воркера.
     screen_batch_size: int = Field(default=20, alias="SCREEN_BATCH_SIZE")
     screen_interval_seconds: int = Field(default=15, alias="SCREEN_INTERVAL_SECONDS")
+
+    # --- Cross-source (T10) ---
+    # Кросс-проверка сигналов между независимыми источниками для роста доверия.
+    # Консервативно выключено: при включении расхождение двух safety-провайдеров
+    # поднимает PASS → REVIEW, а подтверждение тренда по OHLCV — независимый сигнал.
+    # Флаг rugcheck_enabled (второй safety-провайдер для Solana) объявлен выше, в
+    # блоке discovery, и по умолчанию тоже False (их /report отдаёт HTTP 400).
+    cross_source_enabled: bool = Field(default=False, alias="CROSS_SOURCE_ENABLED")
+    # Штраф уверенности (доля 0..1), который снимается при расхождении источников.
+    cross_source_confidence_penalty: float = Field(
+        default=0.25, alias="CROSS_SOURCE_CONFIDENCE_PENALTY"
+    )
 
     # --- Signal engine (Фаза 2) ---
     signal_min_liquidity_usd: float = Field(default=5000.0, alias="SIGNAL_MIN_LIQUIDITY_USD")
@@ -83,6 +113,43 @@ class Settings(BaseSettings):
     signal_batch_size: int = Field(default=30, alias="SIGNAL_BATCH_SIZE")
     signal_interval_seconds: int = Field(default=20, alias="SIGNAL_INTERVAL_SECONDS")
 
+    # --- Session controller «ночная смена» (T5, видео 70) ---
+    session_enabled: bool = Field(default=False, alias="SESSION_ENABLED")
+    # Потолок одновременно развёрнутого капитала (0 = без лимита).
+    session_budget_cap_usd: float = Field(default=0.0, alias="SESSION_BUDGET_CAP_USD")
+    # Просадка реализованного P&L от старта, после которой сессия стоп + kill-switch.
+    session_stop_pct: float = Field(default=0.20, alias="SESSION_STOP_PCT")
+
+    # --- Portfolio-мультиплексор (T9, видео 71) ---
+    multiplexer_enabled: bool = Field(default=False, alias="MULTIPLEXER_ENABLED")
+    multiplexer_instances: int = Field(default=1, alias="MULTIPLEXER_INSTANCES")
+    multiplexer_total_bank_usd: float = Field(
+        default=0.0, alias="MULTIPLEXER_TOTAL_BANK_USD")
+    multiplexer_global_stop_pct: float = Field(
+        default=0.20, alias="MULTIPLEXER_GLOBAL_STOP_PCT")
+
+    # --- Позиционный сайзинг по conviction (T7, рычаг ⑥) ---
+    sizing_enabled: bool = Field(default=False, alias="SIZING_ENABLED")
+    sizing_min_confidence: float = Field(default=0.5, alias="SIZING_MIN_CONFIDENCE")
+    sizing_min_pos_pct: float = Field(default=0.002, alias="SIZING_MIN_POS_PCT")
+    sizing_max_pos_pct: float = Field(default=0.01, alias="SIZING_MAX_POS_PCT")
+
+    # --- Hard-rules R1–R6 (T4, видео 70/71) ---
+    hard_rules_enabled: bool = Field(default=False, alias="HARD_RULES_ENABLED")
+    hr_min_volume_usd: float = Field(default=0.0, alias="HR_MIN_VOLUME_USD")
+    hr_require_verified: bool = Field(default=False, alias="HR_REQUIRE_VERIFIED")
+    hr_sell_buy_max: float = Field(default=2.0, alias="HR_SELL_BUY_MAX")
+    hr_dev_max_pct: float = Field(default=10.0, alias="HR_DEV_MAX_PCT")
+    hr_max_consec_losses: int = Field(default=2, alias="HR_MAX_CONSEC_LOSSES")
+
+    # --- Обучение на исходах (T3, рычаг ④) ---
+    # confidence из обученных весов (при наличии) вместо эвристики.
+    calibration_enabled: bool = Field(default=False, alias="CALIBRATION_ENABLED")
+    # Горизонт фиксации исхода сигнала (вырос/упал), минут.
+    outcome_horizon_minutes: int = Field(default=30, alias="OUTCOME_HORIZON_MIN")
+    # Минимум размеченных примеров для калибровки; иначе fallback на эвристику.
+    calibration_min_samples: int = Field(default=50, alias="CALIBRATION_MIN_SAMPLES")
+
     # --- Paper executor (Фаза 3) — ТОЛЬКО бумага, реальных денег нет ---
     paper_start_balance: float = Field(default=100_000.0, alias="PAPER_START_BALANCE")
     paper_position_size_usd: float = Field(default=500.0, alias="PAPER_POSITION_SIZE_USD")
@@ -97,6 +164,21 @@ class Settings(BaseSettings):
     paper_max_hold_minutes: int = Field(default=240, alias="PAPER_MAX_HOLD_MINUTES")
     paper_cost_pct: float = Field(default=0.01, alias="PAPER_COST_PCT")  # издержки на сторону
     paper_interval_seconds: int = Field(default=10, alias="PAPER_INTERVAL_SECONDS")
+    # --- Тренд ликвидности + быстрый выход (T2, рычаги ②⑤) ---
+    # Падение ликвидности между срезами больше порога → не входить / немедленный выход.
+    paper_liq_drop_pct: float = Field(default=0.15, alias="PAPER_LIQ_DROP_PCT")
+    # Ускоренный опрос цены/ликвидности для ОТКРЫТЫХ позиций (вместо paper_interval).
+    paper_open_poll_seconds: int = Field(default=5, alias="PAPER_OPEN_POLL_SECONDS")
+    # Рост налога на продажу (абсолютные проценты) считается критическим изменением.
+    paper_sell_tax_jump_pct: float = Field(default=5.0, alias="PAPER_SELL_TAX_JUMP_PCT")
+
+    # --- Reviewer (T6) — пост-трейд разбор + авто-блеклист ---
+    # Мастер-гейт: включает учёт блеклиста на входе executor. Консервативно OFF.
+    reviewer_enabled: bool = Field(default=False, alias="REVIEWER_ENABLED")
+    # При убытке автоматически вносить токен в карантин (блеклист).
+    blacklist_on_loss: bool = Field(default=True, alias="BLACKLIST_ON_LOSS")
+    # Сколько держать токен в карантине (сек). По умолчанию — сутки.
+    blacklist_ttl_seconds: int = Field(default=86_400, alias="BLACKLIST_TTL_SECONDS")
 
     # --- Live-исполнение (Фаза 5). ВЫКЛЮЧЕНО по умолчанию. Реальные деньги. ---
     live_trading_enabled: bool = Field(default=False, alias="LIVE_TRADING_ENABLED")
@@ -168,6 +250,15 @@ class Settings(BaseSettings):
     @property
     def news_feed_list(self) -> list[str]:
         return [u.strip() for u in self.news_feeds.split(",") if u.strip()]
+
+    # --- Event bus (T8) ---
+    # Шина доменных событий → Redis pub/sub (бэкенд только эмитит). OFF по умолчанию.
+    eventbus_enabled: bool = Field(default=False, alias="EVENTBUS_ENABLED")
+    # Тихие часы: пер-событийные уведомления копим в дайджест, а не шлём сразу.
+    quiet_hours_start: int = Field(default=23, alias="QUIET_HOURS_START")
+    quiet_hours_end: int = Field(default=8, alias="QUIET_HOURS_END")
+    # Когда собирать и слать дайджест за тихие часы ("HH:MM", локальное время воркера).
+    digest_at: str = Field(default="08:00", alias="DIGEST_AT")
 
     # --- Telegram (уведомления) ---
     telegram_bot_token: str = Field(default="", alias="TELEGRAM_BOT_TOKEN")

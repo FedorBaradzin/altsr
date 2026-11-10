@@ -11,6 +11,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from ..config import Settings
+from . import calibration, indicators
+from .calibration import Weights
+from .hard_rules import HardRuleConfig, HardRuleInput, check_hard_rules
 
 
 @dataclass
@@ -29,6 +32,12 @@ class SignalInput:
     vol_h6: float | None = None
     buys_m5: int | None = None
     sells_m5: int | None = None
+    # Ряды свечей для индикаторов (T1). Приходят из OHLCV-источника; None = нет данных.
+    closes: list[float] | None = None
+    highs: list[float] | None = None
+    lows: list[float] | None = None
+    # Предыдущий срез объёма h1 — для проверки «объём растёт».
+    vol_h1_prev: float | None = None
 
 
 @dataclass
@@ -39,8 +48,28 @@ class SignalDecision:
     rejected: str | None = None
 
 
-def evaluate_entry(inp: SignalInput, s: Settings) -> SignalDecision:
+def hard_config_from_settings(s: Settings) -> HardRuleConfig:
+    return HardRuleConfig(
+        min_volume_usd=s.hr_min_volume_usd,
+        require_verified=s.hr_require_verified,
+        sell_buy_max=s.hr_sell_buy_max,
+        dev_max_pct=s.hr_dev_max_pct,
+        max_consec_losses=s.hr_max_consec_losses,
+    )
+
+
+def evaluate_entry(
+    inp: SignalInput, s: Settings, *,
+    weights: Weights | None = None,
+    hr: HardRuleInput | None = None,
+) -> SignalDecision:
     reasons: list[str] = []
+
+    # 0. Hard-rules R1–R5 (T4): fail-fast, rule_id в причине отказа (для алертов).
+    if s.hard_rules_enabled and hr is not None:
+        hres = check_hard_rules(hr, hard_config_from_settings(s))
+        if hres.blocked:
+            return SignalDecision(False, rejected=f"[{hres.rule_id}] {hres.reason}")
 
     # 1. Safety-вердикт
     if s.signal_require_pass:
@@ -114,10 +143,115 @@ def evaluate_entry(inp: SignalInput, s: Settings) -> SignalDecision:
                 f"моментум m5 {inp.price_change_m5:+.1f}%, h1 {inp.price_change_h1:+.1f}%"
             )
 
-    return SignalDecision(True, confidence=_confidence(inp, s), reasons=reasons)
+    # 7. Технические индикаторы (T1) — ROC/объём/давление/Aroon/ATR, гейт AND.
+    if s.indicators_enabled:
+        rejected = _indicator_checks(inp, s, reasons)
+        if rejected is not None:
+            return rejected
+
+    return SignalDecision(True, confidence=_confidence(inp, s, weights), reasons=reasons)
 
 
-def _confidence(inp: SignalInput, s: Settings) -> float:
+def _indicator_checks(
+    inp: SignalInput, s: Settings, reasons: list[str]
+) -> SignalDecision | None:
+    """Гейт индикаторов (T1). Каждая проверка применяется при наличии данных;
+    при отсутствии — отказ, если indicators_require_data, иначе пропуск.
+    Возвращает отклоняющее решение или None (прошёл).
+    """
+    require = s.indicators_require_data
+
+    def _no_data(what: str) -> SignalDecision | None:
+        if require:
+            return SignalDecision(False, rejected=f"нет данных индикатора: {what}")
+        return None
+
+    # ROC по закрытиям.
+    if inp.closes is not None and len(inp.closes) >= s.indicator_roc_period + 1:
+        val = indicators.roc(inp.closes, s.indicator_roc_period)
+        if val < s.indicator_roc_min:
+            return SignalDecision(
+                False, rejected=f"ROC {val:+.2f}% < {s.indicator_roc_min:+.2f}%")
+        reasons.append(f"ROC {val:+.2f}%")
+    else:
+        r = _no_data("ряд цен (ROC)")
+        if r is not None:
+            return r
+
+    # Объём h1 растёт.
+    if s.indicator_require_vol_rising:
+        if inp.vol_h1 is not None and inp.vol_h1_prev is not None:
+            if inp.vol_h1 <= inp.vol_h1_prev:
+                return SignalDecision(
+                    False,
+                    rejected=f"объём h1 не растёт (${inp.vol_h1:,.0f} ≤ "
+                             f"${inp.vol_h1_prev:,.0f})")
+            reasons.append("объём h1 растёт")
+        else:
+            r = _no_data("срезы объёма h1")
+            if r is not None:
+                return r
+
+    # Давление покупок (при достаточном числе сделок).
+    if inp.buys_m5 is not None and inp.sells_m5 is not None:
+        if (inp.buys_m5 + inp.sells_m5) >= 5:
+            ratio = inp.buys_m5 / max(1, inp.sells_m5)
+            if ratio < s.indicator_buy_sell_min:
+                return SignalDecision(
+                    False, rejected=f"buys/sells {ratio:.2f} < {s.indicator_buy_sell_min:.2f}")
+            reasons.append(f"buys/sells {ratio:.2f}")
+    else:
+        r = _no_data("txns m5 buys/sells")
+        if r is not None:
+            return r
+
+    # Aroon-осциллятор (сила/направление тренда).
+    if (inp.highs is not None and inp.lows is not None
+            and len(inp.highs) >= s.indicator_aroon_period + 1):
+        osc = indicators.aroon_osc(inp.highs, inp.lows, s.indicator_aroon_period)
+        if osc < s.indicator_aroon_osc_min:
+            return SignalDecision(
+                False, rejected=f"aroon_osc {osc:+.0f} < {s.indicator_aroon_osc_min:+.0f}")
+        reasons.append(f"aroon_osc {osc:+.0f}")
+    else:
+        r = _no_data("ряды high/low (Aroon)")
+        if r is not None:
+            return r
+
+    # ATR-коридор: движение должно перекрывать издержки.
+    if (inp.highs is not None and inp.lows is not None and inp.closes is not None
+            and len(inp.closes) >= s.indicator_atr_period + 1 and inp.closes[-1] > 0):
+        a = indicators.atr(inp.highs, inp.lows, inp.closes, s.indicator_atr_period)
+        atr_pct = a / inp.closes[-1] * 100.0
+        if atr_pct < s.indicator_cost_floor_pct:
+            return SignalDecision(
+                False,
+                rejected=f"ATR {atr_pct:.2f}% < издержки {s.indicator_cost_floor_pct:.2f}%")
+        reasons.append(f"ATR {atr_pct:.2f}%")
+    else:
+        r = _no_data("ряды свечей (ATR)")
+        if r is not None:
+            return r
+
+    return None
+
+
+def _confidence(
+    inp: SignalInput, s: Settings, weights: Weights | None = None
+) -> float:
+    # T3: обученные веса (при включённой калибровке и наличии весов) вместо эвристики.
+    if s.calibration_enabled and weights is not None:
+        feats = calibration.extract_features(
+            roc_m5=inp.price_change_m5, roc_h1=inp.price_change_h1,
+            buys_m5=inp.buys_m5, sells_m5=inp.sells_m5,
+            liquidity_usd=inp.liquidity_usd, risk_score=inp.risk_score,
+            vol_h1=inp.vol_h1,
+        )
+        return round(calibration.predict_proba(feats, weights), 3)
+    return _heuristic_confidence(inp, s)
+
+
+def _heuristic_confidence(inp: SignalInput, s: Settings) -> float:
     """Уверенность входа [0..1]: статическая база + рыночная динамика.
 
     ВАЖНО: динамическая часть (моментум/давление покупок/оборот) повышает
