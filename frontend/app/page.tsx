@@ -42,6 +42,7 @@ export default function Landing() {
             <Link href="/blog" className="hover:text-ink">{t("nav.blog")}</Link>
             <Link href="/journal" className="hover:text-ink">{t("nav.journal")}</Link>
             <a href="#how" className="hover:text-ink">{t("nav.about")}</a>
+            <a href="https://t.me/altsr_manager" target="_blank" rel="noreferrer" className="hover:text-ink">{t("nav.support")}</a>
           </nav>
           <div className="flex items-center gap-3">
             <LangSwitcher />
@@ -97,6 +98,17 @@ export default function Landing() {
           {t("disc.landing")}
         </p>
       </section>
+
+      {/* FOOTER — contact manager on Telegram */}
+      <footer className="border-t border-line px-6 py-10 text-center">
+        <a href="https://t.me/altsr_manager" target="_blank" rel="noreferrer"
+          className="inline-flex items-center gap-2 rounded-xl px-5 py-3 font-sg text-sm font-semibold text-[#06231c]"
+          style={{ background: "linear-gradient(135deg,#10B981,#22D3EE)" }}>
+          ✈ {t("contact.manager")} — @altsr_manager
+        </a>
+        <p className="mt-3 text-xs text-muted">{t("contact.support247")}</p>
+        <p className="mt-5 text-xs text-dim">© 2026 ALTSR · Crypto Neural Universe</p>
+      </footer>
     </main>
   );
 }
