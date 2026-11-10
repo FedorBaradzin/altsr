@@ -6,7 +6,12 @@ from app.signals.engine import SignalInput, evaluate_entry
 
 
 def _s():
-    return get_settings()
+    s = get_settings()
+    # Эти тесты проверяют не-моментум гейты (safety/ликвидность/холдеры/уверенность).
+    # Моментум-движок тестируется отдельно; здесь его отключаем, чтобы входы не
+    # отсеивались из-за отсутствия momentum-данных в тестовых SignalInput.
+    s.momentum_enabled = False
+    return s
 
 
 def _ok(**kw) -> SignalInput:

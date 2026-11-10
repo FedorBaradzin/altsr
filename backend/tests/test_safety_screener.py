@@ -41,6 +41,7 @@ async def test_screen_token_evm_merges_and_passes():
 
 async def test_screen_token_solana():
     settings = get_settings()
+    settings.rugcheck_enabled = True  # тест проверяет solana-путь c RugCheck (мок ниже)
     with respx.mock(assert_all_called=False) as router:
         router.get(url__startswith=f"{settings.goplus_base_url}/solana/token_security").mock(
             return_value=httpx.Response(200, json={"result": {}})
