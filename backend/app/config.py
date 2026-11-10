@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     signal_min_holders: int = Field(default=0, alias="SIGNAL_MIN_HOLDERS")
     signal_require_pass: bool = Field(default=True, alias="SIGNAL_REQUIRE_PASS")
     signal_max_risk: int = Field(default=30, alias="SIGNAL_MAX_RISK")
+    # Минимальная уверенность сигнала для входа (0..1). Выше порог → меньше,
+    # но качественнее входов, меньше просадок.
+    signal_min_confidence: float = Field(default=0.0, alias="SIGNAL_MIN_CONFIDENCE")
     signal_batch_size: int = Field(default=30, alias="SIGNAL_BATCH_SIZE")
     signal_interval_seconds: int = Field(default=20, alias="SIGNAL_INTERVAL_SECONDS")
 

@@ -91,7 +91,7 @@ export default function Dashboard() {
             <Stat l={t("dash.return")} v={`${paper.return_pct >= 0 ? "+" : ""}${paper.return_pct}%`} up={paper.return_pct >= 0} />
             <Stat l={t("dash.winrate")} v={paper.win_rate != null ? `${Math.round(paper.win_rate * 100)}%` : "—"} />
             <Stat l={t("dash.positions")} v={`${paper.open_positions} ${t("dash.positionsSuffix")}`} />
-            <Stat l={t("dash.realizedPnl")} v={`${paper.realized_pnl >= 0 ? "+" : ""}$${Math.abs(paper.realized_pnl).toLocaleString()}`} up={paper.realized_pnl >= 0} />
+            <Stat l={t("dash.realizedPnl")} v={`${paper.realized_pnl >= 0 ? "+$" : "−$"}${Math.abs(paper.realized_pnl).toLocaleString()}`} up={paper.realized_pnl >= 0} />
           </div>
         )}
 

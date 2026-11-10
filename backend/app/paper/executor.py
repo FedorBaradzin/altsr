@@ -103,6 +103,10 @@ async def open_from_signals(
         if acc.cash < s.paper_position_size_usd:
             logger.info("Недостаточно бумажного кэша для новой позиции")
             break
+        # Входим только в сигналы с достаточной уверенностью — меньше, но
+        # качественнее сделок (снижает просадку и повышает win-rate).
+        if (sig.confidence or 0.0) < s.signal_min_confidence:
+            continue
         price = await get_price(sig.chain, sig.address)
         if price is None or price <= 0:
             continue

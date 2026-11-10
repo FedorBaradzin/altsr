@@ -185,6 +185,8 @@ services:
         NEXT_PUBLIC_WS_BASE: wss://altsr.space
         NEXT_PUBLIC_SITE_URL: https://altsr.space
         NEXT_PUBLIC_TELEGRAM_BOT: ${NEXT_PUBLIC_TELEGRAM_BOT:-}
+        NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: ${NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID:-}
+        NEXT_PUBLIC_GOOGLE_ENABLED: ${NEXT_PUBLIC_GOOGLE_ENABLED:-false}
     restart: unless-stopped
     depends_on:
       - backend
