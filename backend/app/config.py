@@ -95,6 +95,14 @@ class Settings(BaseSettings):
     # Просадка реализованного P&L от старта, после которой сессия стоп + kill-switch.
     session_stop_pct: float = Field(default=0.20, alias="SESSION_STOP_PCT")
 
+    # --- Portfolio-мультиплексор (T9, видео 71) ---
+    multiplexer_enabled: bool = Field(default=False, alias="MULTIPLEXER_ENABLED")
+    multiplexer_instances: int = Field(default=1, alias="MULTIPLEXER_INSTANCES")
+    multiplexer_total_bank_usd: float = Field(
+        default=0.0, alias="MULTIPLEXER_TOTAL_BANK_USD")
+    multiplexer_global_stop_pct: float = Field(
+        default=0.20, alias="MULTIPLEXER_GLOBAL_STOP_PCT")
+
     # --- Позиционный сайзинг по conviction (T7, рычаг ⑥) ---
     sizing_enabled: bool = Field(default=False, alias="SIZING_ENABLED")
     sizing_min_confidence: float = Field(default=0.5, alias="SIZING_MIN_CONFIDENCE")
