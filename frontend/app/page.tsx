@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import GalaxyHero from "@/components/GalaxyHero";
+import LiveReviewBand from "@/components/LiveReviewBand";
 import LangSwitcher from "@/components/LangSwitcher";
 import { LANG_COOKIE, normalizeLang, translate } from "@/lib/i18n";
 
@@ -67,6 +68,9 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      {/* LIVE REVIEW BAND — real coins getting reviewed, with freemium lock */}
+      <LiveReviewBand />
 
       {/* HOW IT WORKS */}
       <section id="how" className="mx-auto max-w-5xl px-6 py-20">

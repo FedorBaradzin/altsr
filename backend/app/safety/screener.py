@@ -29,10 +29,13 @@ async def screen_token(
     http: HttpClient, settings: Settings, chain: str, address: str
 ) -> SafetyResult:
     if chain == "solana":
-        providers = [
-            goplus.fetch(http, settings.goplus_base_url, chain, address),
-            rugcheck.fetch(http, settings.rugcheck_base_url, address),
-        ]
+        # RugCheck's /report endpoint currently returns 400 for most mints and
+        # its retries stall the whole batch (~8s/token) → screening falls behind
+        # and fresh coins never get a verdict. GoPlus(solana) covers the core
+        # checks, so rely on it and only add RugCheck when explicitly enabled.
+        providers = [goplus.fetch(http, settings.goplus_base_url, chain, address)]
+        if settings.rugcheck_enabled:
+            providers.append(rugcheck.fetch(http, settings.rugcheck_base_url, address))
     else:
         providers = [
             goplus.fetch(http, settings.goplus_base_url, chain, address),

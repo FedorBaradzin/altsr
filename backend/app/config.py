@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     rugcheck_base_url: str = Field(
         default="https://api.rugcheck.xyz/v1", alias="RUGCHECK_BASE_URL"
     )
+    rugcheck_enabled: bool = Field(default=False, alias="RUGCHECK_ENABLED")
 
     # --- Safety / анти-скам (Фаза 1) ---
     goplus_base_url: str = Field(

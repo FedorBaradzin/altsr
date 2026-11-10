@@ -113,7 +113,7 @@ export default function Dashboard() {
                   <th className="px-5 py-3 font-semibold" />
                 </tr></thead>
                 <tbody>
-                  {tokens.map((tk) => (
+                  {(me && me.tier !== "free" ? tokens : tokens.slice(0, 10)).map((tk) => (
                     <tr key={tk.id} className="cursor-pointer border-t hover:bg-violet/5" style={{ borderColor: "var(--line)" }} onClick={() => openRisk(tk)}>
                       <td className="px-5 py-3"><b className="font-sg">{tk.symbol || tk.address.slice(0, 8)}</b> <span className="text-[11px] text-dim">· {tk.chain}</span></td>
                       <td className="px-2 py-3"><Badge v={tk.verdict} risk={tk.risk_score} /></td>
@@ -122,6 +122,20 @@ export default function Dashboard() {
                       <td className="px-5 py-3">{tk.verdict === "BLOCK" ? <span className="text-dim">{t("act.blocked")}</span> : <a href={buyUrl(tk)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="rounded-lg px-3 py-1 text-xs" style={{ background: "rgba(139,92,246,.16)", border: "1px solid rgba(139,92,246,.4)", color: "#d8ccff" }}>{t("act.buy")}</a>}</td>
                     </tr>
                   ))}
+                  {(!me || me.tier === "free") && tokens.length > 10 && (
+                    <tr>
+                      <td colSpan={5} className="px-5 py-6">
+                        <div className="flex flex-col items-center gap-3 text-center">
+                          <div className="flex w-full max-w-md flex-col gap-2 opacity-50" style={{ filter: "blur(6px)" }}>
+                            <div className="h-6 rounded" style={{ background: "rgba(139,92,246,.2)" }} />
+                            <div className="h-6 rounded" style={{ background: "rgba(34,211,238,.14)" }} />
+                          </div>
+                          <p className="text-sm text-muted">🔒 {t("feed.lockedPre")} {tokens.length - 10}+ {t("feed.lockedPost")}</p>
+                          <a href="/login" className="rounded-xl px-5 py-2.5 text-sm font-semibold text-[#06231c]" style={{ background: "linear-gradient(135deg,#10B981,#22D3EE)" }}>{t("feed.unlock")}</a>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                   {tokens.length === 0 && !err && <tr><td colSpan={5} className="px-5 py-10 text-center text-muted">{t("feed.empty")}</td></tr>}
                 </tbody>
               </table>
