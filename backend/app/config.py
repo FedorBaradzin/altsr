@@ -88,6 +88,14 @@ class Settings(BaseSettings):
     signal_batch_size: int = Field(default=30, alias="SIGNAL_BATCH_SIZE")
     signal_interval_seconds: int = Field(default=20, alias="SIGNAL_INTERVAL_SECONDS")
 
+    # --- Обучение на исходах (T3, рычаг ④) ---
+    # confidence из обученных весов (при наличии) вместо эвристики.
+    calibration_enabled: bool = Field(default=False, alias="CALIBRATION_ENABLED")
+    # Горизонт фиксации исхода сигнала (вырос/упал), минут.
+    outcome_horizon_minutes: int = Field(default=30, alias="OUTCOME_HORIZON_MIN")
+    # Минимум размеченных примеров для калибровки; иначе fallback на эвристику.
+    calibration_min_samples: int = Field(default=50, alias="CALIBRATION_MIN_SAMPLES")
+
     # --- Paper executor (Фаза 3) — ТОЛЬКО бумага, реальных денег нет ---
     paper_start_balance: float = Field(default=100_000.0, alias="PAPER_START_BALANCE")
     paper_position_size_usd: float = Field(default=500.0, alias="PAPER_POSITION_SIZE_USD")

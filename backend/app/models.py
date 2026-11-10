@@ -341,3 +341,36 @@ class Payment(Base):
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Payment {self.tier} {self.status}>"
+
+
+class SignalOutcome(Base):
+    """Исход сигнала для обучения confidence (T3). Фичи на момент сигнала + метка.
+
+    label: 1 — вырос за горизонт (win), 0 — упал/не вырос (loss), NULL — не resolved.
+    features — JSON-строкой (порядок из calibration.FEATURE_NAMES).
+    """
+
+    __tablename__ = "signal_outcomes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    chain: Mapped[str] = mapped_column(String(32), nullable=False)
+    address: Mapped[str] = mapped_column(String(128), nullable=False)
+    features: Mapped[str] = mapped_column(Text, nullable=False)
+    confidence: Mapped[float | None] = mapped_column(Float)
+    entry_price: Mapped[float | None] = mapped_column(Float)
+    horizon_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    label: Mapped[int | None] = mapped_column(Integer)  # NULL пока не resolved
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        Index("ix_signal_outcomes_chain_addr", "chain", "address"),
+        Index("ix_signal_outcomes_label", "label"),
+        Index("ix_signal_outcomes_created_at", "created_at"),
+    )
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<SignalOutcome {self.chain}:{self.address} label={self.label}>"

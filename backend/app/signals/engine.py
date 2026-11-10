@@ -11,7 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from ..config import Settings
-from . import indicators
+from . import calibration, indicators
+from .calibration import Weights
 
 
 @dataclass
@@ -46,7 +47,9 @@ class SignalDecision:
     rejected: str | None = None
 
 
-def evaluate_entry(inp: SignalInput, s: Settings) -> SignalDecision:
+def evaluate_entry(
+    inp: SignalInput, s: Settings, *, weights: Weights | None = None
+) -> SignalDecision:
     reasons: list[str] = []
 
     # 1. Safety-вердикт
@@ -127,7 +130,7 @@ def evaluate_entry(inp: SignalInput, s: Settings) -> SignalDecision:
         if rejected is not None:
             return rejected
 
-    return SignalDecision(True, confidence=_confidence(inp, s), reasons=reasons)
+    return SignalDecision(True, confidence=_confidence(inp, s, weights), reasons=reasons)
 
 
 def _indicator_checks(
@@ -214,7 +217,22 @@ def _indicator_checks(
     return None
 
 
-def _confidence(inp: SignalInput, s: Settings) -> float:
+def _confidence(
+    inp: SignalInput, s: Settings, weights: Weights | None = None
+) -> float:
+    # T3: обученные веса (при включённой калибровке и наличии весов) вместо эвристики.
+    if s.calibration_enabled and weights is not None:
+        feats = calibration.extract_features(
+            roc_m5=inp.price_change_m5, roc_h1=inp.price_change_h1,
+            buys_m5=inp.buys_m5, sells_m5=inp.sells_m5,
+            liquidity_usd=inp.liquidity_usd, risk_score=inp.risk_score,
+            vol_h1=inp.vol_h1,
+        )
+        return round(calibration.predict_proba(feats, weights), 3)
+    return _heuristic_confidence(inp, s)
+
+
+def _heuristic_confidence(inp: SignalInput, s: Settings) -> float:
     c = 0.5
     # Низкий риск → выше уверенность.
     if inp.risk_score is not None and s.signal_max_risk > 0:
