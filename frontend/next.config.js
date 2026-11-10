@@ -10,7 +10,10 @@ const nextConfig = {
     NEXT_PUBLIC_GOOGLE_ENABLED: process.env.NEXT_PUBLIC_GOOGLE_ENABLED || "false",
   },
   async rewrites() {
-    return [{ source: "/v2", destination: "/v2/index.html" }];
+    return {
+      beforeFiles: [{ source: "/", destination: "/landing/index.html" }],
+      afterFiles: [{ source: "/v2", destination: "/v2/index.html" }],
+    };
   },
 };
 module.exports = nextConfig;
