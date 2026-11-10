@@ -74,9 +74,9 @@ export default function Dashboard() {
             )}
             <LangSwitcher />
             {me ? (
-              <span className="rounded-full px-3 py-1 text-xs" style={{ background: "rgba(139,92,246,.18)", color: "#c4b5fd" }}>
+              <Link href="/account" className="rounded-full px-3 py-1 text-xs hover:brightness-110" style={{ background: "rgba(139,92,246,.18)", color: "#c4b5fd" }}>
                 {me.display_name || t("nav.account")} · {me.tier}
-              </span>
+              </Link>
             ) : (
               <Link href="/login" className="glass px-3 py-1.5 text-xs">{t("nav.login")}</Link>
             )}
