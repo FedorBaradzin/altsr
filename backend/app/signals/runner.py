@@ -11,12 +11,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import Settings, get_settings
 from ..db import get_sessionmaker
+from ..discovery.base import HttpClient
 from ..models import SafetyReport, Signal, Token
 from ..notify.format import format_buy_alert
 from ..notify.telegram import TelegramNotifier
 from ..paper.executor import config_from_settings
 from ..paper.exits import build_plan
 from .engine import SignalInput, evaluate_entry
+from .momentum import fetch_momentum
 from .venues import build_buy_options
 
 logger = logging.getLogger("altsr.signals.runner")
@@ -56,7 +58,23 @@ async def run_batch(
 
     async with get_sessionmaker()() as session:
         rows = await _candidates(session, settings)
+        # Моментум по всем кандидатам (DexScreener) — одним проходом, до цикла.
+        moms: dict[int, object] = {}
+        if settings.momentum_enabled and rows:
+            async with HttpClient(
+                timeout=settings.http_timeout_seconds, max_retries=settings.http_max_retries
+            ) as http:
+                for token, _rep in rows:
+                    try:
+                        m = await fetch_momentum(
+                            http, settings.dexscreener_base_url, token.chain, token.address
+                        )
+                        if m is not None:
+                            moms[token.id] = m
+                    except Exception as exc:  # noqa: BLE001
+                        logger.debug("моментум %s не получен: %s", token.address, exc)
         for token, report in rows:
+            mom = moms.get(token.id)
             inp = SignalInput(
                 chain=token.chain,
                 address=token.address,
@@ -65,6 +83,12 @@ async def run_batch(
                 holder_count=None,
                 verdict=report.verdict,
                 risk_score=report.risk_score,
+                price_change_m5=getattr(mom, "price_change_m5", None),
+                price_change_h1=getattr(mom, "price_change_h1", None),
+                vol_h1=getattr(mom, "vol_h1", None),
+                vol_h6=getattr(mom, "vol_h6", None),
+                buys_m5=getattr(mom, "buys_m5", None),
+                sells_m5=getattr(mom, "sells_m5", None),
             )
             decision = evaluate_entry(inp, settings)
             if not decision.passed:

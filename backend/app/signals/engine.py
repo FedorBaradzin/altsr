@@ -22,6 +22,13 @@ class SignalInput:
     holder_count: int | None = None
     verdict: str | None = None
     risk_score: int | None = None
+    # Моментум (DexScreener) — вход только в растущие.
+    price_change_m5: float | None = None
+    price_change_h1: float | None = None
+    vol_h1: float | None = None
+    vol_h6: float | None = None
+    buys_m5: int | None = None
+    sells_m5: int | None = None
 
 
 @dataclass
@@ -77,6 +84,34 @@ def evaluate_entry(inp: SignalInput, s: Settings) -> SignalDecision:
     elif inp.holder_count is not None:
         reasons.append(f"холдеров {inp.holder_count}")
 
+    # 6. Моментум — входим ТОЛЬКО в растущие (DexScreener priceChange + давление покупок)
+    if s.momentum_enabled:
+        has_mom = inp.price_change_m5 is not None and inp.price_change_h1 is not None
+        if not has_mom:
+            if s.momentum_require_data:
+                return SignalDecision(False, rejected="нет данных моментума")
+        else:
+            if inp.price_change_m5 <= s.momentum_min_change_m5:
+                return SignalDecision(
+                    False, rejected=f"m5 {inp.price_change_m5:+.1f}% ≤ {s.momentum_min_change_m5:+.1f}%"
+                )
+            if inp.price_change_h1 <= s.momentum_min_change_h1:
+                return SignalDecision(
+                    False, rejected=f"h1 {inp.price_change_h1:+.1f}% ≤ {s.momentum_min_change_h1:+.1f}%"
+                )
+            if (
+                inp.buys_m5 is not None and inp.sells_m5 is not None
+                and (inp.buys_m5 + inp.sells_m5) >= 5
+            ):
+                ratio = inp.buys_m5 / max(1, inp.sells_m5)
+                if ratio < s.momentum_min_buy_sell:
+                    return SignalDecision(
+                        False, rejected=f"buys/sells {ratio:.2f} < {s.momentum_min_buy_sell:.2f}"
+                    )
+            reasons.append(
+                f"моментум m5 {inp.price_change_m5:+.1f}%, h1 {inp.price_change_h1:+.1f}%"
+            )
+
     return SignalDecision(True, confidence=_confidence(inp, s), reasons=reasons)
 
 
@@ -91,4 +126,11 @@ def _confidence(inp: SignalInput, s: Settings) -> float:
     # Достаточно холдеров.
     if inp.holder_count is not None and inp.holder_count >= 100:
         c += 0.10
+    # Моментум усиливает уверенность: сильный рост h1 + перевес покупок.
+    if inp.price_change_h1 is not None:
+        c += 0.15 * min(1.0, max(0.0, inp.price_change_h1 / 50.0))
+    if inp.buys_m5 is not None and inp.sells_m5 is not None:
+        ratio = inp.buys_m5 / max(1, inp.sells_m5)
+        if ratio >= 1.5:
+            c += 0.08
     return round(min(1.0, max(0.0, c)), 3)

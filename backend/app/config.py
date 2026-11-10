@@ -39,6 +39,12 @@ class Settings(BaseSettings):
         default="https://api.rugcheck.xyz/v1", alias="RUGCHECK_BASE_URL"
     )
     rugcheck_enabled: bool = Field(default=False, alias="RUGCHECK_ENABLED")
+    # Моментум-движок (DexScreener): входим только в растущие токены.
+    momentum_enabled: bool = Field(default=True, alias="MOMENTUM_ENABLED")
+    momentum_require_data: bool = Field(default=True, alias="MOMENTUM_REQUIRE_DATA")
+    momentum_min_change_m5: float = Field(default=0.0, alias="MOMENTUM_MIN_CHANGE_M5")
+    momentum_min_change_h1: float = Field(default=0.0, alias="MOMENTUM_MIN_CHANGE_H1")
+    momentum_min_buy_sell: float = Field(default=1.2, alias="MOMENTUM_MIN_BUY_SELL")
 
     # --- Safety / анти-скам (Фаза 1) ---
     goplus_base_url: str = Field(
