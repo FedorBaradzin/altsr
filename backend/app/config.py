@@ -88,6 +88,14 @@ class Settings(BaseSettings):
     signal_batch_size: int = Field(default=30, alias="SIGNAL_BATCH_SIZE")
     signal_interval_seconds: int = Field(default=20, alias="SIGNAL_INTERVAL_SECONDS")
 
+    # --- Hard-rules R1–R6 (T4, видео 70/71) ---
+    hard_rules_enabled: bool = Field(default=False, alias="HARD_RULES_ENABLED")
+    hr_min_volume_usd: float = Field(default=0.0, alias="HR_MIN_VOLUME_USD")
+    hr_require_verified: bool = Field(default=False, alias="HR_REQUIRE_VERIFIED")
+    hr_sell_buy_max: float = Field(default=2.0, alias="HR_SELL_BUY_MAX")
+    hr_dev_max_pct: float = Field(default=10.0, alias="HR_DEV_MAX_PCT")
+    hr_max_consec_losses: int = Field(default=2, alias="HR_MAX_CONSEC_LOSSES")
+
     # --- Обучение на исходах (T3, рычаг ④) ---
     # confidence из обученных весов (при наличии) вместо эвристики.
     calibration_enabled: bool = Field(default=False, alias="CALIBRATION_ENABLED")

@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from ..config import Settings
 from . import calibration, indicators
 from .calibration import Weights
+from .hard_rules import HardRuleConfig, HardRuleInput, check_hard_rules
 
 
 @dataclass
@@ -47,10 +48,28 @@ class SignalDecision:
     rejected: str | None = None
 
 
+def hard_config_from_settings(s: Settings) -> HardRuleConfig:
+    return HardRuleConfig(
+        min_volume_usd=s.hr_min_volume_usd,
+        require_verified=s.hr_require_verified,
+        sell_buy_max=s.hr_sell_buy_max,
+        dev_max_pct=s.hr_dev_max_pct,
+        max_consec_losses=s.hr_max_consec_losses,
+    )
+
+
 def evaluate_entry(
-    inp: SignalInput, s: Settings, *, weights: Weights | None = None
+    inp: SignalInput, s: Settings, *,
+    weights: Weights | None = None,
+    hr: HardRuleInput | None = None,
 ) -> SignalDecision:
     reasons: list[str] = []
+
+    # 0. Hard-rules R1–R5 (T4): fail-fast, rule_id в причине отказа (для алертов).
+    if s.hard_rules_enabled and hr is not None:
+        hres = check_hard_rules(hr, hard_config_from_settings(s))
+        if hres.blocked:
+            return SignalDecision(False, rejected=f"[{hres.rule_id}] {hres.reason}")
 
     # 1. Safety-вердикт
     if s.signal_require_pass:
