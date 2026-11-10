@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from sqlalchemy import func, select
@@ -26,6 +27,21 @@ from .exits import ExitConfig, PositionState, evaluate_exit
 logger = logging.getLogger("altsr.paper.executor")
 
 PriceFn = Callable[[str, str], Awaitable[float | None]]
+
+
+@dataclass
+class ExitContext:
+    """Доп. контекст открытой позиции для цепочки выходов T2 (всё опционально)."""
+
+    liquidity_usd: float | None = None
+    liquidity_prev_usd: float | None = None
+    kill_switch: bool = False
+    session_stopped: bool = False
+    safety_regression: str | None = None
+
+
+# Источник контекста по (chain, address). None → T2-сигналы неактивны (поведение прежнее).
+ContextFn = Callable[[str, str], "ExitContext | None"]
 
 
 def paper_risk_policy(s: Settings) -> RiskPolicy:
@@ -84,6 +100,7 @@ def config_from_settings(s: Settings) -> ExitConfig:
         tp_fraction=s.paper_take_profit_fraction,
         stall_minutes=s.paper_stall_minutes,
         max_hold_minutes=s.paper_max_hold_minutes,
+        liq_drop_pct=s.paper_liq_drop_pct,
     )
 
 
@@ -212,7 +229,8 @@ def _sell(pos: PaperPosition, fraction: float, price: float, cost_pct: float) ->
 
 
 async def process_positions(
-    session: AsyncSession, s: Settings, get_price: PriceFn, now: datetime
+    session: AsyncSession, s: Settings, get_price: PriceFn, now: datetime,
+    *, get_context: ContextFn | None = None,
 ) -> int:
     cfg = config_from_settings(s)
     acc = await get_or_create_account(session, s)
@@ -231,11 +249,17 @@ async def process_positions(
             pos.peak_price = price
             pos.last_high_at = now
 
+        ctx = get_context(pos.chain, pos.address) if get_context is not None else None
         st = PositionState(
             entry_price=pos.entry_price, peak_price=pos.peak_price, price=price,
             minutes_since_open=_minutes(now, pos.opened_at),
             minutes_since_high=_minutes(now, pos.last_high_at),
             tp_taken=pos.tp_taken,
+            kill_switch=bool(ctx and ctx.kill_switch),
+            session_stopped=bool(ctx and ctx.session_stopped),
+            safety_regression=(ctx.safety_regression if ctx else None),
+            liquidity_usd=(ctx.liquidity_usd if ctx else None),
+            liquidity_prev_usd=(ctx.liquidity_prev_usd if ctx else None),
         )
         action = evaluate_exit(st, cfg)
 

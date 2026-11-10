@@ -102,6 +102,13 @@ class Settings(BaseSettings):
     paper_max_hold_minutes: int = Field(default=240, alias="PAPER_MAX_HOLD_MINUTES")
     paper_cost_pct: float = Field(default=0.01, alias="PAPER_COST_PCT")  # издержки на сторону
     paper_interval_seconds: int = Field(default=10, alias="PAPER_INTERVAL_SECONDS")
+    # --- Тренд ликвидности + быстрый выход (T2, рычаги ②⑤) ---
+    # Падение ликвидности между срезами больше порога → не входить / немедленный выход.
+    paper_liq_drop_pct: float = Field(default=0.15, alias="PAPER_LIQ_DROP_PCT")
+    # Ускоренный опрос цены/ликвидности для ОТКРЫТЫХ позиций (вместо paper_interval).
+    paper_open_poll_seconds: int = Field(default=5, alias="PAPER_OPEN_POLL_SECONDS")
+    # Рост налога на продажу (абсолютные проценты) считается критическим изменением.
+    paper_sell_tax_jump_pct: float = Field(default=5.0, alias="PAPER_SELL_TAX_JUMP_PCT")
 
     # --- Live-исполнение (Фаза 5). ВЫКЛЮЧЕНО по умолчанию. Реальные деньги. ---
     live_trading_enabled: bool = Field(default=False, alias="LIVE_TRADING_ENABLED")
