@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import GalaxyHero from "@/components/GalaxyHero";
+import HowVideo from "@/components/HowVideo";
 import LiveReviewBand from "@/components/LiveReviewBand";
 import LangSwitcher from "@/components/LangSwitcher";
 import { LANG_COOKIE, normalizeLang, translate } from "@/lib/i18n";
@@ -76,7 +77,13 @@ export default function Landing() {
       {/* HOW IT WORKS */}
       <section id="how" className="mx-auto max-w-5xl px-6 py-20">
         <p className="mb-1 text-xs tracking-[3px] text-violet">{t("how.eyebrow")}</p>
-        <h2 className="mb-8 font-sg text-2xl font-bold">{t("how.title")}</h2>
+        <h2 className="mb-6 font-sg text-2xl font-bold">{t("how.title")}</h2>
+
+        {/* compact platform video tour — click opens the clip in a modal */}
+        <div className="mb-8">
+          <HowVideo />
+        </div>
+
         <div className="flex flex-wrap items-center gap-3">
           {PIPELINE.map(([name, sub, color], i) => (
             <div key={name} className="flex items-center gap-3">

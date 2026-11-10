@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   fetchTokens, fetchPaperSummary, fetchSignals, fetchNews, fetchSafety,
@@ -84,17 +84,19 @@ export default function Dashboard() {
           </nav>
         </header>
 
-        {/* stat strip */}
+        {/* stat strip — live, animated, highlighted on every refresh */}
         {paper && (
-          <div data-tour="paper" className="glass mb-5 flex flex-wrap items-center gap-5 px-5 py-4">
+          <div data-tour="paper" className="glass stat-pulse mb-5 flex flex-wrap items-center gap-5 px-5 py-4">
             <div className="pr-4" style={{ borderRight: "1px solid var(--line)" }}>
               <div className="text-[11px] text-muted">{t("dash.paperAccount")}</div>
-              <div className="font-sg text-xl font-bold">${paper.equity.toLocaleString()}</div>
+              <div className="font-sg text-2xl font-bold" style={{ textShadow: "0 0 20px rgba(34,211,238,.35)" }}>
+                <AnimatedNumber value={paper.equity} prefix="$" />
+              </div>
             </div>
-            <Stat l={t("dash.return")} v={`${paper.return_pct >= 0 ? "+" : ""}${paper.return_pct}%`} up={paper.return_pct >= 0} />
-            <Stat l={t("dash.winrate")} v={paper.win_rate != null ? `${Math.round(paper.win_rate * 100)}%` : "—"} />
+            <AnimatedStat l={t("dash.return")} value={paper.return_pct} suffix="%" decimals={1} showSign up={paper.return_pct >= 0} big />
+            <AnimatedStat l={t("dash.winrate")} value={paper.win_rate != null ? Math.round(paper.win_rate * 100) : null} suffix="%" />
             <Stat l={t("dash.positions")} v={`${paper.open_positions} ${t("dash.positionsSuffix")}`} />
-            <Stat l={t("dash.realizedPnl")} v={`${paper.realized_pnl >= 0 ? "+$" : "−$"}${Math.abs(paper.realized_pnl).toLocaleString()}`} up={paper.realized_pnl >= 0} />
+            <AnimatedStat l={t("dash.realizedPnl")} value={paper.realized_pnl} prefix="$" showSign up={paper.realized_pnl >= 0} big />
           </div>
         )}
 
@@ -211,6 +213,63 @@ export default function Dashboard() {
 
 function Stat({ l, v, up }: { l: string; v: string; up?: boolean }) {
   return <div className="min-w-[100px]"><div className="text-[11px] text-muted">{l}</div><div className="font-sg text-lg font-bold" style={up != null ? { color: up ? "#7df3c0" : "#fca5a5" } : undefined}>{v}</div></div>;
+}
+
+// Tween a number from its previous value to the new one (easeOutCubic).
+function useCountUp(target: number, duration = 800) {
+  const [val, setVal] = useState(target);
+  const prev = useRef(target);
+  useEffect(() => {
+    const from = prev.current;
+    const to = target;
+    prev.current = target;
+    if (from === to) { setVal(to); return; }
+    let raf = 0;
+    const t0 = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - t0) / duration);
+      const e = 1 - Math.pow(1 - p, 3);
+      setVal(from + (to - from) * e);
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+  return val;
+}
+
+function fmtAbs(n: number, decimals: number) {
+  return Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+function AnimatedNumber({ value, prefix = "", suffix = "", decimals = 0, showSign = false }:
+  { value: number; prefix?: string; suffix?: string; decimals?: number; showSign?: boolean }) {
+  const shown = useCountUp(value);
+  const sign = showSign ? (value >= 0 ? "+" : "−") : value < 0 ? "−" : "";
+  return <>{sign}{prefix}{fmtAbs(shown, decimals)}{suffix}</>;
+}
+
+function AnimatedStat({ l, value, prefix = "", suffix = "", decimals = 0, showSign = false, up, big }:
+  { l: string; value: number | null; prefix?: string; suffix?: string; decimals?: number; showSign?: boolean; up?: boolean; big?: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const prev = useRef(value);
+  useEffect(() => {
+    if (prev.current !== value && value != null && ref.current) {
+      ref.current.classList.remove("stat-flash");
+      void ref.current.offsetWidth; // restart the animation
+      ref.current.classList.add("stat-flash");
+    }
+    prev.current = value;
+  }, [value]);
+  return (
+    <div ref={ref} className="min-w-[110px] rounded-lg px-2.5 py-1.5">
+      <div className="text-[11px] text-muted">{l}</div>
+      <div className={`font-sg font-bold ${big ? "text-2xl" : "text-lg"}`}
+        style={up != null ? { color: up ? "#7df3c0" : "#fca5a5", textShadow: up ? "0 0 18px rgba(52,211,153,.4)" : "0 0 18px rgba(248,113,113,.35)" } : undefined}>
+        {value == null ? "—" : <AnimatedNumber value={value} prefix={prefix} suffix={suffix} decimals={decimals} showSign={showSign} />}
+      </div>
+    </div>
+  );
 }
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return <div className="glass overflow-hidden"><div className="border-b px-5 py-4" style={{ borderColor: "var(--line)" }}><h3 className="font-sg text-[15px] font-semibold">{title}</h3></div>{children}</div>;
