@@ -367,7 +367,7 @@ const NAV=[
  ['Алерты','M12 4a5 5 0 015 5v4l2 3H5l2-3V9a5 5 0 015-5',1],['Автоторговля','M4 12a8 8 0 018-8M20 12a8 8 0 01-8 8M12 8v4l3 2',2],
  ['Reels','M4 5h16v14H4zM9 5v14M15 5v14',0],['Аккаунт','M12 12a4 4 0 100-8 4 4 0 000 8M4 20c0-4 4-6 8-6s8 2 8 6',1],
 ];
-const TOKENS=[
+let TOKENS=[
  {s:'DORA',c:'base · 8 мин',v:'pass',r:'LP locked · Mint revoked · не honeypot',risk:14,conf:'96%',liq:'$212K'},
  {s:'HALLOWEEN',c:'base · 21 мин',v:'pass',r:'LP locked · контракт верифицирован',risk:19,conf:'98%',liq:'$180K'},
  {s:'DOG',c:'bsc · 3 мин',v:'pass',r:'Все проверки пройдены',risk:11,conf:'100%',liq:'$340K'},
@@ -377,7 +377,7 @@ const TOKENS=[
  {s:'kittylick',c:'solana · 9 мин',v:'block',r:'Обнаружен honeypot',risk:92,conf:'—',liq:'$9K'},
  {s:'MPN',c:'solana · 1 мин',v:'block',r:'Mint authority активен',risk:88,conf:'—',liq:'$6K'},
 ];
-const SIGNALS=[
+let SIGNALS=[
  {n:'DORA',c:'base',dex:'Uniswap',p:'BUY 96%'},{n:'DOG',c:'bsc',dex:'PancakeSwap',p:'BUY 100%'},
  {n:'SAFU',c:'bsc',dex:'PancakeSwap',p:'BUY 100%'},{n:'HALLOWEEN',c:'base',dex:'Uniswap',p:'BUY 98%'},
  {n:'PEPKING',c:'base',dex:'Uniswap',p:'BUY 96%'},
@@ -401,7 +401,7 @@ function hx(n){return '#'+n.toString(16).padStart(6,'0');}
 
 /* ============ UI ============ */
 const VKEYS=['radar','signals','portfolio','journal','graph','alerts','autotrade','reels','account'];
-let VIEW='radar', radarVisible=true;
+let VIEW='radar', radarVisible=true, realPass=null, realSig=null;
 function iconSvg(d){return `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;}
 function renderNav(){
   const t=TIERS[KEY];
@@ -447,8 +447,8 @@ function applyUI(){
   const t=TIERS[KEY];
   document.documentElement.style.setProperty('--acc',hx(t.acc));
   document.getElementById('tbadge').textContent=t.badge;
-  document.getElementById('mPass').textContent=t.pass;
-  document.getElementById('mSig').textContent=t.sig;
+  document.getElementById('mPass').textContent=realPass!=null?realPass:t.pass;
+  document.getElementById('mSig').textContent=realSig!=null?realSig:t.sig;
   document.getElementById('mPnl').textContent=t.pnl;
   document.getElementById('mWr').textContent=t.wr;
   document.getElementById('subhead').textContent=t.sub;
@@ -621,7 +621,7 @@ function lockView(need){const nm=need>=2?'Autonomous':'Pro',pr=need>=2?'$89':'$4
     <p>${need>=2?'Автоторговля и Vault — только на Autonomous, после paper-трека и аудита. Включается под фиче-флагом.':'Этот раздел открыт на Pro и выше — вместе с полной лентой, историей и Token Intelligence.'}</p>
     <button class="btn" onclick="selectTier('${key}')">Оформить ${nm} — ${pr}</button></div>`;}
 
-const EXTRASIG=[...SIGNALS,{n:'GM',c:'solana',dex:'Jupiter',p:'BUY 88%'},{n:'MOON',c:'base',dex:'Uniswap',p:'BUY 91%'},{n:'VOLT',c:'bsc',dex:'PancakeSwap',p:'BUY 85%'}];
+let EXTRASIG=[...SIGNALS,{n:'GM',c:'solana',dex:'Jupiter',p:'BUY 88%'},{n:'MOON',c:'base',dex:'Uniswap',p:'BUY 91%'},{n:'VOLT',c:'bsc',dex:'PancakeSwap',p:'BUY 85%'}];
 const VIEWS={
  signals(){const rows=EXTRASIG.map(s=>`<tr class="rowbtn" onclick="openTok('${s.n}')">
    <td class="tk">${s.n}<small>${s.c}</small></td><td><span class="buy" style="font-family:var(--disp);font-weight:600;font-size:12.5px;padding:4px 10px;border-radius:8px;background:color-mix(in srgb,var(--pass) 16%,transparent);color:var(--pass)">${s.p}</span></td>
@@ -733,7 +733,7 @@ function drawGraph(){
 }
 
 /* ============ Token Intelligence drawer ============ */
-const TOKMAP={};TOKENS.forEach(t=>TOKMAP[t.s]=t);
+let TOKMAP={};TOKENS.forEach(t=>TOKMAP[t.s]=t);
 function synthTok(sym){return {s:sym,c:'base · 7 мин',v:'pass',r:'LP locked · Mint revoked',risk:18,conf:'94%',liq:'$88K'};}
 function openTok(sym){
   const t=TOKMAP[sym]||synthTok(sym);
@@ -774,9 +774,32 @@ window.openTok=openTok;window.closeDrawer=closeDrawer;window.tgLink=tgLink;
 document.getElementById('drawerBk').addEventListener('click',closeDrawer);
 addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});
 
+/* ============ live data ============ */
+function ageTxt(iso){const m=Math.max(0,Math.round((Date.now()-new Date(iso))/60000));return m<60?m+' мин':Math.round(m/60)+' ч';}
+function shortN(n){if(n==null)return '—';if(n>=1e6)return '$'+(n/1e6).toFixed(1)+'M';if(n>=1e3)return '$'+Math.round(n/1e3)+'K';return '$'+Math.round(n);}
+function reasonOf(v){return v==='block'?'Высокий риск · отброшен':v==='review'?'Часть проверок не подтверждена':'Анти-скам проверки пройдены';}
+async function loadReal(){
+  try{
+    const tk=await (await fetch('/api/tokens?limit=40',{cache:'no-store'})).json();
+    const sg=await (await fetch('/api/signals?limit=12',{cache:'no-store'})).json();
+    const toks=(tk.items||[]).filter(x=>x.symbol).slice(0,12).map(x=>{const v=(x.verdict||'review').toLowerCase();
+      return {s:x.symbol,c:x.chain+' · '+ageTxt(x.created_at),v:v,r:reasonOf(v),risk:x.risk_score||0,
+        conf:x.signal_confidence!=null?Math.round(x.signal_confidence*100)+'%':'—',liq:shortN(x.liquidity_usd)};});
+    if(toks.length){TOKENS=toks;TOKMAP={};TOKENS.forEach(t=>TOKMAP[t.s]=t);}
+    const dexBy={bsc:'PancakeSwap',base:'Uniswap',solana:'Jupiter',ethereum:'Uniswap'};
+    const sigs=(sg.items||[]).filter(x=>x.symbol).slice(0,8).map(x=>({n:x.symbol,c:x.chain,dex:dexBy[x.chain]||'DEX',p:(x.side||'BUY')+' '+Math.round((x.confidence||0)*100)+'%'}));
+    if(sigs.length){SIGNALS=sigs;EXTRASIG=sigs.slice();}
+    realSig=String(sg.total!=null?sg.total:sigs.length);
+    realPass=String((tk.items||[]).filter(x=>x.verdict==='PASS').length);
+    applyUI(); if(VIEW!=='radar')route(VIEW);
+    document.getElementById('liveTxt')&&(document.getElementById('liveTxt').textContent='живые данные · ДЕМО-счёт');
+  }catch(e){/* offline → demo data stays */}
+}
+
 /* ============ boot ============ */
 applyUI();
 initGL();
+loadReal();
 if(WEBGL){applyScene();reduce?frame():requestAnimationFrame(frame);
   // click orbs → open token drawer
   const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
