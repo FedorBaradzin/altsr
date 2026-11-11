@@ -505,7 +505,7 @@ function applyUI(){
   document.querySelectorAll('.tiers .t').forEach(b=>b.classList.toggle('on',b.dataset.k===KEY));
   renderNav();renderFeed();renderSignals();
 }
-function selectTier(k){KEY=k;applyUI();applyScene();if(VIEW!=='radar')route(VIEW);}
+function selectTier(k){KEY=k;try{if(USERID&&USERID!=='demo')localStorage.setItem('altsr_tier:'+USERID,k);}catch(e){}applyUI();applyScene();if(VIEW!=='radar')route(VIEW);}
 window.selectTier=selectTier;
 document.getElementById('tiers').addEventListener('click',e=>{const b=e.target.closest('.t');if(b)selectTier(b.dataset.k);});
 
@@ -894,6 +894,9 @@ async function initAuth(){
     if(!me||!me.id)return;
     KEY=mapTier(me.tier);
     USERID=String(me.id);USEREMAIL=me.email||'';USERNAME=me.display_name||me.email||'Аккаунт';
+    // admin → full access; otherwise keep any tier the user already unlocked (persists across reloads)
+    if(me.is_admin){KEY='auto';}
+    else{try{const pv=localStorage.getItem('altsr_tier:'+USERID);if(pv&&TIERS[pv]&&TIERS[pv].tier>=TIERS[KEY].tier)KEY=pv;}catch(e){}}
     PAPER=loadPaper();          // per-user paper account (starts from 0 until opened)
     const pr=document.querySelector('.proto'); if(pr)pr.style.display='none';
     const sw=document.getElementById('tiers'); if(sw)sw.style.display='none';
