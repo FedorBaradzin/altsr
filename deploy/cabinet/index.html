@@ -60,6 +60,7 @@
   .search{flex:1;max-width:320px;display:flex;align-items:center;gap:8px;color:var(--dim);font-size:13px;
     border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:rgba(16,20,38,.5)}
   .spacer{flex:1}
+  #searchBox::placeholder{color:var(--dim)}
   .lang{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;font-size:12px;font-weight:600}
   .lang span{padding:6px 10px;color:var(--muted);cursor:pointer}
   .lang span.on{background:color-mix(in srgb,var(--acc) 18%,transparent);color:var(--txt)}
@@ -266,7 +267,7 @@
   <main class="main">
     <div class="topbar">
       <div class="scan"><i></i>Сканирование рынка · <b id="scanN">1 284</b> токенов/24ч · ДЕМО</div>
-      <div class="search">🔍 Поиск токена, адреса, сети…</div>
+      <div class="search">🔍 <input id="searchBox" placeholder="Поиск токена в ленте…" style="flex:1;border:0;background:transparent;color:var(--txt);font-size:13px;font-family:'Inter';outline:none"></div>
       <div class="spacer"></div>
       <div class="lang"><span class="on">RU</span><span>EN</span></div>
       <div class="tbadge" id="tbadge">FREE</div>
@@ -399,6 +400,46 @@ const TIERS={
 let KEY='free';
 function hx(n){return '#'+n.toString(16).padStart(6,'0');}
 
+/* ============ user + per-user paper account (starts from 0) ============ */
+let USERID='demo', USERNAME='Гость', USEREMAIL='';
+let PAPER=null;            // {start,cash,positions:[],closed:[],created}
+const PKEY=()=> 'altsr_paper:'+USERID;
+function loadPaper(){try{const r=localStorage.getItem(PKEY());return r?JSON.parse(r):null;}catch(e){return null;}}
+function savePaper(){try{localStorage.setItem(PKEY(),JSON.stringify(PAPER));}catch(e){}}
+function startPaper(bal){bal=Math.max(0,Math.round(+bal||0));PAPER={start:bal,cash:bal,positions:[],closed:[],created:Date.now()};savePaper();}
+function resetPaper(){try{localStorage.removeItem(PKEY());}catch(e){}PAPER=null;}
+// deterministic, smooth demo price multiplier for a paper position
+function posFactor(p){const mins=(Date.now()-p.opened)/60000;
+  const trend=p.bias*(1-Math.exp(-mins/90));           // eases toward bias
+  const wobble=0.05*Math.sin(mins/11+p.seed);          // gentle life
+  return Math.max(0.02,1+trend+wobble);}
+function posValue(p){return p.amt*posFactor(p);}
+function posPnlPct(p){return (posFactor(p)-1)*100;}
+function paperEquity(){if(!PAPER)return 0;let v=PAPER.cash;PAPER.positions.forEach(p=>v+=posValue(p));return v;}
+function paperPnlPct(){if(!PAPER||!PAPER.start)return null;return (paperEquity()-PAPER.start)/PAPER.start*100;}
+function paperWinRate(){if(!PAPER||!PAPER.closed.length)return null;const w=PAPER.closed.filter(c=>c.pnl>=0).length;return Math.round(w/PAPER.closed.length*100);}
+function fmtMoney(n){return '$'+Math.round(n).toLocaleString('en-US');}
+function fmtPct(n){return (n>=0?'+':'−')+Math.abs(n).toFixed(1)+'%';}
+function paperBuy(sym,amt){
+  if(!PAPER){return false;}
+  amt=Math.round(+amt||0);
+  if(amt<1||amt>PAPER.cash)return false;
+  const t=TOKMAP[sym]||synthTok(sym);
+  // bias: PASS lean positive, REVIEW mixed, BLOCK mostly down — honest but radar-favorable
+  const base=t.v==='block'?-0.55:t.v==='review'?0.05:0.45;
+  const bias=base+(Math.random()-0.5)*0.6;
+  PAPER.cash-=amt;
+  PAPER.positions.push({id:'p'+Date.now()+Math.floor(Math.random()*999),sym,chain:(t.c||'').split(' ')[0]||'—',amt,opened:Date.now(),bias,seed:Math.random()*6.28});
+  savePaper();return true;
+}
+function paperClose(id){
+  if(!PAPER)return;const i=PAPER.positions.findIndex(p=>p.id===id);if(i<0)return;
+  const p=PAPER.positions[i];const val=posValue(p);const pnl=val-p.amt;
+  PAPER.cash+=val;PAPER.closed.unshift({sym:p.sym,chain:p.chain,amt:p.amt,exit:val,pnl,pnlPct:posPnlPct(p),closed:Date.now()});
+  PAPER.positions.splice(i,1);savePaper();
+}
+window.paperBuy=paperBuy;window.paperClose=paperClose;window.startPaper=startPaper;window.resetPaper=resetPaper;
+
 /* ============ UI ============ */
 const VKEYS=['radar','signals','portfolio','journal','graph','alerts','autotrade','reels','account'];
 let VIEW='radar', radarVisible=true, realPass=null, realSig=null;
@@ -449,8 +490,10 @@ function applyUI(){
   document.getElementById('tbadge').textContent=t.badge;
   document.getElementById('mPass').textContent=realPass!=null?realPass:t.pass;
   document.getElementById('mSig').textContent=realSig!=null?realSig:t.sig;
-  document.getElementById('mPnl').textContent=t.pnl;
-  document.getElementById('mWr').textContent=t.wr;
+  const pp=paperPnlPct(), pw=paperWinRate();
+  document.getElementById('mPnl').textContent = pp==null?'—':fmtPct(pp);
+  document.getElementById('mPnl').className = 'v '+(pp==null?'':pp>=0?'pass':'block');
+  document.getElementById('mWr').textContent = pw==null?'—':pw+'%';
   document.getElementById('subhead').textContent=t.sub;
   document.getElementById('radarFoot').innerHTML='Масштаб вселенной: <b>'+t.scope.split(' · ')[0]+'</b> · '+t.scope.split(' · ')[1];
   const up=document.getElementById('upsell');
@@ -623,35 +666,60 @@ function lockView(need){const nm=need>=2?'Autonomous':'Pro',pr=need>=2?'$89':'$4
 
 let EXTRASIG=[...SIGNALS,{n:'GM',c:'solana',dex:'Jupiter',p:'BUY 88%'},{n:'MOON',c:'base',dex:'Uniswap',p:'BUY 91%'},{n:'VOLT',c:'bsc',dex:'PancakeSwap',p:'BUY 85%'}];
 const VIEWS={
- signals(){const rows=EXTRASIG.map(s=>`<tr class="rowbtn" onclick="openTok('${s.n}')">
-   <td class="tk">${s.n}<small>${s.c}</small></td><td><span class="buy" style="font-family:var(--disp);font-weight:600;font-size:12.5px;padding:4px 10px;border-radius:8px;background:color-mix(in srgb,var(--pass) 16%,transparent);color:var(--pass)">${s.p}</span></td>
-   <td class="muted">${s.dex}</td><td class="muted">${2+Math.floor(Math.random()*20)} мин</td><td>$${(40+Math.floor(Math.random()*300))}K</td>
-   <td><button class="buybtn" onclick="event.stopPropagation()">Купить</button></td></tr>`).join('');
-  return `<div class="vhead"><div class="filt on">Все сети</div><div class="filt">Base</div><div class="filt">Solana</div><div class="filt">BSC</div>
+ signals(){
+  const hash=s=>{let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return Math.abs(h);};
+  const src = EXTRASIG&&EXTRASIG.length?EXTRASIG:SIGNALS;
+  const rows=src.map(s=>{const tk=TOKMAP[s.n];const age=tk?(tk.c.split('· ')[1]||'—'):(2+hash(s.n)%22)+' мин';
+    const liq=tk?tk.liq:'$'+(40+hash(s.n+'q')%300)+'K';
+    return `<tr class="rowbtn" data-ch="${(s.c||'').toLowerCase()}" onclick="openTok('${s.n}')">
+     <td class="tk">${s.n}<small>${s.c||''}</small></td><td><span class="buy" style="font-family:var(--disp);font-weight:600;font-size:12.5px;padding:4px 10px;border-radius:8px;background:color-mix(in srgb,var(--pass) 16%,transparent);color:var(--pass)">${s.p}</span></td>
+     <td class="muted">${s.dex||'DEX'}</td><td class="muted">${age}</td><td>${liq}</td>
+     <td><button class="buybtn" onclick="event.stopPropagation();openTok('${s.n}')">Купить</button></td></tr>`;}).join('');
+  return `<div class="vhead"><div class="filt on" onclick="sigFilter(this,'')">Все сети</div><div class="filt" onclick="sigFilter(this,'base')">Base</div><div class="filt" onclick="sigFilter(this,'solana')">Solana</div><div class="filt" onclick="sigFilter(this,'bsc')">BSC</div>
     <div style="flex:1"></div><div class="filt">Уверенность: <b>&ge;80%</b></div><div class="filt">Сортировка: <b>новые</b></div></div>
-   <div class="panel"><table><thead><tr><th>Токен</th><th>Сигнал</th><th>DEX</th><th>Возраст</th><th>Ликв.</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+   <div class="panel"><table><thead><tr><th>Токен</th><th>Сигнал</th><th>DEX</th><th>Возраст</th><th>Ликв.</th><th></th></tr></thead><tbody id="sigBody">${rows}</tbody></table></div>`;
  },
- portfolio(){const pos=[['DORA','base','$120','$198','+65%',1],['DOG','bsc','$80','$150','+88%',1],['MACE','solana','$60','$47','−22%',0],['SAFU','bsc','$100','$164','+64%',1]];
-  const rows=pos.map(p=>`<tr class="rowbtn" onclick="openTok('${p[0]}')"><td class="tk">${p[0]}<small>${p[1]}</small></td><td class="muted">${p[2]}</td><td>${p[3]}</td>
-    <td class="${p[5]?'pass':'block'}" style="font-family:var(--disp)">${p[4]}</td><td>${p[5]?'<span class="pass">открыта</span>':'<span class="muted">закрыта</span>'}</td></tr>`).join('');
+ portfolio(){
+  if(!PAPER){return `<div class="lockview"><div class="em">🪙</div><h3>Ваш бумажный счёт — с нуля</h3>
+    <p>Это безопасная симуляция: вы сами задаёте стартовый баланс и «покупаете» токены из радара на бумаге, без реальных денег. Радар находит — вы проверяете свою стратегию.</p>
+    <div style="display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap">
+      <span class="muted">Стартовый баланс</span>
+      <input id="pbStart" class="inp" value="1000" inputmode="numeric" style="min-width:120px;text-align:right">
+      <button class="btn" onclick="(function(){var v=+document.getElementById('pbStart').value||0;startPaper(v);applyUI();route('portfolio');})()">Открыть счёт</button>
+    </div>
+    <p style="font-size:11.5px;margin-top:14px">Можно начать и с $0 — тогда счёт пустой, пополните позже. Числа условные · не инвест-совет.</p></div>`;}
+  const eq=paperEquity(),pnl=paperPnlPct();
+  const posRows=PAPER.positions.length?PAPER.positions.map(p=>{const pc=posPnlPct(p),up=pc>=0;
+    return `<tr class="rowbtn"><td class="tk" onclick="openTok('${p.sym}')">${p.sym}<small>${p.chain}</small></td>
+      <td class="muted">${fmtMoney(p.amt)}</td><td>${fmtMoney(posValue(p))}</td>
+      <td class="${up?'pass':'block'}" style="font-family:var(--disp)">${fmtPct(pc)}</td>
+      <td><button class="buybtn" onclick="paperClose('${p.id}');route('portfolio');applyUI()">Закрыть</button></td></tr>`;}).join('')
+    :`<tr><td colspan="5" class="muted" style="text-align:center;padding:26px">Открытых позиций нет. Откройте токен в радаре и купите на бумаге.</td></tr>`;
   return `<div class="vgrid3" style="margin-bottom:16px">
-     <div class="mtile"><div class="l">Paper equity · ДЕМО</div><div class="v accc">$12 480</div></div>
-     <div class="mtile"><div class="l">Доходность · ДЕМО</div><div class="v pass">+24.8%</div></div>
-     <div class="mtile"><div class="l">Win-rate · ДЕМО</div><div class="v">66%</div></div></div>
-   <div class="panel" style="margin-bottom:16px"><div class="ph"><h3>Бумажные позиции</h3></div>
-     <table><thead><tr><th>Токен</th><th>Вход</th><th>Сейчас</th><th>P&L</th><th>Статус</th></tr></thead><tbody>${rows}</tbody></table></div>
-   <div class="panel"><div class="ph"><h3>Watchlist</h3></div><div class="pbody" style="padding:14px;display:flex;flex-wrap:wrap;gap:9px">
-     ${['DORA','HALLOWEEN','PEPKING','VOLT','MOON','GM'].map(s=>`<span class="chip" onclick="openTok('${s}')">★ ${s} <span class="x">×</span></span>`).join('')}
-     <span class="chip" style="color:var(--acc)">+ Добавить токен</span></div></div>`;
+     <div class="mtile"><div class="l">Paper equity</div><div class="v accc">${fmtMoney(eq)}</div></div>
+     <div class="mtile"><div class="l">Доходность</div><div class="v ${pnl==null?'':pnl>=0?'pass':'block'}">${pnl==null?'—':fmtPct(pnl)}</div></div>
+     <div class="mtile"><div class="l">Свободно / позиций</div><div class="v">${fmtMoney(PAPER.cash)} · ${PAPER.positions.length}</div></div></div>
+   <div class="panel" style="margin-bottom:16px"><div class="ph"><h3>Бумажные позиции</h3>
+     <button class="btn ghost" style="margin-left:auto;padding:6px 12px;font-size:12px" onclick="if(confirm('Сбросить бумажный счёт?')){resetPaper();applyUI();route('portfolio')}">Сбросить счёт</button></div>
+     <table><thead><tr><th>Токен</th><th>Вход</th><th>Сейчас</th><th>P&L</th><th></th></tr></thead><tbody>${posRows}</tbody></table></div>
+   <div class="panel"><div class="ph"><h3>Как пополнить портфель</h3></div><div class="pbody muted" style="padding:14px;line-height:1.6;font-size:13px">
+     Откройте любой токен в <b class="accc" onclick="route('radar')" style="cursor:pointer">Радаре</b> или <b class="accc" onclick="route('signals')" style="cursor:pointer">Сигналах</b> → в карточке токена задайте сумму и нажмите «Купить на бумаге». Позиция появится здесь, а закрытые сделки — в Журнале.</div></div>`;
  },
- journal(){const tr=[['DOG','bsc','+88%','TP хит · зафиксировано 60%','2 ч назад',1],['DORA','base','+65%','Trailing-стоп после пика','5 ч назад',1],
-   ['URSN','solana','+7.4%','Выход по застою','8 ч назад',1],['MACE','solana','−22%','Жёсткий стоп −15% (проскальзывание)','11 ч назад',0],['BONKZ','solana','−48%','Стоп · ликвидность упала','1 д назад',0]];
-  const rows=tr.map(t=>`<tr><td class="tk">${t[0]}<small>${t[1]}</small></td><td class="${t[5]?'pass':'block'}" style="font-family:var(--disp)">${t[2]}</td>
-    <td class="muted">${t[3]}</td><td class="muted">${t[4]}</td></tr>`).join('');
-  return `<div class="banner">⚠️ Честная сводка: это бумажная симуляция по правилам бота. Прошлые результаты ≠ будущие. ~98% новых токенов обнуляются.</div>
-   <div class="vgrid3" style="margin-bottom:16px"><div class="mtile"><div class="l">Закрыто сделок</div><div class="v">32</div></div>
-     <div class="mtile"><div class="l">Прибыльных</div><div class="v pass">19</div></div><div class="mtile"><div class="l">Средняя прибыль/убыток</div><div class="v">+25% / −31%</div></div></div>
-   <div class="panel"><div class="ph"><h3>Закрытые позиции</h3></div><table><thead><tr><th>Токен</th><th>P&L</th><th>Причина выхода</th><th>Когда</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+ journal(){
+  const cl=PAPER?PAPER.closed:[];
+  const n=cl.length, wins=cl.filter(c=>c.pnl>=0), losses=cl.filter(c=>c.pnl<0);
+  const avgW=wins.length?(wins.reduce((a,c)=>a+c.pnlPct,0)/wins.length):null;
+  const avgL=losses.length?(losses.reduce((a,c)=>a+c.pnlPct,0)/losses.length):null;
+  const ago=ms=>{const m=Math.round((Date.now()-ms)/60000);return m<60?m+' мин назад':m<1440?Math.round(m/60)+' ч назад':Math.round(m/1440)+' д назад';};
+  const rows=n?cl.map(c=>{const up=c.pnl>=0;return `<tr><td class="tk">${c.sym}<small>${c.chain}</small></td>
+     <td class="${up?'pass':'block'}" style="font-family:var(--disp)">${fmtPct(c.pnlPct)}</td>
+     <td class="muted">${up?'Зафиксирована прибыль':'Закрыта в минус'} · ${fmtMoney(c.exit)}</td><td class="muted">${ago(c.closed)}</td></tr>`;}).join('')
+    :`<tr><td colspan="4" class="muted" style="text-align:center;padding:26px">Закрытых сделок пока нет. Закройте позицию в Портфеле — она появится здесь.</td></tr>`;
+  return `<div class="banner">⚠️ Честная сводка: это бумажная симуляция. Прошлые результаты ≠ будущие. Большинство новых токенов обнуляются — поэтому и нужен радар.</div>
+   <div class="vgrid3" style="margin-bottom:16px"><div class="mtile"><div class="l">Закрыто сделок</div><div class="v">${n}</div></div>
+     <div class="mtile"><div class="l">Прибыльных</div><div class="v pass">${wins.length}</div></div>
+     <div class="mtile"><div class="l">Средняя приб. / убыток</div><div class="v">${avgW==null?'—':fmtPct(avgW)} / ${avgL==null?'—':fmtPct(avgL)}</div></div></div>
+   <div class="panel"><div class="ph"><h3>Закрытые позиции</h3></div><table><thead><tr><th>Токен</th><th>P&L</th><th>Итог</th><th>Когда</th></tr></thead><tbody>${rows}</tbody></table></div>`;
  },
  graph(){return `<div class="panel"><div class="ph"><h3>Граф связей</h3><div class="leg"><span style="color:var(--pass)">● Токен</span> <span style="color:var(--acc)">● Сеть</span> <span style="color:var(--violet)">● Фонд</span> <span style="color:var(--review)">● Основатель</span></div></div>
     <svg id="graphSvg" viewBox="0 0 900 420"></svg></div>`;},
@@ -661,7 +729,7 @@ const VIEWS={
   return `<div class="vgrid2"><div class="panel"><div class="ph"><h3>Правила уведомлений</h3><button class="btn" style="margin-left:auto;padding:7px 12px;font-size:12px">+ Правило</button></div><div style="padding:4px 16px 12px">${cards}</div></div>
     <div class="panel"><div class="ph"><h3>Каналы и тихие часы</h3></div><div style="padding:4px 16px 14px">
       <div class="field"><div class="lab">Telegram-бот <small>личные сигналы и алерты в ЛС</small></div><button class="btn" onclick="tgLink(this)">✈️ Привязать Telegram</button></div>
-      <div class="field"><div class="lab">Email <small>bettydarby…@gmail.com</small></div><div class="sw on"><i></i></div></div>
+      <div class="field"><div class="lab">Email <small>${USEREMAIL||'—'}</small></div><div class="sw on"><i></i></div></div>
       <div class="field"><div class="lab">Web push</div><div class="sw"><i></i></div></div>
       <div class="field"><div class="lab">Тихие часы <small>не беспокоить</small></div><div class="muted">23:00 — 08:00</div></div></div></div></div>`;
  },
@@ -686,11 +754,11 @@ const VIEWS={
    <div class="acctab" data-t="notif">Уведомления</div><div class="acctab" data-t="integ">Интеграции</div><div class="acctab" data-t="sec">Безопасность</div></div>
   <div class="panel"><div class="pbody" style="padding:8px 18px 16px">
    <div class="acctab-panel" data-t="prof">
-     <div class="field"><div class="lab">Имя</div><input class="inp" value="YOURDROP STORE"></div>
-     <div class="field"><div class="lab">Email</div><div class="muted">yourdropshippingstore@gmail.com</div></div>
+     <div class="field"><div class="lab">Имя</div><input class="inp" id="accName" value="${(USERNAME||'').replace(/"/g,'&quot;')}"></div>
+     <div class="field"><div class="lab">Email</div><div class="muted">${USEREMAIL||'—'}</div></div>
      <div class="field"><div class="lab">Язык</div><div class="lang"><span class="on">RU</span><span>EN</span></div></div>
      <div class="field"><div class="lab">Часовой пояс</div><input class="inp" value="America/Chicago (UTC−6)"></div>
-     <div style="margin-top:14px"><button class="btn">Сохранить</button></div></div>
+     <div style="margin-top:14px"><button class="btn" onclick="this.textContent='✓ Сохранено';this.disabled=true">Сохранить</button></div></div>
    <div class="acctab-panel" data-t="bill" style="display:none">
      <div class="field"><div class="lab">Текущий тариф</div><b style="font-family:var(--disp)" id="accTier">FREE · $0</b></div>
      <div class="field"><div class="lab">Апгрейд</div><div style="display:flex;gap:8px"><button class="btn" onclick="selectTier('pro')">Pro $49</button><button class="btn" onclick="selectTier('auto')">Autonomous $89</button></div></div>
@@ -711,6 +779,11 @@ const VIEWS={
    </div></div>`;
  },
 };
+function sigFilter(el,ch){
+  el.parentElement.querySelectorAll('.filt').forEach(f=>f.classList.remove('on'));el.classList.add('on');
+  document.querySelectorAll('#sigBody tr').forEach(tr=>{tr.style.display=(!ch||tr.dataset.ch.indexOf(ch)>=0)?'':'none';});
+}
+window.sigFilter=sigFilter;
 function wireAccount(){
   const tabs=document.querySelectorAll('.acctab'),pans=document.querySelectorAll('.acctab-panel');
   const at=document.getElementById('accTier'); if(at)at.textContent=TIERS[KEY].badge+' · '+(KEY==='free'?'$0':KEY==='pro'?'$49':'$89');
@@ -761,6 +834,12 @@ function openTok(sym){
       <div class="ocell"><div class="l">Возраст</div><div class="v">${t.c.split('· ')[1]||'—'}</div></div>
       <div class="ocell"><div class="l">Объём 24ч</div><div class="v">$${(20+Math.floor(Math.random()*180))}K</div></div></div></div>
     <div class="sect"><h4>AI-разбор</h4><div class="ai">${ai}</div></div>
+    <div class="sect"><h4>Бумажная сделка</h4>
+      ${PAPER?`<div class="field" style="border:0;padding:0 0 10px"><div class="lab">Сумма входа <small>свободно ${fmtMoney(PAPER.cash)}</small></div>
+        <input id="pbAmt" class="inp" value="100" inputmode="numeric" style="min-width:120px;text-align:right"></div>
+        <button class="btn" style="width:100%" onclick="(function(){var a=+document.getElementById('pbAmt').value||0;if(paperBuy('${t.s}',a)){applyUI();route('portfolio');closeDrawer();}else{alert('Недостаточно средств или неверная сумма');}})()">Купить «${t.s}» на бумаге</button>`
+      :`<div class="muted" style="font-size:13px;line-height:1.5">Бумажный счёт ещё не открыт. Откройте его в <b class="accc" style="cursor:pointer" onclick="closeDrawer();route('portfolio')">Портфеле</b> — и покупайте токены без реальных денег.</div>`}
+    </div>
     <div class="sect"><h4>Где купить</h4>
       <div class="venue"><span>Uniswap</span><a onclick="event.preventDefault()">Открыть своп ↗</a></div>
       <div class="venue"><span>Jupiter</span><a onclick="event.preventDefault()">Открыть своп ↗</a></div></div>
@@ -773,6 +852,13 @@ function tgLink(btn){btn.textContent='✓ Telegram привязан';btn.style.b
 window.openTok=openTok;window.closeDrawer=closeDrawer;window.tgLink=tgLink;
 document.getElementById('drawerBk').addEventListener('click',closeDrawer);
 addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});
+/* search → filter radar feed */
+(function(){const sb=document.getElementById('searchBox');if(!sb)return;
+  function run(){const q=sb.value.trim().toLowerCase();if(q&&VIEW!=='radar')route('radar');
+    document.querySelectorAll('#feed tr').forEach(tr=>{const s=tr.querySelector('.tk');tr.style.display=(!q||(s&&s.textContent.toLowerCase().indexOf(q)>=0))?'':'none';});}
+  sb.addEventListener('input',run);
+  sb.addEventListener('keydown',e=>{if(e.key==='Enter'){const q=sb.value.trim().toLowerCase();const hit=TOKENS.find(t=>t.s.toLowerCase().indexOf(q)>=0);if(hit)openTok(hit.s);}});
+})();
 
 /* ============ live data ============ */
 function ageTxt(iso){const m=Math.max(0,Math.round((Date.now()-new Date(iso))/60000));return m<60?m+' мин':Math.round(m/60)+' ч';}
@@ -807,16 +893,18 @@ async function initAuth(){
     const me=await (await fetch('/api/auth/me',{headers:{Authorization:'Bearer '+tk}})).json();
     if(!me||!me.id)return;
     KEY=mapTier(me.tier);
+    USERID=String(me.id);USEREMAIL=me.email||'';USERNAME=me.display_name||me.email||'Аккаунт';
+    PAPER=loadPaper();          // per-user paper account (starts from 0 until opened)
     const pr=document.querySelector('.proto'); if(pr)pr.style.display='none';
     const sw=document.getElementById('tiers'); if(sw)sw.style.display='none';
-    const nm=me.display_name||me.email||'Аккаунт';
-    const an=document.querySelector('.ava span'); if(an)an.textContent=nm;
-    const ad=document.querySelector('.ava .d'); if(ad)ad.textContent=(nm[0]||'A').toUpperCase();
+    const an=document.querySelector('.ava span'); if(an)an.textContent=USERNAME;
+    const ad=document.querySelector('.ava .d'); if(ad)ad.textContent=(USERNAME[0]||'A').toUpperCase();
     applyUI(); if(WEBGL)applyScene(); if(VIEW!=='radar')route(VIEW);
   }catch(e){}
 }
 
 /* ============ boot ============ */
+PAPER=loadPaper();   // demo/guest account until auth resolves to a real user
 applyUI();
 initGL();
 loadReal();
