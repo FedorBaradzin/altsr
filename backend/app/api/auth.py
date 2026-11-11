@@ -93,7 +93,7 @@ async def google_callback(
     await session.commit()
     token = session_token(user, settings)
     # Браузерный поток: вернуть на фронт с токеном во фрагменте.
-    return RedirectResponse(f"{settings.site_url.rstrip('/')}/app#token={token}")
+    return RedirectResponse(f"{settings.site_url.rstrip('/')}/radar#token={token}")
 
 
 @router.get("/me", response_model=UserOut)
