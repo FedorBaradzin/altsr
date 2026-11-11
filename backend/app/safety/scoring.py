@@ -28,7 +28,7 @@ PASS_MAX = 30               # risk < 30 → PASS
 BLOCK_MIN = 70              # risk ≥ 70 → BLOCK
 
 
-def evaluate(f: SafetyFindings) -> SafetyResult:
+def evaluate(f: SafetyFindings, *, require_lp_lock_solana: bool = False) -> SafetyResult:
     red: list[RedFlag] = []
     hard = False
 
@@ -137,7 +137,7 @@ def evaluate(f: SafetyFindings) -> SafetyResult:
             verdict = "REVIEW"
         else:
             # Нет данных по честной оценке honeypot/authority → не ставим PASS.
-            verdict = "REVIEW" if _cannot_clear(f) else "PASS"
+            verdict = "REVIEW" if _cannot_clear(f, require_lp_lock_solana) else "PASS"
 
     return SafetyResult(
         chain=f.chain, address=f.address, risk_score=int(risk),
@@ -156,8 +156,18 @@ def _unknown_signals(f: SafetyFindings) -> list[str]:
     return [k for k, v in checks.items() if v is None]
 
 
-def _cannot_clear(f: SafetyFindings) -> bool:
-    """Нельзя ставить PASS, если не смогли оценить honeypot/налоги/authority вообще."""
+def _cannot_clear(f: SafetyFindings, require_lp_lock_solana: bool = False) -> bool:
+    """Нельзя ставить PASS, если не смогли оценить honeypot/налоги/authority вообще.
+
+    require_lp_lock_solana: для Solana не ставить PASS, пока LP-lock не подтверждён
+    залоченным (lp_locked is not True). Закрывает дыру, когда GoPlus(solana) даёт
+    только authority, а honeypot.is недоступен (EVM-only) и RugCheck выключен —
+    незалоченный/непроверенный LP это главный вектор раг-пула.
+    """
     evm_honeypot_unknown = f.is_honeypot is None and f.sell_tax is None
     authority_unknown = f.mint_authority_active is None
-    return evm_honeypot_unknown and authority_unknown
+    if evm_honeypot_unknown and authority_unknown:
+        return True
+    if require_lp_lock_solana and f.chain == "solana" and f.lp_locked is not True:
+        return True
+    return False

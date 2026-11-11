@@ -97,3 +97,37 @@ def test_solana_freeze_authority_is_soft():
 def test_rugged_hard_block():
     r = evaluate(SafetyFindings(chain="solana", address="so1", rugged=True))
     assert r.verdict == "BLOCK"
+
+
+# --- Solana LP-lock gate (балансовый антискам) ---
+
+def _solana_partial(**kw):
+    """Solana: GoPlus дал authority, но honeypot/налог/LP неизвестны (типичная дыра)."""
+    base = dict(
+        chain="solana", address="MINT",
+        is_honeypot=None, sell_tax=None, buy_tax=None,
+        mint_authority_active=False,   # authority известна → старое правило НЕ ловит
+        lp_locked=None,                # LP не подтверждён
+        top_holder_pct=None,
+    )
+    base.update(kw)
+    return SafetyFindings(**base)
+
+
+def test_solana_unverified_lp_blocked_from_pass_when_required():
+    # Без правила — проскакивает в PASS (старое поведение).
+    assert evaluate(_solana_partial(), require_lp_lock_solana=False).verdict == "PASS"
+    # С правилом — REVIEW (в Telegram не уйдёт).
+    assert evaluate(_solana_partial(), require_lp_lock_solana=True).verdict == "REVIEW"
+
+
+def test_solana_confirmed_lp_still_passes():
+    # LP подтверждён залоченным → PASS даже при включённом правиле.
+    r = evaluate(_solana_partial(lp_locked=True), require_lp_lock_solana=True)
+    assert r.verdict == "PASS"
+
+
+def test_evm_not_affected_by_solana_rule():
+    # EVM с неизвестным LP не трогаем этим правилом (у EVM есть honeypot.is).
+    f = _clean_evm(lp_locked=None)
+    assert evaluate(f, require_lp_lock_solana=True).verdict == "PASS"

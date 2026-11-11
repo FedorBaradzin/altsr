@@ -58,7 +58,9 @@ async def screen_token(
     merged.chain = chain
     merged.address = address
 
-    result = evaluate(merged)
+    result = evaluate(
+        merged, require_lp_lock_solana=settings.safety_solana_require_lp_lock
+    )
 
     # T10: кросс-проверка двух независимых провайдеров. Расхождение → REVIEW.
     # Деградирует мягко: если выжил лишь один провайдер — single_source без штрафа.

@@ -18,6 +18,7 @@ from ..notify.telegram import TelegramNotifier
 from ..paper.executor import config_from_settings
 from ..paper.exits import build_plan
 from .engine import SignalInput, evaluate_entry
+from .hard_rules import HardRuleInput
 from .momentum import fetch_momentum
 from .venues import build_buy_options
 
@@ -90,7 +91,15 @@ async def run_batch(
                 buys_m5=getattr(mom, "buys_m5", None),
                 sells_m5=getattr(mom, "sells_m5", None),
             )
-            decision = evaluate_entry(inp, settings)
+            # Hard-rules (T4): объём (R1) и давление продаж (R3) из моментума.
+            # R2 (верификация) и R4 (dev/bundles) не прокидываем — нет данных,
+            # чтобы не блокировать Solana без основания.
+            hr = HardRuleInput(
+                volume_usd=getattr(mom, "vol_h1", None),
+                buys_m5=getattr(mom, "buys_m5", None),
+                sells_m5=getattr(mom, "sells_m5", None),
+            ) if settings.hard_rules_enabled else None
+            decision = evaluate_entry(inp, settings, hr=hr)
             if not decision.passed:
                 logger.debug("skip %s:%s — %s", token.chain, token.address, decision.rejected)
                 continue
