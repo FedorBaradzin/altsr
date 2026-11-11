@@ -12,6 +12,19 @@ altsr.space {
 		reverse_proxy backend:8000
 	}
 
+	# Юридические страницы (статика, запечена в образ Caddy) — нужны для публикации
+	# Google OAuth consent (Privacy Policy / Terms обязательны).
+	handle /privacy {
+		root * /srv/legal
+		rewrite * /privacy.html
+		file_server
+	}
+	handle /terms {
+		root * /srv/legal
+		rewrite * /terms.html
+		file_server
+	}
+
 	# всё остальное → фронтенд (Next.js)
 	handle {
 		reverse_proxy frontend:3000
