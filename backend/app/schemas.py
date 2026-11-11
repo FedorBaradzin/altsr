@@ -275,3 +275,45 @@ class SafetyOut(BaseModel):
 class HealthOut(BaseModel):
     status: str
     version: str
+
+
+# ---- per-user paper account ----
+class UserPaperPositionOut(BaseModel):
+    id: int
+    symbol: str
+    chain: str
+    amount_usd: float
+    value: float
+    pnl_pct: float
+    opened_at: datetime
+
+
+class UserPaperTradeOut(BaseModel):
+    symbol: str
+    chain: str
+    amount_usd: float
+    exit_value: float
+    pnl_usd: float
+    pnl_pct: float
+    closed_at: datetime
+
+
+class UserPaperOut(BaseModel):
+    opened: bool
+    start_balance: float = 0.0
+    cash: float = 0.0
+    equity: float = 0.0
+    pnl_pct: float | None = None
+    win_rate: int | None = None
+    positions: list[UserPaperPositionOut] = []
+    trades: list[UserPaperTradeOut] = []
+
+
+class OpenPaperIn(BaseModel):
+    start_balance: float = 1000.0
+
+
+class BuyPaperIn(BaseModel):
+    symbol: str
+    chain: str = ""
+    amount_usd: float

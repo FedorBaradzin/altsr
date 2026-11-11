@@ -374,3 +374,70 @@ class SignalOutcome(Base):
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<SignalOutcome {self.chain}:{self.address} label={self.label}>"
+
+
+class UserPaperAccount(Base):
+    """Персональный бумажный счёт пользователя (с нуля). Реальных денег нет."""
+
+    __tablename__ = "user_paper_account"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    start_balance: Mapped[float] = mapped_column(Float, nullable=False)
+    cash: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", name="uq_user_paper_account_user"),
+    )
+
+
+class UserPaperPosition(Base):
+    """Открытая бумажная позиция пользователя. Стоимость считается детерминированно."""
+
+    __tablename__ = "user_paper_positions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("user_paper_account.id", ondelete="CASCADE"), nullable=False
+    )
+    symbol: Mapped[str] = mapped_column(String(64), nullable=False)
+    chain: Mapped[str] = mapped_column(String(32), nullable=False)
+    amount_usd: Mapped[float] = mapped_column(Float, nullable=False)
+    bias: Mapped[float] = mapped_column(Float, nullable=False)
+    seed: Mapped[float] = mapped_column(Float, nullable=False)
+    opened_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+
+    __table_args__ = (
+        Index("ix_user_paper_positions_account", "account_id"),
+    )
+
+
+class UserPaperTrade(Base):
+    """Закрытая бумажная сделка пользователя (история для Журнала)."""
+
+    __tablename__ = "user_paper_trades"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("user_paper_account.id", ondelete="CASCADE"), nullable=False
+    )
+    symbol: Mapped[str] = mapped_column(String(64), nullable=False)
+    chain: Mapped[str] = mapped_column(String(32), nullable=False)
+    amount_usd: Mapped[float] = mapped_column(Float, nullable=False)
+    exit_value: Mapped[float] = mapped_column(Float, nullable=False)
+    pnl_usd: Mapped[float] = mapped_column(Float, nullable=False)
+    pnl_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    closed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+
+    __table_args__ = (
+        Index("ix_user_paper_trades_account", "account_id"),
+    )

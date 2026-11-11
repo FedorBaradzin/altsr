@@ -17,6 +17,7 @@ from .api.auth import router as auth_router
 from .api.billing import router as billing_router
 from .api.news import router as news_router
 from .api.paper import router as paper_router
+from .api.user_paper import router as user_paper_router
 from .api.signals import router as signals_router
 from .api.tokens import router as tokens_router
 from .config import get_settings
@@ -51,6 +52,7 @@ app.add_middleware(
 app.include_router(tokens_router)
 app.include_router(signals_router)
 app.include_router(paper_router)
+app.include_router(user_paper_router)
 app.include_router(news_router)
 app.include_router(articles_router)
 app.include_router(auth_router)

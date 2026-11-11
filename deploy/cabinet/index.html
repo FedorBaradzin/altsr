@@ -402,37 +402,62 @@ function hx(n){return '#'+n.toString(16).padStart(6,'0');}
 
 /* ============ user + per-user paper account (starts from 0) ============ */
 let USERID='demo', USERNAME='Гость', USEREMAIL='';
-let PAPER=null;            // {start,cash,positions:[],closed:[],created}
+let PAPER=null;            // {start,cash,positions:[],closed:[],...}
+let PAPER_API=false;       // true when logged in → server is source of truth (synced across devices)
 const PKEY=()=> 'altsr_paper:'+USERID;
 function loadPaper(){try{const r=localStorage.getItem(PKEY());return r?JSON.parse(r):null;}catch(e){return null;}}
-function savePaper(){try{localStorage.setItem(PKEY(),JSON.stringify(PAPER));}catch(e){}}
-function startPaper(bal){bal=Math.max(0,Math.round(+bal||0));PAPER={start:bal,cash:bal,positions:[],closed:[],created:Date.now()};savePaper();}
-function resetPaper(){try{localStorage.removeItem(PKEY());}catch(e){}PAPER=null;}
-// deterministic, smooth demo price multiplier for a paper position
+function savePaper(){if(PAPER_API)return;try{localStorage.setItem(PKEY(),JSON.stringify(PAPER));}catch(e){}}
+// ---- server-backed paper (authed) ----
+async function apiPaper(path,method,body){
+  const tk=getTok();
+  const r=await fetch('/api/paper/me'+path,{method:method||'GET',
+    headers:{'Authorization':'Bearer '+tk,'Content-Type':'application/json'},
+    body:body?JSON.stringify(body):undefined});
+  if(!r.ok)throw new Error('paper '+r.status);
+  return r.json();
+}
+function mapPaper(d){ // backend UserPaperOut → local PAPER shape (server values cached on objects)
+  if(!d||!d.opened)return null;
+  return {start:d.start_balance,cash:d.cash,_equity:d.equity,_pnl:d.pnl_pct,_wr:d.win_rate,
+    positions:(d.positions||[]).map(p=>({id:p.id,sym:p.symbol,chain:p.chain,amt:p.amount_usd,_value:p.value,_pnl:p.pnl_pct,opened:+new Date(p.opened_at)})),
+    closed:(d.trades||[]).map(t=>({sym:t.symbol,chain:t.chain,amt:t.amount_usd,exit:t.exit_value,pnl:t.pnl_usd,pnlPct:t.pnl_pct,closed:+new Date(t.closed_at)}))};
+}
+async function syncPaper(){ if(!PAPER_API)return;
+  try{PAPER=mapPaper(await apiPaper('/',''));}
+  catch(e){ PAPER_API=false; PAPER=loadPaper(); } /* backend endpoints not live yet → local fallback */ }
+// deterministic local sim (guests only)
 function posFactor(p){const mins=(Date.now()-p.opened)/60000;
-  const trend=p.bias*(1-Math.exp(-mins/90));           // eases toward bias
-  const wobble=0.05*Math.sin(mins/11+p.seed);          // gentle life
+  const trend=p.bias*(1-Math.exp(-mins/90))+0;
+  const wobble=0.05*Math.sin(mins/11+(p.seed||0));
   return Math.max(0.02,1+trend+wobble);}
-function posValue(p){return p.amt*posFactor(p);}
-function posPnlPct(p){return (posFactor(p)-1)*100;}
-function paperEquity(){if(!PAPER)return 0;let v=PAPER.cash;PAPER.positions.forEach(p=>v+=posValue(p));return v;}
-function paperPnlPct(){if(!PAPER||!PAPER.start)return null;return (paperEquity()-PAPER.start)/PAPER.start*100;}
-function paperWinRate(){if(!PAPER||!PAPER.closed.length)return null;const w=PAPER.closed.filter(c=>c.pnl>=0).length;return Math.round(w/PAPER.closed.length*100);}
+function posValue(p){return (p._value!=null)?p._value:p.amt*posFactor(p);}
+function posPnlPct(p){return (p._pnl!=null)?p._pnl:(posFactor(p)-1)*100;}
+function paperEquity(){if(!PAPER)return 0;if(PAPER._equity!=null)return PAPER._equity;let v=PAPER.cash;PAPER.positions.forEach(p=>v+=posValue(p));return v;}
+function paperPnlPct(){if(!PAPER)return null;if(PAPER._pnl!=null)return PAPER._pnl;if(!PAPER.start)return null;return (paperEquity()-PAPER.start)/PAPER.start*100;}
+function paperWinRate(){if(!PAPER)return null;if(PAPER._wr!=null)return PAPER._wr;if(!PAPER.closed.length)return null;const w=PAPER.closed.filter(c=>c.pnl>=0).length;return Math.round(w/PAPER.closed.length*100);}
 function fmtMoney(n){return '$'+Math.round(n).toLocaleString('en-US');}
 function fmtPct(n){return (n>=0?'+':'−')+Math.abs(n).toFixed(1)+'%';}
-function paperBuy(sym,amt){
-  if(!PAPER){return false;}
+async function startPaper(bal){bal=Math.max(0,Math.round(+bal||0));
+  if(PAPER_API){try{PAPER=mapPaper(await apiPaper('/open','POST',{start_balance:bal}));return true;}catch(e){return false;}}
+  PAPER={start:bal,cash:bal,positions:[],closed:[],created:Date.now()};savePaper();return true;}
+async function resetPaper(){
+  if(PAPER_API){try{await apiPaper('/reset','POST');}catch(e){}PAPER=null;return;}
+  try{localStorage.removeItem(PKEY());}catch(e){}PAPER=null;}
+async function paperBuy(sym,amt){
   amt=Math.round(+amt||0);
+  if(PAPER_API){const t=TOKMAP[sym]||synthTok(sym);
+    try{PAPER=mapPaper(await apiPaper('/buy','POST',{symbol:sym,chain:(t.c||'').split(' ')[0]||'',amount_usd:amt}));return true;}catch(e){return false;}}
+  if(!PAPER)return false;
   if(amt<1||amt>PAPER.cash)return false;
   const t=TOKMAP[sym]||synthTok(sym);
-  // bias: PASS lean positive, REVIEW mixed, BLOCK mostly down — honest but radar-favorable
   const base=t.v==='block'?-0.55:t.v==='review'?0.05:0.45;
   const bias=base+(Math.random()-0.5)*0.6;
   PAPER.cash-=amt;
   PAPER.positions.push({id:'p'+Date.now()+Math.floor(Math.random()*999),sym,chain:(t.c||'').split(' ')[0]||'—',amt,opened:Date.now(),bias,seed:Math.random()*6.28});
   savePaper();return true;
 }
-function paperClose(id){
+async function paperClose(id){
+  if(PAPER_API){try{PAPER=mapPaper(await apiPaper('/close/'+id,'POST'));}catch(e){}return;}
   if(!PAPER)return;const i=PAPER.positions.findIndex(p=>p.id===id);if(i<0)return;
   const p=PAPER.positions[i];const val=posValue(p);const pnl=val-p.amt;
   PAPER.cash+=val;PAPER.closed.unshift({sym:p.sym,chain:p.chain,amt:p.amt,exit:val,pnl,pnlPct:posPnlPct(p),closed:Date.now()});
@@ -685,7 +710,7 @@ const VIEWS={
     <div style="display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap">
       <span class="muted">Стартовый баланс</span>
       <input id="pbStart" class="inp" value="1000" inputmode="numeric" style="min-width:120px;text-align:right">
-      <button class="btn" onclick="(function(){var v=+document.getElementById('pbStart').value||0;startPaper(v);applyUI();route('portfolio');})()">Открыть счёт</button>
+      <button class="btn" onclick="(async function(){var v=+document.getElementById('pbStart').value||0;await startPaper(v);applyUI();route('portfolio');})()">Открыть счёт</button>
     </div>
     <p style="font-size:11.5px;margin-top:14px">Можно начать и с $0 — тогда счёт пустой, пополните позже. Числа условные · не инвест-совет.</p></div>`;}
   const eq=paperEquity(),pnl=paperPnlPct();
@@ -693,14 +718,14 @@ const VIEWS={
     return `<tr class="rowbtn"><td class="tk" onclick="openTok('${p.sym}')">${p.sym}<small>${p.chain}</small></td>
       <td class="muted">${fmtMoney(p.amt)}</td><td>${fmtMoney(posValue(p))}</td>
       <td class="${up?'pass':'block'}" style="font-family:var(--disp)">${fmtPct(pc)}</td>
-      <td><button class="buybtn" onclick="paperClose('${p.id}');route('portfolio');applyUI()">Закрыть</button></td></tr>`;}).join('')
+      <td><button class="buybtn" onclick="(async()=>{await paperClose('${p.id}');route('portfolio');applyUI()})()">Закрыть</button></td></tr>`;}).join('')
     :`<tr><td colspan="5" class="muted" style="text-align:center;padding:26px">Открытых позиций нет. Откройте токен в радаре и купите на бумаге.</td></tr>`;
   return `<div class="vgrid3" style="margin-bottom:16px">
      <div class="mtile"><div class="l">Paper equity</div><div class="v accc">${fmtMoney(eq)}</div></div>
      <div class="mtile"><div class="l">Доходность</div><div class="v ${pnl==null?'':pnl>=0?'pass':'block'}">${pnl==null?'—':fmtPct(pnl)}</div></div>
      <div class="mtile"><div class="l">Свободно / позиций</div><div class="v">${fmtMoney(PAPER.cash)} · ${PAPER.positions.length}</div></div></div>
    <div class="panel" style="margin-bottom:16px"><div class="ph"><h3>Бумажные позиции</h3>
-     <button class="btn ghost" style="margin-left:auto;padding:6px 12px;font-size:12px" onclick="if(confirm('Сбросить бумажный счёт?')){resetPaper();applyUI();route('portfolio')}">Сбросить счёт</button></div>
+     <button class="btn ghost" style="margin-left:auto;padding:6px 12px;font-size:12px" onclick="(async()=>{if(confirm('Сбросить бумажный счёт?')){await resetPaper();applyUI();route('portfolio')}})()">Сбросить счёт</button></div>
      <table><thead><tr><th>Токен</th><th>Вход</th><th>Сейчас</th><th>P&L</th><th></th></tr></thead><tbody>${posRows}</tbody></table></div>
    <div class="panel"><div class="ph"><h3>Как пополнить портфель</h3></div><div class="pbody muted" style="padding:14px;line-height:1.6;font-size:13px">
      Откройте любой токен в <b class="accc" onclick="route('radar')" style="cursor:pointer">Радаре</b> или <b class="accc" onclick="route('signals')" style="cursor:pointer">Сигналах</b> → в карточке токена задайте сумму и нажмите «Купить на бумаге». Позиция появится здесь, а закрытые сделки — в Журнале.</div></div>`;
@@ -837,7 +862,7 @@ function openTok(sym){
     <div class="sect"><h4>Бумажная сделка</h4>
       ${PAPER?`<div class="field" style="border:0;padding:0 0 10px"><div class="lab">Сумма входа <small>свободно ${fmtMoney(PAPER.cash)}</small></div>
         <input id="pbAmt" class="inp" value="100" inputmode="numeric" style="min-width:120px;text-align:right"></div>
-        <button class="btn" style="width:100%" onclick="(function(){var a=+document.getElementById('pbAmt').value||0;if(paperBuy('${t.s}',a)){applyUI();route('portfolio');closeDrawer();}else{alert('Недостаточно средств или неверная сумма');}})()">Купить «${t.s}» на бумаге</button>`
+        <button class="btn" style="width:100%" onclick="(async function(){var a=+document.getElementById('pbAmt').value||0;if(await paperBuy('${t.s}',a)){applyUI();route('portfolio');closeDrawer();}else{alert('Недостаточно средств или неверная сумма');}})()">Купить «${t.s}» на бумаге</button>`
       :`<div class="muted" style="font-size:13px;line-height:1.5">Бумажный счёт ещё не открыт. Откройте его в <b class="accc" style="cursor:pointer" onclick="closeDrawer();route('portfolio')">Портфеле</b> — и покупайте токены без реальных денег.</div>`}
     </div>
     <div class="sect"><h4>Где купить</h4>
@@ -897,7 +922,7 @@ async function initAuth(){
     // admin → full access; otherwise keep any tier the user already unlocked (persists across reloads)
     if(me.is_admin){KEY='auto';}
     else{try{const pv=localStorage.getItem('altsr_tier:'+USERID);if(pv&&TIERS[pv]&&TIERS[pv].tier>=TIERS[KEY].tier)KEY=pv;}catch(e){}}
-    PAPER=loadPaper();          // per-user paper account (starts from 0 until opened)
+    PAPER_API=true; await syncPaper();   // server-backed paper account (synced across devices)
     const pr=document.querySelector('.proto'); if(pr)pr.style.display='none';
     const sw=document.getElementById('tiers'); if(sw)sw.style.display='none';
     const an=document.querySelector('.ava span'); if(an)an.textContent=USERNAME;
