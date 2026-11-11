@@ -71,6 +71,12 @@ class Settings(BaseSettings):
     honeypot_base_url: str = Field(
         default="https://api.honeypot.is/v2", alias="HONEYPOT_BASE_URL"
     )
+    # Solana: не ставить PASS, пока LP-lock не подтверждён залоченным. Закрывает дыру,
+    # когда GoPlus(solana) даёт только authority, а honeypot.is (EVM) и RugCheck недоступны.
+    # Меньше скама ценой меньшего числа Solana-сигналов. По умолчанию включено (баланс).
+    safety_solana_require_lp_lock: bool = Field(
+        default=True, alias="SAFETY_SOLANA_REQUIRE_LP_LOCK"
+    )
     # Сколько токенов скринить за один тик screener-воркера.
     screen_batch_size: int = Field(default=20, alias="SCREEN_BATCH_SIZE")
     screen_interval_seconds: int = Field(default=15, alias="SCREEN_INTERVAL_SECONDS")
