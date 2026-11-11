@@ -155,6 +155,10 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
 .dp-tabs{display:flex;gap:4px;margin:15px 0;background:#0c1320;border:1px solid var(--line-soft);border-radius:10px;padding:4px}
 .dp-tabs button{flex:1;background:none;border:none;color:var(--muted);font-size:12px;font-weight:600;padding:7px;border-radius:7px;cursor:pointer;font-family:'Inter'}
 .dp-tabs button.on{background:var(--elevated);color:var(--text)}
+.dp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.dp-cell{background:#0c1320;border:1px solid var(--line-soft);border-radius:9px;padding:9px 11px}
+.dp-k{font-size:11px;color:var(--muted);margin-bottom:3px}
+.dp-v{font-size:13px;color:var(--text);font-weight:600;font-family:'Inter'}
 .sigrow{background:linear-gradient(180deg,#8c7cff0f,transparent);border:1px solid #8c7cff26;border-radius:12px;padding:14px;margin-bottom:14px}
 .sigrow .sh{display:flex;align-items:center;justify-content:space-between}
 .sigrow .sh .lab{font-size:12px;color:var(--muted)}
@@ -651,19 +655,29 @@ function renderTable(){tb.innerHTML=T.slice(0,FREE_N).map(row).join('')+T.slice(
 const dEl=document.getElementById('detail');
 const DT={ru:{tabs:['Обзор','Риски','Ончейн','AI-анализ'],sigLab:'Сигнал ALTSR AI',note:'Уверенность модели — не гарантия прибыли.',whyT:'Почему такой вердикт',buy:'Открыть полный анализ',chart:'Только на график'},
  en:{tabs:['Overview','Risks','On-chain','AI'],sigLab:'ALTSR AI signal',note:'Model confidence is not a profit guarantee.',whyT:'Why this verdict',buy:'Open full analysis',chart:'Chart only'}};
-function detail(t){const[sc,sl]=SG[t.sig];const canBuy=t.sig!=='avoid';const g=DT[lang];const li=lang==='ru'?0:1;
+let dpTab=0;
+function dpSig(t,g,canBuy,sl){return `<div class="sigrow"><div class="sh"><span class="lab">${g.sigLab}</span>${canBuy?`<span class="sig-big">⚡ ${sl} ${t.conf}%</span>`:`<span class="sig-big" style="color:var(--danger)">✕ AVOID</span>`}</div>
+    <div class="meter"><i data-w="${canBuy?t.conf:8}" ${canBuy?'':'style="background:#f8717155"'}></i></div><div class="note">${g.note}</div></div>`;}
+function dpWhy(t,li,title){return `<div class="why-t">${title}</div>
+  <div class="why">${t.why.map(w=>`<div class="w"><span class="ck ${w[0]==='wn'?'wn':''}">${w[0]==='wn'?'!':'✓'}</span>${w[li+1]}</div>`).join('')}</div>`;}
+function dpBody(t){const li=lang==='ru'?0:1;const g=DT[lang];const canBuy=t.sig!=='avoid';const[,sl]=SG[t.sig];
+ if(dpTab===1){const warns=t.why.filter(w=>w[0]==='wn').length;
+   return dpWhy(t,li,lang==='en'?'Risk checks':'Проверки рисков')+
+    `<div class="note" style="margin-top:12px">${warns?(lang==='en'?warns+' warning(s) · verdict '+VD[t.vd][1]:'Предупреждений: '+warns+' · вердикт '+VD[t.vd][1]):(lang==='en'?'No red flags · verdict '+VD[t.vd][1]:'Красных флагов нет · вердикт '+VD[t.vd][1])}</div>`;}
+ if(dpTab===2){const rows=[[lang==='en'?'Price':'Цена',t.price],[lang==='en'?'Liquidity':'Ликвидность',t.liq],[lang==='en'?'Momentum 1h':'Моментум 1ч',t.mom],['Buy/Sell',t.bs+'/'+(100-t.bs)],[lang==='en'?'Chain':'Сеть',t.chain],[lang==='en'?'Age':'Возраст',t.age[li]],[lang==='en'?'Contract':'Контракт',t.addr]];
+   return `<div class="dp-grid">${rows.map(r=>`<div class="dp-cell"><div class="dp-k">${r[0]}</div><div class="dp-v">${r[1]}</div></div>`).join('')}</div>`;}
+ if(dpTab===3)return dpSig(t,g,canBuy,sl)+`<div style="font-size:13.5px;color:#cdd6e4;line-height:1.7">${t.ai[li]}</div>`;
+ return dpSig(t,g,canBuy,sl)+`<div style="font-size:13px;color:#cdd6e4;line-height:1.6;margin-bottom:16px">${t.ai[li]}</div>`+dpWhy(t,li,g.whyT);}
+function detail(t){const canBuy=t.sig!=='avoid';const g=DT[lang];
  return `<div class="dp-head"><div class="ic" style="background:${t.col}">${t.tick.slice(0,2)}</div>
    <div><div class="dp-title">$${t.tick} <span class="vd ${VD[t.vd][0]}">${VD[t.vd][1]}</span></div><div class="dp-addr">${t.chain} · ${t.addr} <span class="cp">⧉</span></div></div></div>
-  <div class="dp-tabs">${g.tabs.map((x,i)=>`<button class="${i===0?'on':''}">${x}</button>`).join('')}</div>
-  <div class="sigrow"><div class="sh"><span class="lab">${g.sigLab}</span>${canBuy?`<span class="sig-big">⚡ ${sl} ${t.conf}%</span>`:`<span class="sig-big" style="color:var(--danger)">✕ AVOID</span>`}</div>
-    <div class="meter"><i data-w="${canBuy?t.conf:8}" ${canBuy?'':'style="background:#f8717155"'}></i></div><div class="note">${g.note}</div></div>
-  <div style="font-size:13px;color:#cdd6e4;line-height:1.6;margin-bottom:16px">${t.ai[li]}</div>
-  <div class="why-t">${g.whyT}</div>
-  <div class="why">${t.why.map(w=>`<div class="w"><span class="ck ${w[0]==='wn'?'wn':''}">${w[0]==='wn'?'!':'✓'}</span>${w[li+1]}</div>`).join('')}</div>
+  <div class="dp-tabs">${g.tabs.map((x,i)=>`<button class="${i===dpTab?'on':''}" data-dt="${i}">${x}</button>`).join('')}</div>
+  <div id="dpBody">${dpBody(t)}</div>
   <button class="btn ${canBuy?'btn-primary':'btn-ghost'} dp-btn">${canBuy?g.buy:g.chart}</button>`}
 function animMeter(s){s.querySelectorAll('.meter i').forEach(i=>{const w=i.dataset.w;if(w)requestAnimationFrame(()=>i.style.width=w+'%')})}
-function select(i){sel=i;document.querySelectorAll('.rowx').forEach(r=>r.classList.toggle('sel',+r.dataset.i2===i));dEl.innerHTML=detail(T[i]);animMeter(dEl)}
+function select(i){sel=i;dpTab=0;document.querySelectorAll('.rowx').forEach(r=>r.classList.toggle('sel',+r.dataset.i2===i));dEl.innerHTML=detail(T[i]);animMeter(dEl)}
 tb.addEventListener('click',e=>{const r=e.target.closest('.rowx');if(r)select(+r.dataset.i2)});
+dEl.addEventListener('click',e=>{const b=e.target.closest('.dp-tabs button');if(!b)return;dpTab=+b.dataset.dt;dEl.querySelectorAll('.dp-tabs button').forEach(x=>x.classList.toggle('on',x===b));const body=dEl.querySelector('#dpBody');if(body){body.innerHTML=dpBody(T[sel]);animMeter(body);}});
 
 const STEPS={ru:[['Discover','Поиск новых токенов'],['Verify','Проверка рисков'],['Analyze','AI-анализ и сигнал'],['Simulate','Тест стратегии'],['Execute','Автоторговля под лимитами'],['Monitor','Контроль и отчётность']],
  en:[['Discover','Finding new tokens'],['Verify','Risk screening'],['Analyze','AI analysis and signal'],['Simulate','Strategy testing'],['Execute','Auto-trading under limits'],['Monitor','Control and reporting']]};
@@ -735,8 +749,8 @@ const help=()=>window.open('https://t.me/altsr_manager','_blank','noopener');
    if(t.includes('premium')){go('pricing');toast({ic:'◆',bg:'#34D399',tn:'PREMIUM',ts:lang==='en'?'Demo — checkout would open':'Демо — открылась бы оплата',accent:'#34D399'});return;}
    if(t.includes('elite')||t.includes('ожидани')||t.includes('waitlist')){go('pricing');toast({ic:'👑',bg:'linear-gradient(135deg,#FBBF24,#f59e0b)',tn:'ELITE',ts:lang==='en'?'Added to waitlist (demo)':'Добавлено в лист ожидания (демо)',accent:'#FBBF24'});return;}
    if(t.includes('разблок')||t.includes('unlock')){go('pricing');toast({ic:'🔓',bg:'#8B5CF6',tn:lang==='en'?'Full radar':'Полный радар',ts:lang==='en'?'Demo — upgrade to unlock':'Демо — откроется на платном тарифе',accent:'#8B5CF6'});return;}
-   if(t.includes('войти')||t.includes('sign in')){toast({ic:'→',bg:'#22D3EE',tn:lang==='en'?'Sign in':'Вход',ts:lang==='en'?'Demo — auth would open':'Демо — открылся бы вход',accent:'#22D3EE'});return;}
-   if(t.includes('начать')||t.includes('get started')){go('radar');return;}
+   if(t.includes('войти')||t.includes('sign in')){location.href='/login';return;}
+   if(t.includes('начать')||t.includes('get started')){location.href='/radar';return;}
    toast({ic:'✦',bg:'#8B5CF6',tn:'ALTSR',ts:lang==='en'?'Demo action':'Демо-действие',accent:'#8B5CF6'});
  });
 })();
