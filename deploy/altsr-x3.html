@@ -48,6 +48,28 @@ function rotate(){
   setInterval(function(){if(Date.now()<pauseUntil)return;ri=(ri+1)%rows.length;try{rows[ri].click();}catch(e){}},6500);
 }
 
-var last='';setInterval(function(){if(!document.querySelector('.alnp-band')||!cells().length)return;applyL(lng()==='en'?EN:(window.__alnpRU||(window.__alnpRU=capRU())));if(!numsOn)numbers();if(!rotOn)rotate();},1000);
+/* ----- TOP market-scan strip (Пулы/Токены/PASS/Сигналы/Заработок): take the five
+   cells away from the landing's own count()/IntersectionObserver/pools/bumpEarn
+   (which animate from 0 and grow from a base, so they reset every reload) and drive
+   them from the SAME fixed EPOCH, so they never reset and only ever grow. Cloning the
+   node drops it from the observer; stripping the id makes the getElementById-based
+   growers (pools, bumpEarn) find nothing. ----- */
+var topOn=false;
+function topbar(){
+  var m=document.querySelector('.strip .metrics');if(!m)return;
+  var cs=[].slice.call(m.querySelectorAll('.mv.num'));if(cs.length<5)return;topOn=true;
+  var owned=cs.slice(0,5).map(function(el){var c=el.cloneNode(true);el.replaceWith(c);c.removeAttribute('id');return c;});
+  function paint(){var h=Math.max(0,(Date.now()-EPOCH)/3600000);
+    var v=[Math.floor(360000+2970*h),Math.floor(14200+44*h),Math.floor(4600+11*h),Math.floor(1180+3*h),Math.floor(7800+26*h)];
+    owned[0].textContent=v[0].toLocaleString('en-US');
+    owned[1].textContent=v[1].toLocaleString('en-US');
+    owned[2].textContent=v[2].toLocaleString('en-US');
+    owned[3].textContent=v[3].toLocaleString('en-US');
+    owned[4].textContent='$'+v[4].toLocaleString('en-US');}
+  paint();setInterval(paint,1000);
+}
+topbar();
+
+var last='';setInterval(function(){if(!document.querySelector('.alnp-band')||!cells().length)return;applyL(lng()==='en'?EN:(window.__alnpRU||(window.__alnpRU=capRU())));if(!numsOn)numbers();if(!rotOn)rotate();if(!topOn)topbar();},1000);
 })();
 </script>
