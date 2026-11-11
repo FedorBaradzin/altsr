@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ALTSR — Личный кабинет (Neural Cosmos)</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg0:#05060B; --bg1:#0A0C16; --panel:rgba(20,25,44,.55); --panel2:rgba(16,20,38,.75);
+    --line:rgba(130,150,210,.14); --txt:#EAF0FF; --muted:#9AA6C4; --dim:#66708C;
+    --violet:#8B5CF6; --cyan:#22D3EE; --gold:#F6C66B;
+    --pass:#34D399; --review:#FBBF24; --block:#F87171;
+    --acc:#22D3EE; --disp:'Space Grotesk','Inter',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg0);color:var(--txt);
+    font-family:'Inter',system-ui,sans-serif;overflow:hidden;-webkit-font-smoothing:antialiased}
+  .app{display:grid;grid-template-columns:230px 1fr;height:100vh;
+    background:radial-gradient(1100px 700px at 75% -10%, rgba(139,92,246,.10), transparent 60%),
+      radial-gradient(900px 600px at 10% 110%, rgba(34,211,238,.08), transparent 55%), var(--bg0)}
+
+  /* sidebar */
+  .side{border-right:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;gap:4px;
+    background:linear-gradient(180deg, rgba(10,12,22,.5), rgba(5,6,11,.2))}
+  .logo{display:flex;align-items:center;gap:11px;padding:4px 8px 16px}
+  .mark{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;font-family:var(--disp);
+    font-weight:700;color:#05060B;font-size:17px;
+    background:radial-gradient(circle at 35% 30%,#fff,var(--cyan) 42%,var(--violet));
+    box-shadow:0 0 24px rgba(139,92,246,.5)}
+  .logo h1{font-family:var(--disp);font-size:16px;margin:0;font-weight:700}
+  .logo span{display:block;color:var(--muted);font-size:10px;margin-top:-1px}
+  .nav{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+  .nav a{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:10px;color:var(--muted);
+    font-size:13.5px;font-weight:500;text-decoration:none;cursor:pointer;transition:.18s;position:relative}
+  .nav a:hover{color:var(--txt);background:rgba(130,150,210,.07)}
+  .nav a.on{color:var(--txt);background:color-mix(in srgb,var(--acc) 15%,transparent)}
+  .nav a.on::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:3px;
+    background:var(--acc);box-shadow:0 0 10px var(--acc)}
+  .nav a .ic{width:17px;height:17px;flex:0 0 17px;opacity:.85}
+  .nav a.lock{opacity:.5}
+  .nav a .lk{margin-left:auto;font-size:11px}
+  .side .up{margin-top:auto;border:1px solid var(--line);border-radius:14px;padding:13px;
+    background:var(--panel);backdrop-filter:blur(8px)}
+  .side .up b{font-family:var(--disp);font-size:13px}
+  .side .up p{color:var(--muted);font-size:11px;margin:4px 0 10px;line-height:1.4}
+  .side .up button{width:100%;border:0;cursor:pointer;font-family:var(--disp);font-weight:600;font-size:12px;
+    padding:9px;border-radius:10px;color:#05060B;background:linear-gradient(90deg,var(--acc),color-mix(in srgb,var(--acc) 50%,#fff))}
+
+  /* main */
+  .main{overflow-y:auto;overflow-x:hidden}
+  .topbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:14px;
+    padding:14px 24px;border-bottom:1px solid var(--line);
+    background:rgba(5,6,11,.72);backdrop-filter:blur(14px)}
+  .scan{display:inline-flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted);
+    border:1px solid var(--line);border-radius:999px;padding:7px 14px;background:rgba(16,20,38,.6)}
+  .scan i{width:7px;height:7px;border-radius:50%;background:var(--pass);box-shadow:0 0 10px var(--pass);animation:pulse 1.6s infinite}
+  .scan b{color:var(--txt);font-family:var(--disp);font-variant-numeric:tabular-nums}
+  @keyframes pulse{50%{opacity:.4}}
+  .search{flex:1;max-width:320px;display:flex;align-items:center;gap:8px;color:var(--dim);font-size:13px;
+    border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:rgba(16,20,38,.5)}
+  .spacer{flex:1}
+  .lang{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;font-size:12px;font-weight:600}
+  .lang span{padding:6px 10px;color:var(--muted);cursor:pointer}
+  .lang span.on{background:color-mix(in srgb,var(--acc) 18%,transparent);color:var(--txt)}
+  .tbadge{font-family:var(--disp);font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px;color:#05060B;
+    background:linear-gradient(90deg,var(--acc),color-mix(in srgb,var(--acc) 45%,#fff))}
+  .ava{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted)}
+  .ava .d{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-weight:700;color:#05060B;
+    background:linear-gradient(135deg,var(--acc),#fff);font-size:12px}
+
+  .content{padding:20px 24px 90px;max-width:1280px}
+  .pagehead{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
+  .pagehead h2{font-family:var(--disp);font-size:22px;margin:0;font-weight:700}
+  .pagehead p{color:var(--muted);font-size:13px;margin:4px 0 0}
+
+  .grid{display:grid;grid-template-columns:1.55fr 1fr;gap:16px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;backdrop-filter:blur(12px);position:relative}
+  .panel .ph{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .panel .ph h3{font-family:var(--disp);font-size:14px;margin:0;font-weight:700;display:flex;align-items:center;gap:8px}
+  .panel .ph .leg{display:flex;gap:12px;font-size:11px;color:var(--muted)}
+  .panel .ph .leg i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
+
+  /* radar panel */
+  .radar{grid-column:1;position:relative;overflow:hidden;min-height:340px}
+  #radar{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .radar .ph{position:relative;z-index:2;background:linear-gradient(180deg,rgba(5,6,11,.5),transparent)}
+  .radarfoot{position:absolute;left:16px;bottom:14px;z-index:2;font-size:11.5px;color:var(--muted);
+    background:rgba(5,6,11,.4);padding:6px 11px;border-radius:9px;backdrop-filter:blur(6px)}
+  .radarfoot b{color:var(--txt)}
+
+  /* metrics */
+  .metrics{grid-column:2;display:grid;grid-template-rows:auto 1fr;gap:16px}
+  .mtiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .mtile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 15px}
+  .mtile .l{font-size:11px;color:var(--muted)}
+  .mtile .v{font-family:var(--disp);font-size:22px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
+  .mtile .v.pass{color:var(--pass)} .mtile .v.acc{color:var(--acc)}
+  .sigs{overflow:hidden}
+  .sig{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-top:1px solid var(--line)}
+  .sig:first-of-type{border-top:0}
+  .sig .n{font-family:var(--disp);font-weight:600;font-size:14px}
+  .sig .n small{color:var(--muted);font-weight:500;margin-left:6px;font-size:11px;font-family:'Inter'}
+  .sig .dex{font-size:11px;color:var(--acc)}
+  .sig .buy{font-family:var(--disp);font-weight:600;font-size:12.5px;padding:4px 10px;border-radius:8px;
+    background:color-mix(in srgb,var(--pass) 16%,transparent);color:var(--pass)}
+
+  /* token table */
+  .feedwrap{margin-top:16px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--dim);font-size:11px;font-weight:600;padding:10px 14px}
+  td{padding:12px 14px;border-top:1px solid var(--line);vertical-align:middle}
+  .tk{font-family:var(--disp);font-weight:600}.tk small{color:var(--muted);font-weight:500;margin-left:7px;font-size:11px;font-family:'Inter'}
+  .vb{font-size:11px;font-weight:700;padding:3px 9px;border-radius:7px}
+  .vb.pass{background:color-mix(in srgb,var(--pass) 16%,transparent);color:var(--pass)}
+  .vb.review{background:color-mix(in srgb,var(--review) 16%,transparent);color:var(--review)}
+  .vb.block{background:color-mix(in srgb,var(--block) 16%,transparent);color:var(--block)}
+  .reason{color:var(--muted);font-size:11.5px;margin-top:4px}
+  .risk{display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums;font-size:12px}
+  .risk .bar{width:54px;height:5px;border-radius:3px;background:rgba(130,150,210,.16);overflow:hidden}
+  .risk .bar i{display:block;height:100%;border-radius:3px}
+  .conf{font-family:var(--disp);font-size:12px;color:var(--acc)}
+  .buybtn{font-size:12px;font-weight:600;color:var(--txt);border:1px solid var(--line);
+    background:rgba(255,255,255,.03);padding:6px 13px;border-radius:9px;cursor:pointer}
+
+  /* gating fog */
+  .locked{position:relative}
+  .locked .fog{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+    background:linear-gradient(180deg, rgba(10,12,22,.3), rgba(10,12,22,.78));backdrop-filter:blur(4px);border-radius:14px;text-align:center;padding:16px}
+  .locked .fog .t{font-family:var(--disp);font-weight:600;font-size:14px}
+  .locked .fog .s{color:var(--muted);font-size:12px;max-width:260px}
+  .locked .fog button{border:0;cursor:pointer;font-family:var(--disp);font-weight:600;font-size:12.5px;padding:9px 16px;border-radius:10px;
+    color:#05060B;background:linear-gradient(90deg,var(--acc),color-mix(in srgb,var(--acc) 50%,#fff))}
+
+  /* autonomous panels */
+  .autowrap{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+  .vault .ph h3 .on{margin-left:auto;font-size:11px;color:#05060B;background:linear-gradient(90deg,var(--gold),#ffe6a8);padding:3px 9px;border-radius:999px;font-weight:700}
+  .vrow{display:flex;justify-content:space-between;padding:11px 16px;border-top:1px solid var(--line);font-size:13px}
+  .vrow:first-of-type{border-top:0}.vrow b{font-family:var(--disp);font-variant-numeric:tabular-nums}
+  .tgm{display:flex;gap:10px;padding:10px 16px;border-top:1px solid var(--line);font-size:12.5px}
+  .tgm:first-of-type{border-top:0}
+  .tgm .av{width:26px;height:26px;border-radius:8px;flex:0 0 26px;display:grid;place-items:center;color:#05060B;font-weight:700;font-size:11px;
+    background:linear-gradient(135deg,var(--gold),#ffe6a8)}
+  .tgm .tt{color:var(--dim);font-size:11px;margin-top:1px}
+
+  .foot{margin-top:18px;color:var(--dim);font-size:11.5px;text-align:center}
+  .foot b{color:var(--muted)}
+
+  /* tier switcher */
+  .tiers{position:fixed;bottom:18px;left:calc(50% + 100px);transform:translateX(-50%);z-index:40;display:flex;gap:8px;
+    background:rgba(10,12,22,.8);border:1px solid var(--line);border-radius:15px;padding:7px;backdrop-filter:blur(16px)}
+  .tiers .t{cursor:pointer;border:0;background:transparent;color:var(--muted);font-family:var(--disp);font-weight:600;
+    font-size:12.5px;padding:8px 15px;border-radius:11px;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:116px}
+  .tiers .t small{font-size:10px;font-weight:500;opacity:.7}
+  .tiers .t.on{color:#05060B;background:linear-gradient(90deg,var(--acc),color-mix(in srgb,var(--acc) 45%,#fff))}
+  .proto{position:fixed;top:11px;left:246px;z-index:40;font-size:10.5px;color:var(--dim);
+    border:1px solid var(--line);padding:3px 10px;border-radius:999px;background:rgba(10,12,22,.6)}
+
+  @media(max-width:1000px){ .app{grid-template-columns:64px 1fr} .logo h1,.logo span,.nav a span,.side .up{display:none}
+    .grid{grid-template-columns:1fr} .autowrap{grid-template-columns:1fr} .proto{left:80px} .tiers{left:50%} .mtiles{grid-template-columns:1fr 1fr} }
+  @media (prefers-reduced-motion: reduce){ .scan i{animation:none} }
+
+  /* ---- generic view helpers ---- */
+  .vhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .vhead .filt{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);
+    border:1px solid var(--line);border-radius:10px;padding:7px 12px;background:rgba(16,20,38,.5);cursor:pointer}
+  .vhead .filt b{color:var(--txt);font-weight:600}
+  .vhead .filt.on{color:#05060B;background:linear-gradient(90deg,var(--acc),color-mix(in srgb,var(--acc) 50%,#fff));border-color:transparent}
+  .vgrid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .vgrid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .chip{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--txt);
+    border:1px solid var(--line);border-radius:999px;padding:7px 13px;background:rgba(16,20,38,.5);cursor:pointer}
+  .chip .x{color:var(--dim)}
+  .muted{color:var(--muted)} .pass{color:var(--pass)} .block{color:var(--block)} .accc{color:var(--acc)}
+  .pbody{padding:6px 2px}
+
+  /* toggle */
+  .sw{width:40px;height:22px;border-radius:999px;background:rgba(130,150,210,.2);position:relative;cursor:pointer;transition:.2s;flex:0 0 40px}
+  .sw i{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s}
+  .sw.on{background:var(--acc)}.sw.on i{left:20px}
+
+  /* risk ring */
+  .ring{--p:0;width:92px;height:92px;border-radius:50%;display:grid;place-items:center;flex:0 0 92px;
+    background:conic-gradient(var(--rc) calc(var(--p)*1%), rgba(130,150,210,.15) 0)}
+  .ring .in{width:72px;height:72px;border-radius:50%;background:var(--bg1);display:grid;place-items:center;text-align:center}
+  .ring .in b{font-family:var(--disp);font-size:22px;display:block}.ring .in span{font-size:9px;color:var(--muted)}
+
+  /* checks */
+  .chk{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .chk:last-child{border-bottom:0}
+  .chk .ico{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;font-size:12px;flex:0 0 20px}
+  .chk .ico.ok{background:color-mix(in srgb,var(--pass) 18%,transparent);color:var(--pass)}
+  .chk .ico.no{background:color-mix(in srgb,var(--block) 18%,transparent);color:var(--block)}
+  .chk .ico.wr{background:color-mix(in srgb,var(--review) 18%,transparent);color:var(--review)}
+  .chk .r{margin-left:auto;color:var(--muted);font-size:12px}
+
+  /* drawer */
+  .drawer-bk{position:fixed;inset:0;z-index:50;background:rgba(3,4,10,.55);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:.25s}
+  .drawer-bk.on{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;right:0;z-index:51;width:420px;max-width:92vw;height:100vh;overflow-y:auto;
+    background:linear-gradient(180deg,rgba(14,18,34,.98),rgba(8,10,20,.98));border-left:1px solid var(--line);
+    transform:translateX(100%);transition:transform .32s cubic-bezier(.2,.75,.2,1);padding:20px}
+  .drawer.on{transform:translateX(0)}
+  .drawer .dh{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .drawer .dh h3{font-family:var(--disp);font-size:22px;margin:0}
+  .drawer .dh small{color:var(--muted);font-size:12px}
+  .drawer .cl{cursor:pointer;color:var(--muted);border:1px solid var(--line);border-radius:9px;width:32px;height:32px;display:grid;place-items:center;background:rgba(255,255,255,.03)}
+  .drawer .sect{margin-top:18px}
+  .drawer .sect h4{font-size:12px;color:var(--dim);margin:0 0 10px;font-weight:600}
+  .ogrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .ocell{border:1px solid var(--line);border-radius:11px;padding:11px 13px;background:rgba(16,20,38,.4)}
+  .ocell .l{font-size:11px;color:var(--muted)}.ocell .v{font-family:var(--disp);font-size:16px;margin-top:2px;font-variant-numeric:tabular-nums}
+  .ai{font-size:13px;line-height:1.55;color:#cdd6ee;background:rgba(139,92,246,.08);border:1px solid var(--line);border-radius:12px;padding:13px}
+  .venue{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .venue:last-child{border-bottom:0}.venue a{color:var(--acc);text-decoration:none;font-weight:600;cursor:pointer}
+
+  /* reels / graph / account */
+  .reels{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .reel{border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;background:var(--panel)}
+  .reel .th{height:150px;display:grid;place-items:center;font-size:34px;position:relative;
+    background:radial-gradient(circle at 50% 40%, color-mix(in srgb,var(--acc) 30%,transparent), rgba(10,12,22,.6))}
+  .reel .th .dur{position:absolute;bottom:8px;right:8px;font-size:11px;background:rgba(0,0,0,.6);padding:2px 7px;border-radius:6px}
+  .reel .cap{padding:11px 13px;font-size:13px;font-weight:600;font-family:var(--disp)}
+  .reel .cap small{display:block;color:var(--muted);font-weight:500;font-size:11px;margin-top:3px;font-family:'Inter'}
+  #graphSvg{width:100%;height:420px;display:block}
+  .gnode text{font-family:var(--disp);font-size:11px;fill:var(--txt)}
+  .acctabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .acctab{cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:rgba(16,20,38,.4)}
+  .acctab.on{color:#05060B;background:linear-gradient(90deg,var(--acc),color-mix(in srgb,var(--acc) 50%,#fff));border-color:transparent}
+  .field{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .field:last-child{border-bottom:0}
+  .field .lab{font-size:13px}.field .lab small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+  .inp{border:1px solid var(--line);background:rgba(16,20,38,.5);color:var(--txt);border-radius:9px;padding:9px 12px;font-size:13px;font-family:'Inter';min-width:200px}
+  .btn{border:0;cursor:pointer;font-family:var(--disp);font-weight:600;font-size:13px;padding:9px 16px;border-radius:10px;color:#05060B;background:linear-gradient(90deg,var(--acc),color-mix(in srgb,var(--acc) 50%,#fff))}
+  .btn.ghost{background:transparent;color:var(--txt);border:1px solid var(--line)}
+  .btn.danger{background:transparent;color:var(--block);border:1px solid color-mix(in srgb,var(--block) 45%,transparent)}
+  .rowbtn{cursor:pointer}
+
+  /* locked view (upsell full screen) */
+  .lockview{border:1px solid var(--line);border-radius:18px;padding:48px 24px;text-align:center;
+    background:radial-gradient(600px 300px at 50% 0%, color-mix(in srgb,var(--acc) 12%,transparent), transparent), var(--panel)}
+  .lockview .em{font-size:34px}.lockview h3{font-family:var(--disp);font-size:22px;margin:12px 0 6px}
+  .lockview p{color:var(--muted);max-width:420px;margin:0 auto 18px;line-height:1.5}
+
+  .banner{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--review);
+    border:1px solid color-mix(in srgb,var(--review) 35%,transparent);background:color-mix(in srgb,var(--review) 9%,transparent);
+    border-radius:12px;padding:11px 14px;margin-bottom:14px}
+  @media(max-width:900px){.vgrid2,.vgrid3,.reels,.ogrid{grid-template-columns:1fr}.drawer{width:100%}}
+</style>
+</head>
+<body>
+<div class="proto">ПРОТОТИП · личный кабинет · переключай тариф внизу</div>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="side">
+    <div class="logo"><div class="mark">A</div><div><h1>ALTSR</h1><span>Early Crypto Radar</span></div></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="up" id="upsell">
+      <b id="upTitle">Открой весь радар</b>
+      <p id="upText">Все монеты, авто-сигналы и Telegram-алерты.</p>
+      <button id="upBtn">Оформить Pro — $49</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="scan"><i></i>Сканирование рынка · <b id="scanN">1 284</b> токенов/24ч · ДЕМО</div>
+      <div class="search">🔍 Поиск токена, адреса, сети…</div>
+      <div class="spacer"></div>
+      <div class="lang"><span class="on">RU</span><span>EN</span></div>
+      <div class="tbadge" id="tbadge">FREE</div>
+      <div class="ava"><div class="d">Y</div><span>YOURDROP STORE</span></div>
+    </div>
+
+    <div class="content">
+      <div class="pagehead">
+        <div><h2 id="pageTitle">Радар</h2><p id="subhead">Нейро-ядро ALTSR просеивает новые токены в реальном времени.</p></div>
+      </div>
+
+      <div id="radarView">
+      <div class="grid">
+        <!-- RADAR 3D -->
+        <section class="panel radar">
+          <div class="ph">
+            <h3>Нейро-радар · захват монет</h3>
+            <div class="leg"><span><i style="background:var(--pass)"></i>PASS</span>
+              <span><i style="background:var(--review)"></i>REVIEW</span>
+              <span><i style="background:var(--block)"></i>BLOCK</span></div>
+          </div>
+          <canvas id="radar"></canvas>
+          <div class="radarfoot" id="radarFoot">Масштаб вселенной: <b>Observer</b> · ручной невод</div>
+        </section>
+
+        <!-- METRICS + SIGNALS -->
+        <section class="metrics">
+          <div class="mtiles">
+            <div class="mtile"><div class="l">PASS сегодня</div><div class="v pass" id="mPass">37</div></div>
+            <div class="mtile"><div class="l">Сигналов</div><div class="v" id="mSig">3</div></div>
+            <div class="mtile"><div class="l">Paper-доходность · ДЕМО</div><div class="v acc" id="mPnl">+2.1%</div></div>
+            <div class="mtile"><div class="l">Win-rate · ДЕМО</div><div class="v" id="mWr">61%</div></div>
+          </div>
+          <div class="panel sigs" style="position:relative" id="sigsPanel">
+            <div class="ph"><h3>⚡ Сигналы BUY</h3></div>
+            <div id="sigList"></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- TOKEN FEED -->
+      <section class="panel feedwrap" id="feedPanel">
+        <div class="ph"><h3>Лента токенов · вердикт и причина</h3></div>
+        <table><thead><tr><th>Токен</th><th>Вердикт · причина</th><th>Риск</th><th>Сигнал</th><th>Ликв.</th><th></th></tr></thead>
+          <tbody id="feed"></tbody></table>
+        <div id="feedLock"></div>
+      </section>
+
+      <!-- AUTONOMOUS -->
+      <div class="autowrap" id="autoWrap" style="display:none">
+        <section class="panel vault">
+          <div class="ph"><h3>Авто-трейд · Vault <span class="on">ON · 24/7</span></h3></div>
+          <div class="vrow"><span>Открытых авто-позиций</span><b id="vPos">4</b></div>
+          <div class="vrow"><span>Исполнено сегодня</span><b>12 сделок</b></div>
+          <div class="vrow"><span>Vault equity · ДЕМО</span><b style="color:var(--gold)">$15 880</b></div>
+          <div class="vrow"><span>Дневной стоп / лимит</span><b>−$500 · активен</b></div>
+        </section>
+        <section class="panel">
+          <div class="ph"><h3>✈️ Личные Telegram-алерты</h3></div>
+          <div class="tgm"><div class="av">A</div><div><b>DORA</b> — BUY 96% · вход $120 · стоп −15%<div class="tt">2 мин назад · авто-вход исполнен</div></div></div>
+          <div class="tgm"><div class="av">A</div><div><b>DOG</b> — TP хит +60% · зафиксировано<div class="tt">14 мин назад</div></div></div>
+          <div class="tgm"><div class="av">A</div><div><b>HALLOWEEN</b> — BUY 98% · ждёт подтверждения<div class="tt">31 мин назад</div></div></div>
+        </section>
+      </div>
+
+      </div><!--/radarView-->
+      <div id="otherView" style="display:none"></div>
+
+      <div class="foot">Монеты и «захват» — визуальная метафора анализа, не обещание дохода. Числа помечены <b>ДЕМО</b>. <b>PASS</b> ≠ «вырастет». DYOR.</div>
+    </div>
+  </main>
+</div>
+
+<!-- Token Intelligence drawer -->
+<div class="drawer-bk" id="drawerBk"></div>
+<aside class="drawer" id="drawer"></aside>
+
+<!-- tier switcher -->
+<div class="tiers" id="tiers">
+  <button class="t on" data-k="free"><span>FREE</span><small>Observer · $0</small></button>
+  <button class="t" data-k="pro"><span>PRO</span><small>Operator · $49</small></button>
+  <button class="t" data-k="auto"><span>AUTONOMOUS</span><small>Singularity · $89</small></button>
+</div>
+
+<script src="js/three.min.js"></script>
+<script src="js/CopyShader.js"></script>
+<script src="js/LuminosityHighPassShader.js"></script>
+<script src="js/EffectComposer.js"></script>
+<script src="js/ShaderPass.js"></script>
+<script src="js/MaskPass.js"></script>
+<script src="js/RenderPass.js"></script>
+<script src="js/UnrealBloomPass.js"></script>
+<script>
+/* ============ data ============ */
+const NAV=[
+ ['Радар','M12 3v18M3 12h18',0],['Сигналы','M4 13l4 4 8-10',0],['Портфель','M4 7h16v12H4zM4 7l3-3h10l3 3',1],
+ ['Журнал','M6 4h12v16H6zM9 8h6M9 12h6',1],['Нейро-граф','M6 6a2 2 0 100-.1M18 6a2 2 0 100-.1M12 18a2 2 0 100-.1M6 6l6 12M18 6l-6 12',1],
+ ['Алерты','M12 4a5 5 0 015 5v4l2 3H5l2-3V9a5 5 0 015-5',1],['Автоторговля','M4 12a8 8 0 018-8M20 12a8 8 0 01-8 8M12 8v4l3 2',2],
+ ['Reels','M4 5h16v14H4zM9 5v14M15 5v14',0],['Аккаунт','M12 12a4 4 0 100-8 4 4 0 000 8M4 20c0-4 4-6 8-6s8 2 8 6',1],
+];
+const TOKENS=[
+ {s:'DORA',c:'base · 8 мин',v:'pass',r:'LP locked · Mint revoked · не honeypot',risk:14,conf:'96%',liq:'$212K'},
+ {s:'HALLOWEEN',c:'base · 21 мин',v:'pass',r:'LP locked · контракт верифицирован',risk:19,conf:'98%',liq:'$180K'},
+ {s:'DOG',c:'bsc · 3 мин',v:'pass',r:'Все проверки пройдены',risk:11,conf:'100%',liq:'$340K'},
+ {s:'ECB',c:'base · 12 мин',v:'review',r:'LP-lock не подтверждён',risk:48,conf:'93%',liq:'$96K'},
+ {s:'SAFU',c:'bsc · 6 мин',v:'pass',r:'LP locked · Mint revoked',risk:16,conf:'100%',liq:'$155K'},
+ {s:'MACE',c:'solana · 2 мин',v:'review',r:'Девелопер держит 18%',risk:55,conf:'—',liq:'$44K'},
+ {s:'kittylick',c:'solana · 9 мин',v:'block',r:'Обнаружен honeypot',risk:92,conf:'—',liq:'$9K'},
+ {s:'MPN',c:'solana · 1 мин',v:'block',r:'Mint authority активен',risk:88,conf:'—',liq:'$6K'},
+];
+const SIGNALS=[
+ {n:'DORA',c:'base',dex:'Uniswap',p:'BUY 96%'},{n:'DOG',c:'bsc',dex:'PancakeSwap',p:'BUY 100%'},
+ {n:'SAFU',c:'bsc',dex:'PancakeSwap',p:'BUY 100%'},{n:'HALLOWEEN',c:'base',dex:'Uniswap',p:'BUY 98%'},
+ {n:'PEPKING',c:'base',dex:'Uniswap',p:'BUY 96%'},
+];
+const TIERS={
+ free:{tier:0,acc:0x22d3ee,core:0x22d3ee,galaxy:0x16304a,coins:50,speed:.004,bloom:.5,drones:0,
+   badge:'FREE',scope:'Observer · ручной невод',pass:'37',sig:'3',pnl:'+2.1%',wr:'61%',
+   feed:5,sigs:1,up:['Открой весь радар','Все монеты, авто-сигналы и Telegram-алерты.','Оформить Pro — $49'],
+   sub:'Базовый радар: свежие токены и проверки. Лимит 3 сигнала в день.'},
+ pro:{tier:1,acc:0x8b5cf6,core:0x8b5cf6,galaxy:0x2e2366,coins:170,speed:.0072,bloom:1.0,drones:0,
+   badge:'PRO',scope:'Operator · реки монет',pass:'37',sig:'34',pnl:'+18.4%',wr:'67%',
+   feed:8,sigs:5,up:['Автономная вселенная','Авто-трейд 24/7 и личные Telegram-алерты.','Оформить Autonomous — $89'],
+   sub:'Полный радар, все сигналы, история и Token Intelligence.'},
+ auto:{tier:2,acc:0xf6c66b,core:0xf6c66b,galaxy:0x4a371c,coins:300,speed:.011,bloom:0.95,drones:6,
+   badge:'AUTONOMOUS',scope:'Singularity · золотой Vault',pass:'37',sig:'51',pnl:'+42.0%',wr:'71%',
+   feed:8,sigs:5,up:null,
+   sub:'Автономное ядро: дроны свозят монеты в Vault, авто-трейд 24/7 и личные алерты.'},
+};
+let KEY='free';
+function hx(n){return '#'+n.toString(16).padStart(6,'0');}
+
+/* ============ UI ============ */
+const VKEYS=['radar','signals','portfolio','journal','graph','alerts','autotrade','reels','account'];
+let VIEW='radar', radarVisible=true;
+function iconSvg(d){return `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;}
+function renderNav(){
+  const t=TIERS[KEY];
+  document.getElementById('nav').innerHTML=NAV.map((n,i)=>{
+    const k=VKEYS[i], locked=n[2]>t.tier;
+    return `<a data-k="${k}" class="${k===VIEW?'on':''} ${locked?'lock':''}" onclick="route('${k}')">${iconSvg(n[1])}<span>${n[0]}</span>${locked?'<span class="lk">🔒</span>':''}</a>`;
+  }).join('');
+}
+function vcls(v){return v;}
+function riskColor(r){return r<30?'var(--pass)':r<65?'var(--review)':'var(--block)';}
+function renderFeed(){
+  const t=TIERS[KEY];const rows=TOKENS.slice(0,t.feed);
+  document.getElementById('feed').innerHTML=rows.map(k=>`<tr class="rowbtn" onclick="openTok('${k.s}')">
+    <td class="tk">${k.s}<small>${k.c}</small></td>
+    <td><span class="vb ${vcls(k.v)}">${k.v.toUpperCase()}</span><div class="reason">${k.r}</div></td>
+    <td><div class="risk"><div class="bar"><i style="width:${k.risk}%;background:${riskColor(k.risk)}"></i></div>${k.risk}</div></td>
+    <td>${k.conf==='—'?'<span style="color:var(--dim)">—</span>':'<span class="conf">'+k.conf+'</span>'}</td>
+    <td>${k.liq}</td><td><button class="buybtn">Купить</button></td></tr>`).join('');
+  const lock=document.getElementById('feedLock');
+  if(t.feed<TOKENS.length || KEY==='free'){
+    lock.innerHTML=`<div class="locked" style="min-height:92px;margin:10px"><div class="fog">
+      <div class="t">🔒 Ещё 30+ монет скрыто</div>
+      <div class="s">Полная лента, все сети и история доступны на Pro.</div>
+      <button onclick="selectTier('pro')">Разблокировать · Pro</button></div></div>`;
+  } else lock.innerHTML='';
+}
+function renderSignals(){
+  const t=TIERS[KEY];const vis=SIGNALS.slice(0,t.sigs);
+  document.getElementById('sigList').innerHTML=vis.map(s=>`<div class="sig rowbtn" onclick="openTok('${s.n}')"><div>
+    <div class="n">${s.n}<small>${s.c}</small></div><div class="dex">${s.dex} · купить</div></div>
+    <div class="buy">${s.p}</div></div>`).join('');
+  const sp=document.getElementById('sigsPanel');
+  const old=sp.querySelector('.sigfog');if(old)old.remove();
+  if(t.sigs<SIGNALS.length){
+    const f=document.createElement('div');f.className='sigfog';
+    f.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:13px 16px;border-top:1px solid var(--line);background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--acc) 7%,transparent))';
+    f.innerHTML=`<span style="font-size:12.5px;color:var(--muted)">🔒 Ещё <b style="color:var(--txt);font-family:var(--disp)">+${SIGNALS.length-t.sigs}</b> сигналов — без лимита на Pro</span>
+      <button onclick="selectTier('pro')" style="border:0;cursor:pointer;font-family:var(--disp);font-weight:600;font-size:12px;padding:8px 14px;border-radius:9px;color:#05060B;background:linear-gradient(90deg,var(--acc),color-mix(in srgb,var(--acc) 50%,#fff))">Разблокировать</button>`;
+    sp.appendChild(f);
+  }
+}
+function applyUI(){
+  const t=TIERS[KEY];
+  document.documentElement.style.setProperty('--acc',hx(t.acc));
+  document.getElementById('tbadge').textContent=t.badge;
+  document.getElementById('mPass').textContent=t.pass;
+  document.getElementById('mSig').textContent=t.sig;
+  document.getElementById('mPnl').textContent=t.pnl;
+  document.getElementById('mWr').textContent=t.wr;
+  document.getElementById('subhead').textContent=t.sub;
+  document.getElementById('radarFoot').innerHTML='Масштаб вселенной: <b>'+t.scope.split(' · ')[0]+'</b> · '+t.scope.split(' · ')[1];
+  const up=document.getElementById('upsell');
+  if(t.up){up.style.display='';document.getElementById('upTitle').textContent=t.up[0];
+    document.getElementById('upText').textContent=t.up[1];document.getElementById('upBtn').textContent=t.up[2];
+    document.getElementById('upBtn').onclick=()=>selectTier(KEY==='free'?'pro':'auto');}
+  else up.style.display='none';
+  document.getElementById('autoWrap').style.display = t.tier>=2?'grid':'none';
+  document.querySelectorAll('.tiers .t').forEach(b=>b.classList.toggle('on',b.dataset.k===KEY));
+  renderNav();renderFeed();renderSignals();
+}
+function selectTier(k){KEY=k;applyUI();applyScene();if(VIEW!=='radar')route(VIEW);}
+window.selectTier=selectTier;
+document.getElementById('tiers').addEventListener('click',e=>{const b=e.target.closest('.t');if(b)selectTier(b.dataset.k);});
+
+/* ============ 3D radar ============ */
+let renderer,scene,camera,composer,bloom,cv,WEBGL=true,glowTex,DUMMY;
+let coins,coinData=[],drones,droneData=[],flashes=[],neurons,synapses,coreMesh,coreGlow,galaxy,stars,orbs;
+let camAngle=0, morph=0, sparks=[], mx=0, my=0, tmx=0, tmy=0;
+const MAXC=300,MAXD=6;
+const cur={bloom:.5,core:new THREE.Color(0x22d3ee),galaxy:new THREE.Color(0x16304a),speed:.004,coins:50,drones:0};
+const tgt={bloom:.5,core:new THREE.Color(0x22d3ee),galaxy:new THREE.Color(0x16304a),speed:.004,coins:50,drones:0};
+const CORE=new THREE.Vector3(0,0,0);
+
+function radialTex(){const s=128,c=document.createElement('canvas');c.width=c.height=s;const g=c.getContext('2d');
+  const gr=g.createRadialGradient(s/2,s/2,0,s/2,s/2,s/2);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.25,'rgba(255,255,255,.85)');
+  gr.addColorStop(.5,'rgba(255,255,255,.3)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,s,s);return new THREE.CanvasTexture(c);}
+function sz(){return {w:cv.clientWidth||600,h:cv.clientHeight||340};}
+function initGL(){
+  cv=document.getElementById('radar');
+  try{renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});}catch(e){WEBGL=false;}
+  if(!renderer||!renderer.getContext()){WEBGL=false;cv.style.display='none';return;}
+  const {w,h}=sz(),DPR=Math.min(devicePixelRatio||1,2);
+  renderer.setPixelRatio(DPR);renderer.setSize(w,h,false);renderer.setClearColor(0x05060B,0);
+  scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x05060B,0.02);
+  camera=new THREE.PerspectiveCamera(50,w/h,0.1,200);camera.position.set(0,1,15);
+  scene.add(new THREE.AmbientLight(0x667088,.8));const dl=new THREE.DirectionalLight(0xffffff,.8);dl.position.set(6,8,10);scene.add(dl);
+  glowTex=radialTex();DUMMY=new THREE.Object3D();
+  buildStars();buildGalaxy();buildOrbs();buildBrain();buildCoins();buildDrones();
+  composer=new THREE.EffectComposer(renderer);composer.addPass(new THREE.RenderPass(scene,camera));
+  bloom=new THREE.UnrealBloomPass(new THREE.Vector2(w,h),.5,.8,.12);composer.addPass(bloom);
+  new ResizeObserver(onResize).observe(cv);
+  addEventListener('pointermove',e=>{tmx=(e.clientX/innerWidth-.5);tmy=(e.clientY/innerHeight-.5);});
+}
+function onResize(){if(!WEBGL)return;const {w,h}=sz();renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();composer.setSize(w,h);bloom.setSize(w,h);}
+function buildStars(){const n=900,g=new THREE.BufferGeometry(),p=new Float32Array(n*3);
+  for(let i=0;i<n;i++){const r=30+Math.random()*70,th=Math.random()*6.28,ph=Math.acos(2*Math.random()-1);
+    p[i*3]=r*Math.sin(ph)*Math.cos(th);p[i*3+1]=r*Math.sin(ph)*Math.sin(th)*.6;p[i*3+2]=r*Math.cos(ph);}
+  g.setAttribute('position',new THREE.BufferAttribute(p,3));
+  stars=new THREE.Points(g,new THREE.PointsMaterial({color:0x8ea2cc,size:.16,map:glowTex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:.8}));scene.add(stars);}
+function buildGalaxy(){const n=3000,g=new THREE.BufferGeometry(),p=new Float32Array(n*3);
+  for(let i=0;i<n;i++){const t=Math.random(),arm=Math.floor(Math.random()*3),r=4+t*22,a=t*5+arm*2.09+(Math.random()-.5)*.5;
+    p[i*3]=Math.cos(a)*r+(Math.random()-.5)*2;p[i*3+1]=(Math.random()-.5)*(2+t*2.5);p[i*3+2]=Math.sin(a)*r+(Math.random()-.5)*2;}
+  g.setAttribute('position',new THREE.BufferAttribute(p,3));
+  galaxy=new THREE.Points(g,new THREE.PointsMaterial({color:0x26386a,size:.13,map:glowTex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:.6}));galaxy.rotation.x=.35;scene.add(galaxy);}
+function buildOrbs(){ // token orbs colored by semaphore, orbiting
+  const data=[{c:0x34D399,n:14},{c:0xFBBF24,n:8},{c:0xF87171,n:7}];const all=[];
+  data.forEach(d=>{for(let i=0;i<d.n;i++)all.push(d.c);});
+  orbs=[];all.forEach((col,i)=>{
+    const m=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:col,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:.9}));
+    const s=.5+Math.random()*.7;m.scale.set(s,s,1);const rad=5+Math.random()*7,ang=Math.random()*6.28,y=(Math.random()-.5)*5,sp=.001+Math.random()*.002;
+    m.userData={rad,ang,y,sp,s};scene.add(m);orbs.push(m);});
+}
+function buildBrain(){const n=300,g=new THREE.BufferGeometry(),p=new Float32Array(n*3),pos=[];
+  for(let i=0;i<n;i++){const r=Math.cbrt(Math.random())*2.3,th=Math.random()*6.28,ph=Math.acos(2*Math.random()-1);
+    const x=r*Math.sin(ph)*Math.cos(th),y=r*Math.sin(ph)*Math.sin(th)*.8,z=r*Math.cos(ph);p[i*3]=x;p[i*3+1]=y;p[i*3+2]=z;pos.push(new THREE.Vector3(x,y,z));}
+  g.setAttribute('position',new THREE.BufferAttribute(p,3));
+  neurons=new THREE.Points(g,new THREE.PointsMaterial({color:0xbfd0ff,size:.11,map:glowTex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:.95}));scene.add(neurons);
+  const seg=[];for(let i=0;i<n;i++){let c=0;for(let j=i+1;j<n&&c<2;j++){if(pos[i].distanceTo(pos[j])<.85){seg.push(pos[i].x,pos[i].y,pos[i].z,pos[j].x,pos[j].y,pos[j].z);c++;}}}
+  const sg=new THREE.BufferGeometry();sg.setAttribute('position',new THREE.BufferAttribute(new Float32Array(seg),3));
+  synapses=new THREE.LineSegments(sg,new THREE.LineBasicMaterial({color:0x5b6cff,transparent:true,opacity:.2,blending:THREE.AdditiveBlending,depthWrite:false}));scene.add(synapses);
+  coreMesh=new THREE.Mesh(new THREE.IcosahedronGeometry(0.72,2),new THREE.MeshBasicMaterial({color:0x22d3ee}));scene.add(coreMesh);
+  coreGlow=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:0x22d3ee,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:.8}));coreGlow.scale.set(6,6,1);scene.add(coreGlow);}
+function coinStart(){const r=11+Math.random()*12,a=Math.random()*6.28,y=(Math.random()-.5)*6;return new THREE.Vector3(Math.cos(a)*r,y,Math.sin(a)*r);}
+function buildCoins(){const geo=new THREE.CylinderGeometry(.15,.15,.04,16);geo.rotateX(Math.PI/2);
+  const mat=new THREE.MeshStandardMaterial({color:0xf6c66b,metalness:.7,roughness:.3,emissive:0x2a1e06,emissiveIntensity:.5});
+  coins=new THREE.InstancedMesh(geo,mat,MAXC);coins.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  for(let i=0;i<MAXC;i++){const s=coinStart(),ctrl=s.clone().multiplyScalar(.45).add(new THREE.Vector3((Math.random()-.5)*7,(Math.random()-.5)*7,(Math.random()-.5)*7));
+    coinData.push({s,ctrl,t:Math.random(),sp:.004+Math.random()*.004,spin:Math.random()*6.28,reject:Math.random()<.18,active:i<cur.coins});}scene.add(coins);}
+function buildDrones(){const geo=new THREE.SphereGeometry(.2,14,14);const mat=new THREE.MeshStandardMaterial({color:0xffe6a8,metalness:.6,roughness:.25,emissive:0x5a4410,emissiveIntensity:.8});
+  drones=new THREE.InstancedMesh(geo,mat,MAXD);for(let i=0;i<MAXD;i++)droneData.push({ang:(i/MAXD)*6.28,rad:4,y:(Math.random()-.5)*1.4,sp:.012+Math.random()*.004});scene.add(drones);}
+function spawnFlash(pos,color){let f=flashes.find(x=>!x.on);if(!f){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));scene.add(sp);f={sp,on:false};flashes.push(f);}
+  f.sp.material.color.setHex(color);f.sp.position.copy(pos);f.sp.scale.set(.2,.2,1);f.on=true;f.life=0;}
+function spawnSparks(pos,color,n){for(let i=0;i<n;i++){let s=sparks.find(x=>!x.on);
+  if(!s){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));sp.scale.set(.3,.3,1);scene.add(sp);s={sp,on:false};sparks.push(s);}
+  if(sparks.length>160 && !s.on && sparks.filter(x=>x.on).length>150) return;
+  const a=Math.random()*6.28, el=Math.random()*3.14, v=.09+Math.random()*.14;
+  s.sp.material.color.setHex(color);s.sp.position.copy(pos);
+  s.vx=Math.cos(a)*Math.sin(el)*v;s.vy=Math.cos(el)*v;s.vz=Math.sin(a)*Math.sin(el)*v;s.on=true;s.life=0;}}
+function qbez(a,c,b,t){const u=1-t;return new THREE.Vector3(u*u*a.x+2*u*t*c.x+t*t*b.x,u*u*a.y+2*u*t*c.y+t*t*b.y,u*u*a.z+2*u*t*c.z+t*t*b.z);}
+
+function applyScene(){const t=TIERS[KEY];if(!WEBGL)return;
+  tgt.bloom=t.bloom;tgt.speed=t.speed;tgt.coins=t.coins;tgt.drones=t.drones;tgt.core.setHex(t.core);tgt.galaxy.setHex(t.galaxy);
+  for(let i=0;i<MAXC;i++)coinData[i].active=i<t.coins;
+  // morph wow-burst on tier change
+  morph=1.7;
+  for(let i=0;i<16;i++){const a=i/16*6.28;spawnFlash(new THREE.Vector3(Math.cos(a)*2.6,Math.sin(a)*1.7,0),t.core);}
+  spawnSparks(CORE,t.core,24);}
+
+let reduce=matchMedia('(prefers-reduced-motion: reduce)').matches,pulseT=0;
+function frame(){if(!WEBGL)return;
+  if(!radarVisible){if(!reduce)requestAnimationFrame(frame);return;}
+  cur.bloom+=(tgt.bloom-cur.bloom)*.05;bloom.strength=cur.bloom;cur.speed+=(tgt.speed-cur.speed)*.05;
+  cur.core.lerp(tgt.core,.05);cur.galaxy.lerp(tgt.galaxy,.05);
+  coreMesh.material.color.copy(cur.core);coreGlow.material.color.copy(cur.core);galaxy.material.color.copy(cur.galaxy);
+  synapses.material.color.copy(cur.core);coins.material.color.copy(cur.core);coins.material.emissive.copy(cur.core).multiplyScalar(.22);
+  pulseT+=.03;morph*=0.90;
+  const pulse=1+Math.sin(pulseT)*.07+morph*0.45;
+  coreMesh.scale.setScalar(pulse);coreMesh.rotation.y+=0.01;coreMesh.rotation.x+=0.004;coreGlow.scale.set(6*pulse,6*pulse,1);
+  neurons.material.opacity=.78+Math.sin(pulseT*1.3)*.18+morph*.2;
+  neurons.rotation.y+=0.0018;synapses.rotation.y+=0.0018;
+  synapses.material.opacity=.12+.15*Math.abs(Math.sin(pulseT*.9))+morph*.25;
+  mx+=(tmx-mx)*.05;my+=(tmy-my)*.05;
+  camAngle+=.0016;
+  camera.position.x=Math.sin(camAngle)*15+mx*3.2;
+  camera.position.z=Math.cos(camAngle)*15;
+  camera.position.y=1-my*2.6+Math.sin(pulseT*.5)*.35;
+  camera.lookAt(CORE);
+  galaxy.rotation.y+=.0007;stars.rotation.y+=.0002;
+  for(const o of orbs){o.userData.ang+=o.userData.sp;
+    o.position.set(Math.cos(o.userData.ang)*o.userData.rad,o.userData.y+Math.sin(o.userData.ang*2+pulseT)*.5,Math.sin(o.userData.ang)*o.userData.rad);
+    const b=.9+.28*Math.sin(pulseT*1.8+o.userData.ang);o.scale.set(o.userData.s*b,o.userData.s*b,1);
+    o.material.opacity=.68+.26*Math.max(0,Math.sin(pulseT*1.6+o.userData.ang));}
+  for(let i=0;i<MAXC;i++){const d=coinData[i];
+    if(!d.active){DUMMY.scale.setScalar(0);DUMMY.updateMatrix();coins.setMatrixAt(i,DUMMY.matrix);continue;}
+    d.t+=d.sp*(cur.speed/.004);d.spin+=.08;
+    if(d.t>=1){if(!d.reject){spawnFlash(CORE,0x34D399);if(Math.random()<.5)spawnSparks(CORE,0x34D399,5);}
+      else{const rp=qbez(d.s,d.ctrl,CORE,.82);spawnFlash(rp,0xF87171);if(Math.random()<.5)spawnSparks(rp,0xF87171,4);}
+      d.s=coinStart();d.ctrl=d.s.clone().multiplyScalar(.45).add(new THREE.Vector3((Math.random()-.5)*7,(Math.random()-.5)*7,(Math.random()-.5)*7));d.t=0;d.reject=Math.random()<.18;}
+    let p;if(d.reject&&d.t>.78){const base=qbez(d.s,d.ctrl,CORE,.78),off=(d.t-.78)*16;p=base.clone().add(new THREE.Vector3(Math.sin(d.spin)*off,off*.6,Math.cos(d.spin)*off));}else p=qbez(d.s,d.ctrl,CORE,d.t);
+    const near=Math.max(0,1-d.t),sc=d.reject&&d.t>.78?Math.max(0,1-(d.t-.78)/.22)*.9:(.5+near*.6);
+    DUMMY.position.copy(p);DUMMY.rotation.set(d.spin,d.spin*.7,0);DUMMY.scale.setScalar(sc*.85+.1);DUMMY.updateMatrix();coins.setMatrixAt(i,DUMMY.matrix);}
+  coins.instanceMatrix.needsUpdate=true;
+  cur.drones+=(tgt.drones-cur.drones)*.08;
+  for(let i=0;i<MAXD;i++){const dd=droneData[i];dd.ang+=dd.sp;const show=i<Math.round(cur.drones);
+    DUMMY.position.set(Math.cos(dd.ang)*dd.rad,dd.y+Math.sin(dd.ang*2)*.5,Math.sin(dd.ang)*dd.rad);DUMMY.rotation.set(0,dd.ang,0);DUMMY.scale.setScalar(show?1:.0001);DUMMY.updateMatrix();drones.setMatrixAt(i,DUMMY.matrix);}
+  drones.instanceMatrix.needsUpdate=true;
+  for(const f of flashes){if(!f.on)continue;f.life+=.06;const s=.2+f.life*5.5;f.sp.scale.set(s,s,1);f.sp.material.opacity=Math.max(0,1-f.life);if(f.life>=1){f.on=false;f.sp.scale.set(.001,.001,1);}}
+  for(const s of sparks){if(!s.on)continue;s.life+=.035;s.vx*=.96;s.vy=s.vy*.96-.004;s.vz*=.96;
+    s.sp.position.x+=s.vx;s.sp.position.y+=s.vy;s.sp.position.z+=s.vz;
+    const sc=.55*(1-s.life);s.sp.scale.set(Math.max(.01,sc),Math.max(.01,sc),1);
+    s.sp.material.opacity=Math.max(0,1-s.life);if(s.life>=1){s.on=false;s.sp.scale.set(.001,.001,1);}}
+  composer.render();if(!reduce)requestAnimationFrame(frame);}
+
+/* ============ views / router ============ */
+function money(n){return '$'+n.toLocaleString('en-US');}
+function route(k){
+  const idx=VKEYS.indexOf(k), needTier=NAV[idx][2], t=TIERS[KEY];
+  VIEW=k; renderNav();
+  const rv=document.getElementById('radarView'), ov=document.getElementById('otherView');
+  const T={radar:['Радар',t.sub],signals:['Сигналы','Лента BUY: токены, прошедшие проверки, с уверенностью сигнала.'],
+    portfolio:['Портфель','Избранное и бумажные позиции. Числа — ДЕМО.'],journal:['Журнал сделок','Закрытые позиции и честная сводка. ДЕМО.'],
+    graph:['Нейро-граф','Связи токенов, сетей, фондов и основателей — только реальные из данных.'],
+    alerts:['Алерты','Правила уведомлений: типы, каналы, тихие часы.'],autotrade:['Автоторговля · Vault','Делегирование, лимиты и аварийный стоп. LIVE OFF до аудита.'],
+    reels:['Reels · обучение','Короткие обучающие видео: как читать радар, вердикты PASS/REVIEW/BLOCK и сигналы.'],account:['Аккаунт','Профиль, подписка, уведомления, интеграции, безопасность.']};
+  document.getElementById('pageTitle').textContent=T[k][0];
+  document.getElementById('subhead').textContent=T[k][1];
+  if(k==='radar'){rv.style.display='';ov.style.display='none';radarVisible=true;return;}
+  radarVisible=false;rv.style.display='none';ov.style.display='';
+  if(needTier>t.tier){ov.innerHTML=lockView(needTier);return;}
+  ov.innerHTML=VIEWS[k]();
+  if(k==='graph')drawGraph();
+  if(k==='account')wireAccount();
+}
+window.route=route;
+function lockView(need){const nm=need>=2?'Autonomous':'Pro',pr=need>=2?'$89':'$49',key=need>=2?'auto':'pro';
+  return `<div class="lockview"><div class="em">🔒</div><h3>Раздел доступен на ${nm}</h3>
+    <p>${need>=2?'Автоторговля и Vault — только на Autonomous, после paper-трека и аудита. Включается под фиче-флагом.':'Этот раздел открыт на Pro и выше — вместе с полной лентой, историей и Token Intelligence.'}</p>
+    <button class="btn" onclick="selectTier('${key}')">Оформить ${nm} — ${pr}</button></div>`;}
+
+const EXTRASIG=[...SIGNALS,{n:'GM',c:'solana',dex:'Jupiter',p:'BUY 88%'},{n:'MOON',c:'base',dex:'Uniswap',p:'BUY 91%'},{n:'VOLT',c:'bsc',dex:'PancakeSwap',p:'BUY 85%'}];
+const VIEWS={
+ signals(){const rows=EXTRASIG.map(s=>`<tr class="rowbtn" onclick="openTok('${s.n}')">
+   <td class="tk">${s.n}<small>${s.c}</small></td><td><span class="buy" style="font-family:var(--disp);font-weight:600;font-size:12.5px;padding:4px 10px;border-radius:8px;background:color-mix(in srgb,var(--pass) 16%,transparent);color:var(--pass)">${s.p}</span></td>
+   <td class="muted">${s.dex}</td><td class="muted">${2+Math.floor(Math.random()*20)} мин</td><td>$${(40+Math.floor(Math.random()*300))}K</td>
+   <td><button class="buybtn" onclick="event.stopPropagation()">Купить</button></td></tr>`).join('');
+  return `<div class="vhead"><div class="filt on">Все сети</div><div class="filt">Base</div><div class="filt">Solana</div><div class="filt">BSC</div>
+    <div style="flex:1"></div><div class="filt">Уверенность: <b>&ge;80%</b></div><div class="filt">Сортировка: <b>новые</b></div></div>
+   <div class="panel"><table><thead><tr><th>Токен</th><th>Сигнал</th><th>DEX</th><th>Возраст</th><th>Ликв.</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+ },
+ portfolio(){const pos=[['DORA','base','$120','$198','+65%',1],['DOG','bsc','$80','$150','+88%',1],['MACE','solana','$60','$47','−22%',0],['SAFU','bsc','$100','$164','+64%',1]];
+  const rows=pos.map(p=>`<tr class="rowbtn" onclick="openTok('${p[0]}')"><td class="tk">${p[0]}<small>${p[1]}</small></td><td class="muted">${p[2]}</td><td>${p[3]}</td>
+    <td class="${p[5]?'pass':'block'}" style="font-family:var(--disp)">${p[4]}</td><td>${p[5]?'<span class="pass">открыта</span>':'<span class="muted">закрыта</span>'}</td></tr>`).join('');
+  return `<div class="vgrid3" style="margin-bottom:16px">
+     <div class="mtile"><div class="l">Paper equity · ДЕМО</div><div class="v accc">$12 480</div></div>
+     <div class="mtile"><div class="l">Доходность · ДЕМО</div><div class="v pass">+24.8%</div></div>
+     <div class="mtile"><div class="l">Win-rate · ДЕМО</div><div class="v">66%</div></div></div>
+   <div class="panel" style="margin-bottom:16px"><div class="ph"><h3>Бумажные позиции</h3></div>
+     <table><thead><tr><th>Токен</th><th>Вход</th><th>Сейчас</th><th>P&L</th><th>Статус</th></tr></thead><tbody>${rows}</tbody></table></div>
+   <div class="panel"><div class="ph"><h3>Watchlist</h3></div><div class="pbody" style="padding:14px;display:flex;flex-wrap:wrap;gap:9px">
+     ${['DORA','HALLOWEEN','PEPKING','VOLT','MOON','GM'].map(s=>`<span class="chip" onclick="openTok('${s}')">★ ${s} <span class="x">×</span></span>`).join('')}
+     <span class="chip" style="color:var(--acc)">+ Добавить токен</span></div></div>`;
+ },
+ journal(){const tr=[['DOG','bsc','+88%','TP хит · зафиксировано 60%','2 ч назад',1],['DORA','base','+65%','Trailing-стоп после пика','5 ч назад',1],
+   ['URSN','solana','+7.4%','Выход по застою','8 ч назад',1],['MACE','solana','−22%','Жёсткий стоп −15% (проскальзывание)','11 ч назад',0],['BONKZ','solana','−48%','Стоп · ликвидность упала','1 д назад',0]];
+  const rows=tr.map(t=>`<tr><td class="tk">${t[0]}<small>${t[1]}</small></td><td class="${t[5]?'pass':'block'}" style="font-family:var(--disp)">${t[2]}</td>
+    <td class="muted">${t[3]}</td><td class="muted">${t[4]}</td></tr>`).join('');
+  return `<div class="banner">⚠️ Честная сводка: это бумажная симуляция по правилам бота. Прошлые результаты ≠ будущие. ~98% новых токенов обнуляются.</div>
+   <div class="vgrid3" style="margin-bottom:16px"><div class="mtile"><div class="l">Закрыто сделок</div><div class="v">32</div></div>
+     <div class="mtile"><div class="l">Прибыльных</div><div class="v pass">19</div></div><div class="mtile"><div class="l">Средняя прибыль/убыток</div><div class="v">+25% / −31%</div></div></div>
+   <div class="panel"><div class="ph"><h3>Закрытые позиции</h3></div><table><thead><tr><th>Токен</th><th>P&L</th><th>Причина выхода</th><th>Когда</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+ },
+ graph(){return `<div class="panel"><div class="ph"><h3>Граф связей</h3><div class="leg"><span style="color:var(--pass)">● Токен</span> <span style="color:var(--acc)">● Сеть</span> <span style="color:var(--violet)">● Фонд</span> <span style="color:var(--review)">● Основатель</span></div></div>
+    <svg id="graphSvg" viewBox="0 0 900 420"></svg></div>`;},
+ alerts(){const rules=[['PASS-вердикт','любой токен получает PASS','Telegram',1],['Сигнал ≥ 95%','высокая уверенность','Telegram + Web',1],['TP / стоп по позиции','сделка закрыта','Telegram',1],['Новый токен в Watchlist','замеченный токен ожил','Web push',0]];
+  const cards=rules.map((r,i)=>`<div class="field"><div class="lab">${r[0]}<small>${r[1]} · канал: ${r[2]}</small></div>
+    <div class="sw ${r[3]?'on':''}" onclick="this.classList.toggle('on')"><i></i></div></div>`).join('');
+  return `<div class="vgrid2"><div class="panel"><div class="ph"><h3>Правила уведомлений</h3><button class="btn" style="margin-left:auto;padding:7px 12px;font-size:12px">+ Правило</button></div><div style="padding:4px 16px 12px">${cards}</div></div>
+    <div class="panel"><div class="ph"><h3>Каналы и тихие часы</h3></div><div style="padding:4px 16px 14px">
+      <div class="field"><div class="lab">Telegram-бот <small>личные сигналы и алерты в ЛС</small></div><button class="btn" onclick="tgLink(this)">✈️ Привязать Telegram</button></div>
+      <div class="field"><div class="lab">Email <small>bettydarby…@gmail.com</small></div><div class="sw on"><i></i></div></div>
+      <div class="field"><div class="lab">Web push</div><div class="sw"><i></i></div></div>
+      <div class="field"><div class="lab">Тихие часы <small>не беспокоить</small></div><div class="muted">23:00 — 08:00</div></div></div></div></div>`;
+ },
+ autotrade(){return `<div class="banner">🛡️ LIVE-исполнение ВЫКЛЮЧЕНО (фиче-флаг). Сейчас — симуляция. Реальная торговля включается только после аудита и paper-трека.</div>
+   <div class="vgrid2"><div class="panel"><div class="ph"><h3>Vault · статус</h3><span style="margin-left:auto;font-size:11px;color:#05060B;background:linear-gradient(90deg,var(--gold),#ffe6a8);padding:3px 10px;border-radius:999px;font-weight:700">SIM · 24/7</span></div>
+     <div class="pbody" style="padding:6px 16px 14px">
+       <div class="field"><div class="lab">Открытых авто-позиций</div><b style="font-family:var(--disp)">4</b></div>
+       <div class="field"><div class="lab">Исполнено сегодня</div><b style="font-family:var(--disp)">12 сделок</b></div>
+       <div class="field"><div class="lab">Vault equity · ДЕМО</div><b style="font-family:var(--disp);color:var(--gold)">$15 880</b></div></div></div>
+    <div class="panel"><div class="ph"><h3>Лимиты и полномочия</h3></div><div class="pbody" style="padding:6px 16px 14px">
+       <div class="field"><div class="lab">Макс. размер позиции</div><input class="inp" value="$150" style="min-width:110px"></div>
+       <div class="field"><div class="lab">Дневной стоп-лосс</div><input class="inp" value="−$500" style="min-width:110px"></div>
+       <div class="field"><div class="lab">Разрешённые сети</div><div class="muted">Base · BSC · Solana</div></div>
+       <div class="field"><div class="lab">Только PASS-токены</div><div class="sw on"><i></i></div></div>
+       <div style="display:flex;gap:10px;margin-top:14px"><button class="btn">Сохранить лимиты</button><button class="btn danger">⛔ Аварийный стоп</button></div></div></div></div>`;
+ },
+ reels(){const r=[['Как читать вердикт PASS','1:12'],['Разбор рага: 5 красных флагов','2:04'],['Что такое LP-lock','0:58'],['Авто-трейд: как это работает','1:40'],['История $DOG +88%','1:25'],['Сигнал 100%: что дальше','1:08']];
+  return `<div class="reels">${r.map(x=>`<div class="reel"><div class="th">▶<span class="dur">${x[1]}</span></div><div class="cap">${x[0]}<small>ALTSR · видео-инсайт</small></div></div>`).join('')}</div>`;
+ },
+ account(){return `<div class="acctabs">
+   <div class="acctab on" data-t="prof">Профиль</div><div class="acctab" data-t="bill">Подписка · биллинг</div>
+   <div class="acctab" data-t="notif">Уведомления</div><div class="acctab" data-t="integ">Интеграции</div><div class="acctab" data-t="sec">Безопасность</div></div>
+  <div class="panel"><div class="pbody" style="padding:8px 18px 16px">
+   <div class="acctab-panel" data-t="prof">
+     <div class="field"><div class="lab">Имя</div><input class="inp" value="YOURDROP STORE"></div>
+     <div class="field"><div class="lab">Email</div><div class="muted">yourdropshippingstore@gmail.com</div></div>
+     <div class="field"><div class="lab">Язык</div><div class="lang"><span class="on">RU</span><span>EN</span></div></div>
+     <div class="field"><div class="lab">Часовой пояс</div><input class="inp" value="America/Chicago (UTC−6)"></div>
+     <div style="margin-top:14px"><button class="btn">Сохранить</button></div></div>
+   <div class="acctab-panel" data-t="bill" style="display:none">
+     <div class="field"><div class="lab">Текущий тариф</div><b style="font-family:var(--disp)" id="accTier">FREE · $0</b></div>
+     <div class="field"><div class="lab">Апгрейд</div><div style="display:flex;gap:8px"><button class="btn" onclick="selectTier('pro')">Pro $49</button><button class="btn" onclick="selectTier('auto')">Autonomous $89</button></div></div>
+     <div class="field"><div class="lab">Оплата</div><div class="muted">Крипто · NOWPayments</div></div>
+     <div class="field"><div class="lab">История платежей</div><div class="muted">Пока нет оплат</div></div></div>
+   <div class="acctab-panel" data-t="notif" style="display:none">
+     <div class="field"><div class="lab">Telegram-алерты</div><div class="sw on"><i></i></div></div>
+     <div class="field"><div class="lab">Email-сводки</div><div class="sw on"><i></i></div></div>
+     <div class="field"><div class="lab">Web push</div><div class="sw"><i></i></div></div>
+     <div class="field"><div class="lab">Тихие часы</div><div class="muted">23:00 — 08:00</div></div></div>
+   <div class="acctab-panel" data-t="integ" style="display:none">
+     <div class="field"><div class="lab">Telegram-бот<small>личные сигналы и алерты в ЛС</small></div><button class="btn" onclick="tgLink(this)">✈️ Привязать Telegram</button></div>
+     <div class="field"><div class="lab">API-ключ<small>доступ к ленте (Pro+)</small></div><button class="btn ghost">Создать ключ</button></div></div>
+   <div class="acctab-panel" data-t="sec" style="display:none">
+     <div class="field"><div class="lab">Активные сессии</div><div class="muted">2 устройства</div></div>
+     <div class="field"><div class="lab">Выйти со всех устройств</div><button class="btn ghost">Выйти</button></div>
+     <div class="field"><div class="lab">Удалить аккаунт<small>необратимо</small></div><button class="btn danger">Удалить</button></div></div>
+   </div></div>`;
+ },
+};
+function wireAccount(){
+  const tabs=document.querySelectorAll('.acctab'),pans=document.querySelectorAll('.acctab-panel');
+  const at=document.getElementById('accTier'); if(at)at.textContent=TIERS[KEY].badge+' · '+(KEY==='free'?'$0':KEY==='pro'?'$49':'$89');
+  tabs.forEach(tb=>tb.onclick=()=>{tabs.forEach(x=>x.classList.remove('on'));tb.classList.add('on');
+    pans.forEach(p=>p.style.display=p.dataset.t===tb.dataset.t?'':'none');});
+}
+function drawGraph(){
+  const nodes=[{id:'DORA',t:'tok',x:300,y:120},{id:'DOG',t:'tok',x:300,y:300},{id:'SAFU',t:'tok',x:560,y:210},
+    {id:'Base',t:'ch',x:140,y:90},{id:'BSC',t:'ch',x:140,y:330},{id:'Solana',t:'ch',x:760,y:120},
+    {id:'Fund Nexus',t:'inv',x:470,y:70},{id:'Fund Orbit',t:'inv',x:700,y:330},
+    {id:'dev: 0x7a…',t:'fnd',x:470,y:360},{id:'MACE',t:'tok',x:760,y:300}];
+  const links=[['DORA','Base'],['DORA','Fund Nexus'],['DOG','BSC'],['DOG','dev: 0x7a…'],['SAFU','BSC'],['SAFU','Fund Nexus'],['SAFU','Fund Orbit'],['MACE','Solana'],['MACE','Fund Orbit'],['DORA','SAFU']];
+  const col={tok:'#34D399',ch:'#22D3EE',inv:'#8B5CF6',fnd:'#FBBF24'};const pos={};nodes.forEach(n=>pos[n.id]=n);
+  let svg='';
+  links.forEach(l=>{const a=pos[l[0]],b=pos[l[1]];svg+=`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="rgba(130,150,210,.25)" stroke-width="1.2"/>`;});
+  nodes.forEach(n=>{const r=n.t==='tok'?16:12;svg+=`<g class="gnode" style="cursor:${n.t==='tok'?'pointer':'default'}" ${n.t==='tok'?`onclick="openTok('${n.id}')"`:''}>
+    <circle cx="${n.x}" cy="${n.y}" r="${r}" fill="${col[n.t]}" opacity=".9" filter="url(#gl)"/>
+    <text x="${n.x}" y="${n.y+r+13}" text-anchor="middle">${n.id}</text></g>`;});
+  document.getElementById('graphSvg').innerHTML=`<defs><filter id="gl"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>${svg}`;
+}
+
+/* ============ Token Intelligence drawer ============ */
+const TOKMAP={};TOKENS.forEach(t=>TOKMAP[t.s]=t);
+function synthTok(sym){return {s:sym,c:'base · 7 мин',v:'pass',r:'LP locked · Mint revoked',risk:18,conf:'94%',liq:'$88K'};}
+function openTok(sym){
+  const t=TOKMAP[sym]||synthTok(sym);
+  const rc=t.risk<30?'var(--pass)':t.risk<65?'var(--review)':'var(--block)';
+  const vlabel=t.v.toUpperCase(),vcol=t.v==='pass'?'var(--pass)':t.v==='review'?'var(--review)':'var(--block)';
+  const checks=[['LP заблокирован', t.risk<50?'ok':'wr', t.risk<50?'да · 100%':'не подтверждён'],
+    ['Mint authority отозван', t.v==='block'?'no':'ok', t.v==='block'?'активен':'отозван'],
+    ['Honeypot-проверка', t.v==='block'?'no':'ok', t.v==='block'?'обнаружен':'чисто'],
+    ['Доля разработчика', t.risk>50?'wr':'ok', t.risk>50?'18% · риск':'3%'],
+    ['Верификация контракта','ok','верифицирован']];
+  const ai=t.v==='block'?'Высокий риск: обнаружены признаки ловушки/контроля предложения. ALTSR отбрасывает такой токен (BLOCK). Не является сигналом на покупку.'
+    :t.v==='review'?'Смешанные сигналы: часть проверок не подтверждена. Статус REVIEW — требуется ручная проверка. PASS ≠ гарантия роста.'
+    :'Базовые анти-скам проверки пройдены: ликвидность заблокирована, mint отозван, honeypot не обнаружен. Это снижает риск рага, но НЕ гарантирует рост. DYOR.';
+  document.getElementById('drawer').innerHTML=`
+    <div class="dh"><div><h3>${t.s}</h3><small>${t.c}</small></div>
+      <div style="display:flex;gap:8px;align-items:center"><span class="vb" style="background:color-mix(in srgb,${vcol} 16%,transparent);color:${vcol}">${vlabel}</span>
+      <div class="cl" onclick="closeDrawer()">✕</div></div></div>
+    <div class="sect"><h4>Оценка риска</h4><div style="display:flex;align-items:center;gap:16px">
+      <div class="ring" style="--p:${t.risk};--rc:${rc}"><div class="in"><b style="color:${rc}">${t.risk}</b><span>риск /100</span></div></div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.5">Сигнал: <b class="accc" style="font-family:var(--disp)">${t.conf}</b><br>Ликвидность: <b style="color:var(--txt)">${t.liq}</b><br>Семафор: <b style="color:${vcol}">${vlabel}</b></div></div></div>
+    <div class="sect"><h4>Анти-скам проверки</h4>${checks.map(c=>`<div class="chk"><div class="ico ${c[1]}">${c[1]==='ok'?'✓':c[1]==='no'?'✕':'!'}</div>${c[0]}<span class="r">${c[2]}</span></div>`).join('')}</div>
+    <div class="sect"><h4>Ончейн</h4><div class="ogrid">
+      <div class="ocell"><div class="l">Холдеры</div><div class="v">${120+Math.floor(Math.random()*900)}</div></div>
+      <div class="ocell"><div class="l">Ликвидность</div><div class="v">${t.liq}</div></div>
+      <div class="ocell"><div class="l">Возраст</div><div class="v">${t.c.split('· ')[1]||'—'}</div></div>
+      <div class="ocell"><div class="l">Объём 24ч</div><div class="v">$${(20+Math.floor(Math.random()*180))}K</div></div></div></div>
+    <div class="sect"><h4>AI-разбор</h4><div class="ai">${ai}</div></div>
+    <div class="sect"><h4>Где купить</h4>
+      <div class="venue"><span>Uniswap</span><a onclick="event.preventDefault()">Открыть своп ↗</a></div>
+      <div class="venue"><span>Jupiter</span><a onclick="event.preventDefault()">Открыть своп ↗</a></div></div>
+    <div class="sect" style="color:var(--dim);font-size:11.5px">Не инвест-рекомендация. PASS ≠ «вырастет». DYOR.</div>`;
+  document.getElementById('drawer').classList.add('on');
+  document.getElementById('drawerBk').classList.add('on');
+}
+function closeDrawer(){document.getElementById('drawer').classList.remove('on');document.getElementById('drawerBk').classList.remove('on');}
+function tgLink(btn){btn.textContent='✓ Telegram привязан';btn.style.background='color-mix(in srgb,var(--pass) 20%,transparent)';btn.style.color='var(--pass)';btn.disabled=true;}
+window.openTok=openTok;window.closeDrawer=closeDrawer;window.tgLink=tgLink;
+document.getElementById('drawerBk').addEventListener('click',closeDrawer);
+addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});
+
+/* ============ boot ============ */
+applyUI();
+initGL();
+if(WEBGL){applyScene();reduce?frame():requestAnimationFrame(frame);
+  // click orbs → open token drawer
+  const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
+  cv.addEventListener('click',e=>{const r=cv.getBoundingClientRect();ndc.x=((e.clientX-r.left)/r.width)*2-1;ndc.y=-((e.clientY-r.top)/r.height)*2+1;
+    ray.setFromCamera(ndc,camera);const hit=ray.intersectObjects(orbs);if(hit.length){const i=orbs.indexOf(hit[0].object);openTok(TOKENS[i%TOKENS.length].s);}});
+}
+</script>
+</body>
+</html>
