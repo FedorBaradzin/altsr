@@ -8,69 +8,101 @@ function setT(sel,t){var e=q(sel);if(e&&t!=null)e.textContent=t;}
 function applyL(L){setT('.alnp-eye',L.eye);setT('.alnp-h',L.h);setT('.alnp-sub',L.sub);setT('.alnp-cta',L.cta);setT('.alnp-dur',L.dur);setT('.alnp-sece',L.sece);setT('.alnp-sech',L.sech);setT('.alnp-demo',L.demo);var cs=cells();for(var i=0;i<cs.length;i++){var l=cs[i].querySelector('.alnp-l');if(l&&L.labels&&L.labels[i])l.textContent=L.labels[i];}var src=document.getElementById('tourSrc'),vd=document.getElementById('tourVid');if(src&&L.vid&&src.getAttribute('src')!==L.vid){src.setAttribute('src',L.vid);if(vd)try{vd.load()}catch(e){}}}
 function lng(){var t=document.body.innerText||'';return /How it works|Auto-trading/.test(t)?'en':'ru';}
 
-/* ----- TIME-BASED continuous numbers: derived from a FIXED epoch, so they never
-   reset on reload and keep growing. Equity/Return/Realized P&L are monotonic in
-   time; Win-rate & Positions move deterministically from the clock. ----- */
-var EPOCH=Date.UTC(2026,10,10,0,0,0); /* Nov 10 2026 UTC — fixed anchor */
-var REF=126000; /* ~Nov 11 11:00 UTC: anchors the "now" values for continuity */
-function secs(){return Math.max(0,(Date.now()-EPOCH)/1000);}
-function ds(){return secs()-REF;}
-function money2(v){return '$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
-function intc(v){return Math.floor(v).toLocaleString('en-US');}
-/* Every value is a continuous function of wall-clock time: it streams upward on
-   each paint (cents tick ~1-2/s) so NOTHING looks frozen, and because it is
-   anchored to a FIXED epoch it never resets on reload. */
-function stats(){var d=ds();
-  var equity=12600+0.02*d;      /* +2 cents/s — visibly streaming */
-  var ret=(equity/5000-1)*100;  /* ~ +152% now, climbs */
-  var pnl=6874+0.016*d;         /* +1.6 cents/s */
-  var pos=5+Math.round(2+2*Math.sin(secs()/120)); /* 3..9 */
-  var wr=64+Math.round(3*Math.sin(secs()/50));    /* 61..67 */
-  return{equity:equity,ret:ret,pnl:pnl,pos:pos,wr:wr};
+/* ============================================================================
+   LIVE DEMO NUMBERS — event-driven "arrivals" ($20-50 chunks) that NEVER reset
+   on reload. The running state is persisted in localStorage, so a page reload
+   resumes from exactly where it was (with a small catch-up for time elapsed),
+   instead of restarting from a base. Every value is in motion each tick:
+   equity / realized P&L / 24h-earn climb in chunks; pools / tokens / PASS grow;
+   active-signals / win-rate / positions wiggle within realistic bounds.
+   ============================================================================ */
+var LS='altsr_live_v2';
+function clamp(v,a,b){return v<a?a:(v>b?b:v);}
+function ri(a,b){return a+Math.floor(Math.random()*(b-a+1));}
+function money(v){return '$'+Math.round(v).toLocaleString('en-US');}
+function intc(v){return Math.round(v).toLocaleString('en-US');}
+function flashEl(el){if(!el)return;el.classList.remove('alnpf');void el.offsetWidth;el.classList.add('alnpf');}
+function loadS(){try{var j=JSON.parse(localStorage.getItem(LS));if(j&&j.t&&j.equity)return j;}catch(e){}return null;}
+function saveS(s){try{localStorage.setItem(LS,JSON.stringify(s));}catch(e){}}
+function seedS(){return{t:Date.now(),equity:12600,pnl:6874,earn:8420,pools:465000,tokens:15800,pass:4990,sigs:1285,wr:65,pos:7};}
+function initS(){
+  var s=loadS();
+  if(!s){s=seedS();saveS(s);return s;}
+  /* keep it "always growing": advance for the time the page was closed, capped
+     so a long absence doesn't explode the figures */
+  var dt=clamp((Date.now()-s.t)/1000,0,120);
+  s.equity+=dt*10;s.pnl+=dt*10;s.earn+=dt*6;s.pools+=dt*1.3;s.tokens+=dt*0.5;s.pass+=dt*0.15;s.t=Date.now();
+  saveS(s);return s;
 }
-var numsOn=false;
-function numbers(){var cs=cells();if(cs.length<5)return;numsOn=true;
-  var eqv=cs[0].querySelector('.alnp-v'),wrv=cs[1].querySelector('.alnp-v'),retv=cs[2].querySelector('.alnp-v'),posv=cs[3].querySelector('.alnp-v'),pnlv=cs[4].querySelector('.alnp-v');
-  function paint(){var s=stats();var en=lng()==='en';
-    eqv.textContent=money2(s.equity);
-    wrv.textContent=s.wr+'%';
-    retv.textContent='+'+s.ret.toFixed(1)+'%';
-    posv.textContent=s.pos+(en?' open':' откр.');
-    pnlv.textContent='+'+money2(s.pnl);}
-  paint();setInterval(paint,500);
+var S=null,engineOn=false,TOP=null;
+
+/* take the top market-scan cells away from the landing's own count()/observer/
+   pools/bumpEarn (clone drops them from the observer; stripping the id makes the
+   getElementById-based growers find nothing) so this engine fully owns them */
+function ownTop(){
+  if(TOP)return true;
+  var m=document.querySelector('.strip .metrics');if(!m)return false;
+  var cs=[].slice.call(m.querySelectorAll('.mv.num'));if(cs.length<5)return false;
+  TOP=cs.slice(0,5).map(function(el){var c=el.cloneNode(true);el.replaceWith(c);c.removeAttribute('id');return c;});
+  return true;
+}
+
+function render(flash){
+  if(!S)return;var en=lng()==='en';var ret=(S.equity/5000-1)*100;
+  var cs=cells();
+  if(cs.length>=5){
+    var v0=cs[0].querySelector('.alnp-v'),v1=cs[1].querySelector('.alnp-v'),v2=cs[2].querySelector('.alnp-v'),v3=cs[3].querySelector('.alnp-v'),v4=cs[4].querySelector('.alnp-v');
+    if(v0)v0.textContent=money(S.equity);
+    if(v1)v1.textContent=S.wr+'%';
+    if(v2)v2.textContent='+'+ret.toFixed(1)+'%';
+    if(v3)v3.textContent=S.pos+(en?' open':' откр.');
+    if(v4)v4.textContent='+'+money(S.pnl);
+    if(flash){flashEl(cs[0]);flashEl(cs[4]);}
+  }
+  if(TOP){
+    TOP[0].textContent=intc(S.pools);
+    TOP[1].textContent=intc(S.tokens);
+    TOP[2].textContent=intc(S.pass);
+    TOP[3].textContent=intc(S.sigs);
+    TOP[4].textContent=money(S.earn);
+    if(flash){flashEl(TOP[0].closest('.metric'));flashEl(TOP[4].closest('.metric'));}
+  }
+}
+
+function step(){
+  if(!S)return;
+  var inc=ri(20,50);                 /* the "$20-30-50 arrived" chunk */
+  S.pnl+=inc; S.equity+=inc+ri(0,9);
+  S.earn+=ri(12,34);
+  S.pools+=ri(4,13);
+  S.tokens+=ri(0,3);
+  if(Math.random()<0.55)S.pass+=1;
+  S.sigs=clamp(S.sigs+ri(-1,2),1200,1400);
+  if(Math.random()<0.30)S.wr=clamp(S.wr+(Math.random()<0.5?-1:1),61,69);
+  if(Math.random()<0.16)S.pos=clamp(S.pos+(Math.random()<0.5?-1:1),4,12);
+  S.t=Date.now();saveS(S);
+  render(true);
+}
+
+function startEngine(){
+  if(engineOn)return;
+  if(!cells().length)return;
+  ownTop();
+  S=initS();engineOn=true;
+  render(false);
+  setInterval(step,2500);            /* a fresh "arrival" every 2.5s */
 }
 
 /* ----- auto-rotate the featured token card through the free (unlocked) rows ----- */
-var rotOn=false,ri=0,pauseUntil=0;
+var rotOn=false,rIdx=0,pauseUntil=0;
 function rotate(){
   var rows=[].filter.call(document.querySelectorAll('.rowx'),function(r){var d=+r.getAttribute('data-i2');return d>=0;});
   if(rows.length<2)return;rotOn=true;
   document.addEventListener('click',function(e){if(e.target.closest('.rowx'))pauseUntil=Date.now()+15000;},true);
-  setInterval(function(){if(Date.now()<pauseUntil)return;ri=(ri+1)%rows.length;try{rows[ri].click();}catch(e){}},6500);
+  setInterval(function(){if(Date.now()<pauseUntil)return;rIdx=(rIdx+1)%rows.length;try{rows[rIdx].click();}catch(e){}},6500);
 }
 
-/* ----- TOP market-scan strip (Пулы/Токены/PASS/Сигналы/Заработок): take the five
-   cells away from the landing's own count()/IntersectionObserver/pools/bumpEarn
-   (which animate from 0 and grow from a base, so they reset every reload) and drive
-   them from the SAME fixed EPOCH, so they never reset and only ever grow. Cloning the
-   node drops it from the observer; stripping the id makes the getElementById-based
-   growers (pools, bumpEarn) find nothing. ----- */
-var topOn=false;
-function topbar(){
-  var m=document.querySelector('.strip .metrics');if(!m)return;
-  var cs=[].slice.call(m.querySelectorAll('.mv.num'));if(cs.length<5)return;topOn=true;
-  var owned=cs.slice(0,5).map(function(el){var c=el.cloneNode(true);el.replaceWith(c);c.removeAttribute('id');return c;});
-  function paint(){var d=ds(),s=secs();
-    owned[0].textContent=intc(465000+1.2*d);                  /* pools +1.2/s */
-    owned[1].textContent=intc(15800+0.4*d);                   /* tokens +0.4/s */
-    owned[2].textContent=intc(4990+0.12*d);                   /* PASS +0.12/s */
-    owned[3].textContent=intc(1285+0.02*d+12*Math.sin(s/20)); /* signals, live wiggle */
-    owned[4].textContent=money2(8710+0.012*d);                /* earn, cents stream */
-  }
-  paint();setInterval(paint,500);
-}
-topbar();
-
-var last='';setInterval(function(){if(!document.querySelector('.alnp-band')||!cells().length)return;applyL(lng()==='en'?EN:(window.__alnpRU||(window.__alnpRU=capRU())));if(!numsOn)numbers();if(!rotOn)rotate();if(!topOn)topbar();},1000);
+ownTop();
+setInterval(function(){if(!document.querySelector('.alnp-band')||!cells().length){ownTop();return;}applyL(lng()==='en'?EN:(window.__alnpRU||(window.__alnpRU=capRU())));if(!engineOn)startEngine();if(!rotOn)rotate();},1000);
 })();
 </script>
