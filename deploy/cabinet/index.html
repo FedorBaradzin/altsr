@@ -796,10 +796,31 @@ async function loadReal(){
   }catch(e){/* offline → demo data stays */}
 }
 
+/* ============ auth (same-origin) ============ */
+const AUTH_KEY='altsr_token';
+function getTok(){try{return localStorage.getItem(AUTH_KEY);}catch(e){return null;}}
+function mapTier(s){s=(s||'').toLowerCase();return (s.indexOf('auto')>=0||s.indexOf('sing')>=0)?'auto':(s.indexOf('pro')>=0||s.indexOf('oper')>=0)?'pro':'free';}
+async function initAuth(){
+  try{
+    if(location.hash.indexOf('#token=')===0){try{localStorage.setItem(AUTH_KEY,decodeURIComponent(location.hash.slice(7)));}catch(e){}history.replaceState(null,'',location.pathname);}
+    const tk=getTok(); if(!tk)return;
+    const me=await (await fetch('/api/auth/me',{headers:{Authorization:'Bearer '+tk}})).json();
+    if(!me||!me.id)return;
+    KEY=mapTier(me.tier);
+    const pr=document.querySelector('.proto'); if(pr)pr.style.display='none';
+    const sw=document.getElementById('tiers'); if(sw)sw.style.display='none';
+    const nm=me.display_name||me.email||'Аккаунт';
+    const an=document.querySelector('.ava span'); if(an)an.textContent=nm;
+    const ad=document.querySelector('.ava .d'); if(ad)ad.textContent=(nm[0]||'A').toUpperCase();
+    applyUI(); if(WEBGL)applyScene(); if(VIEW!=='radar')route(VIEW);
+  }catch(e){}
+}
+
 /* ============ boot ============ */
 applyUI();
 initGL();
 loadReal();
+initAuth();
 if(WEBGL){applyScene();reduce?frame():requestAnimationFrame(frame);
   // click orbs → open token drawer
   const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
