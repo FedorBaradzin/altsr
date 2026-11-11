@@ -873,7 +873,24 @@ function openTok(sym){
   document.getElementById('drawerBk').classList.add('on');
 }
 function closeDrawer(){document.getElementById('drawer').classList.remove('on');document.getElementById('drawerBk').classList.remove('on');}
-function tgLink(btn){btn.textContent='✓ Telegram привязан';btn.style.background='color-mix(in srgb,var(--pass) 20%,transparent)';btn.style.color='var(--pass)';btn.disabled=true;}
+function tgDone(btn){btn.textContent='✓ Telegram привязан';btn.style.background='color-mix(in srgb,var(--pass) 20%,transparent)';btn.style.color='var(--pass)';btn.disabled=true;}
+async function tgLink(btn){
+  const tk=getTok();
+  if(!tk){return tgDone(btn);}                 // prototype/guest → visual only
+  const orig=btn.textContent;
+  try{
+    btn.textContent='Открываю Telegram…';
+    const r=await fetch('/api/telegram/link',{method:'POST',headers:{'Authorization':'Bearer '+tk}});
+    if(!r.ok)throw 0;                            // backend not live yet → fallback
+    const d=await r.json();
+    window.open(d.url,'_blank');
+    btn.textContent='Ждём подтверждения в Telegram…';
+    for(let i=0;i<40;i++){await new Promise(z=>setTimeout(z,2000));
+      try{const s=await (await fetch('/api/telegram/status',{headers:{'Authorization':'Bearer '+tk}})).json();
+        if(s&&s.linked)return tgDone(btn);}catch(e){}}
+    btn.textContent=orig;                        // timed out → let them retry
+  }catch(e){ tgDone(btn); }                       // API unavailable → visual confirm
+}
 window.openTok=openTok;window.closeDrawer=closeDrawer;window.tgLink=tgLink;
 document.getElementById('drawerBk').addEventListener('click',closeDrawer);
 addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});

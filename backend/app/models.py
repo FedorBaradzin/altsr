@@ -294,6 +294,9 @@ class User(Base):
     tier: Mapped[str] = mapped_column(String(16), default="free", nullable=False)
     tier_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # Привязанный Telegram-чат пользователя (для личных алертов). NULL = не привязан.
+    tg_chat_id: Mapped[str | None] = mapped_column(String(32))
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, nullable=False
     )
@@ -304,6 +307,20 @@ class User(Base):
     __table_args__ = (
         UniqueConstraint("auth_method", "subject", name="uq_user_identity"),
         Index("ix_users_auth_subject", "auth_method", "subject"),
+    )
+
+
+class TelegramLinkCode(Base):
+    """Одноразовый код привязки Telegram (deep-link /start=<code>). TTL проверяется по created_at."""
+
+    __tablename__ = "telegram_link_codes"
+
+    code: Mapped[str] = mapped_column(String(32), primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
     )
 
     def __repr__(self) -> str:  # pragma: no cover

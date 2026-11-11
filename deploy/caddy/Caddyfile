@@ -25,6 +25,14 @@ altsr.space {
 		file_server
 	}
 
+	# Старый /radar (Next.js) → новый кабинет Neural Cosmos
+	handle /radar {
+		redir * /landing/cabinet/index.html
+	}
+	handle /radar/ {
+		redir * /landing/cabinet/index.html
+	}
+
 	# всё остальное → фронтенд (Next.js)
 	handle {
 		reverse_proxy frontend:3000

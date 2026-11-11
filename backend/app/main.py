@@ -17,6 +17,7 @@ from .api.auth import router as auth_router
 from .api.billing import router as billing_router
 from .api.news import router as news_router
 from .api.paper import router as paper_router
+from .api.telegram import router as telegram_router, webhook_secret
 from .api.user_paper import router as user_paper_router
 from .api.signals import router as signals_router
 from .api.tokens import router as tokens_router
@@ -33,6 +34,14 @@ logger = logging.getLogger("altsr.api")
 async def lifespan(app: FastAPI):
     await create_all()
     app.state.redis = await make_redis()
+    # Зарегистрировать Telegram webhook, если задан токен бота.
+    _s = get_settings()
+    if _s.telegram_bot_token:
+        with contextlib.suppress(Exception):
+            from .notify.telegram import tg_set_webhook
+            await tg_set_webhook(
+                _s, f"{_s.site_url.rstrip('/')}/api/telegram/webhook", webhook_secret(_s)
+            )
     yield
     if app.state.redis is not None:
         with contextlib.suppress(Exception):
@@ -53,6 +62,7 @@ app.include_router(tokens_router)
 app.include_router(signals_router)
 app.include_router(paper_router)
 app.include_router(user_paper_router)
+app.include_router(telegram_router)
 app.include_router(news_router)
 app.include_router(articles_router)
 app.include_router(auth_router)
