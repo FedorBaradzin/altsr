@@ -14,6 +14,7 @@ from ..config import Settings
 from . import calibration, indicators
 from .calibration import Weights
 from .hard_rules import HardRuleConfig, HardRuleInput, check_hard_rules
+from .momentum_features import volume_spike_bonus, volume_spike_ratio
 
 
 @dataclass
@@ -142,6 +143,18 @@ def evaluate_entry(
             reasons.append(
                 f"моментум m5 {inp.price_change_m5:+.1f}%, h1 {inp.price_change_h1:+.1f}%"
             )
+
+    # 6b. Всплеск объёма — необязательные ворота (по умолчанию ВЫКЛ).
+    # Требуем аномального скачка объёма только когда базу есть из чего построить;
+    # при отсутствии данных вход не отсекаем (ранний токен может не иметь истории).
+    if s.vol_spike_enabled and s.signal_vol_spike_min > 0:
+        vs = volume_spike_ratio(inp.vol_h1, inp.vol_h6, inp.vol_h1_prev)
+        if vs is not None:
+            if vs < s.signal_vol_spike_min:
+                return SignalDecision(
+                    False, rejected=f"всплеск объёма {vs:.1f}× < {s.signal_vol_spike_min:.1f}×"
+                )
+            reasons.append(f"всплеск объёма {vs:.1f}×")
 
     # 7. Технические индикаторы (T1) — ROC/объём/давление/Aroon/ATR, гейт AND.
     if s.indicators_enabled:
@@ -307,4 +320,11 @@ def _momentum_confidence(inp: SignalInput, s: Settings) -> float:
     ):
         turnover = inp.vol_h1 / inp.liquidity_usd
         bonus += s.signal_conf_w_volume * min(1.0, turnover / s.signal_conf_vol_liq_ref)
+    # Всплеск объёма относительно предыдущих часов (по умолчанию ВЫКЛ флагом).
+    # Отличается от оборота выше: ловит аномальный скачок активности как градиент.
+    if s.vol_spike_enabled and s.signal_conf_w_vol_spike > 0:
+        vs = volume_spike_ratio(inp.vol_h1, inp.vol_h6, inp.vol_h1_prev)
+        bonus += volume_spike_bonus(
+            vs, ref=s.signal_conf_vol_spike_ref, weight=s.signal_conf_w_vol_spike
+        )
     return bonus

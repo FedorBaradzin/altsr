@@ -116,6 +116,14 @@ class Settings(BaseSettings):
     signal_conf_mom_h1_scale: float = Field(default=50.0, alias="SIGNAL_CONF_MOM_H1_SCALE")
     signal_conf_buy_sell_ref: float = Field(default=1.3, alias="SIGNAL_CONF_BUY_SELL_REF")
     signal_conf_vol_liq_ref: float = Field(default=1.0, alias="SIGNAL_CONF_VOL_LIQ_REF")
+    # Volume-spike (всплеск объёма относительно предыдущих часов). По умолчанию
+    # ВЫКЛ, чтобы поведение не менялось; включается на сервере отдельным флагом.
+    # vol_spike_min > 0 вместе с vol_spike_enabled добавляет необязательные ворота
+    # входа «объём должен всплеснуть ≥ N×». Вклад в уверенность — градиентом.
+    vol_spike_enabled: bool = Field(default=False, alias="VOL_SPIKE_ENABLED")
+    signal_conf_w_vol_spike: float = Field(default=0.10, alias="SIGNAL_CONF_W_VOL_SPIKE")
+    signal_conf_vol_spike_ref: float = Field(default=3.0, alias="SIGNAL_CONF_VOL_SPIKE_REF")
+    signal_vol_spike_min: float = Field(default=0.0, alias="SIGNAL_VOL_SPIKE_MIN")
     signal_batch_size: int = Field(default=30, alias="SIGNAL_BATCH_SIZE")
     signal_interval_seconds: int = Field(default=20, alias="SIGNAL_INTERVAL_SECONDS")
 
