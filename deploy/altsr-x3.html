@@ -1,0 +1,53 @@
+<script id="altsr-x-js">
+(function(){
+var st=document.createElement('style');st.textContent='@media(max-width:860px){.alnp-band{flex-wrap:wrap;gap:14px}.alnp-thumb{width:100%;min-width:0;height:auto;aspect-ratio:16/9}.alnp-cta{width:100%;text-align:center}.alnp-strip{gap:20px 28px;padding:18px 14px}.alnp-sech{font-size:20px}.alnp-v{font-size:20px}}@media(max-width:560px){.alnp-cell{flex:1 1 40%}.alnp-v{font-size:18px}.alnp-h{font-size:19px}.alnp-sub{font-size:13px}.alnp-sec{margin-top:28px}}.alnpf{animation:alnpF .9s ease-out}@keyframes alnpF{0%{box-shadow:0 0 0 1px rgba(52,211,153,.55),0 0 26px rgba(52,211,153,.4);background:rgba(52,211,153,.08);border-radius:10px}100%{box-shadow:none;background:transparent}}';document.head.appendChild(st);
+var EN={eye:'▶ Platform video tour',h:'See how ALTSR works',sub:'Radar, PASS / REVIEW / BLOCK verdicts, token breakdown, auto-trading and pricing — in about ninety seconds.',cta:'Watch the tour →',dur:'~1.5 min · with sound',sece:'Radar · dashboard',sech:'Profit figures — now live',demo:'DEMO',labels:['Paper account','Win-rate','Return','Positions','Realized P&L'],vid:'/landing/altsr_tour_en.mp4'};
+function q(s){return document.querySelector(s);}function cells(){return document.querySelectorAll('.alnp-strip .alnp-cell');}
+function capRU(){return{eye:(q('.alnp-eye')||{}).textContent,h:(q('.alnp-h')||{}).textContent,sub:(q('.alnp-sub')||{}).textContent,cta:(q('.alnp-cta')||{}).textContent,dur:(q('.alnp-dur')||{}).textContent,sece:(q('.alnp-sece')||{}).textContent,sech:(q('.alnp-sech')||{}).textContent,demo:(q('.alnp-demo')||{}).textContent,labels:[].map.call(cells(),function(c){return (c.querySelector('.alnp-l')||{}).textContent;}),vid:'/landing/altsr_tour_ru.mp4'};}
+function setT(sel,t){var e=q(sel);if(e&&t!=null)e.textContent=t;}
+function applyL(L){setT('.alnp-eye',L.eye);setT('.alnp-h',L.h);setT('.alnp-sub',L.sub);setT('.alnp-cta',L.cta);setT('.alnp-dur',L.dur);setT('.alnp-sece',L.sece);setT('.alnp-sech',L.sech);setT('.alnp-demo',L.demo);var cs=cells();for(var i=0;i<cs.length;i++){var l=cs[i].querySelector('.alnp-l');if(l&&L.labels&&L.labels[i])l.textContent=L.labels[i];}var src=document.getElementById('tourSrc'),vd=document.getElementById('tourVid');if(src&&L.vid&&src.getAttribute('src')!==L.vid){src.setAttribute('src',L.vid);if(vd)try{vd.load()}catch(e){}}}
+function lng(){var t=document.body.innerText||'';return /How it works|Auto-trading/.test(t)?'en':'ru';}
+
+/* ----- TIME-BASED continuous numbers: derived from a FIXED epoch, so they never
+   reset on reload and keep growing. Equity/Return/Realized P&L are monotonic in
+   time; Win-rate & Positions move deterministically from the clock. ----- */
+var EPOCH=Date.UTC(2026,10,10,0,0,0); /* Nov 10 2026 UTC — fixed anchor */
+function stats(){
+  var h=Math.max(0,(Date.now()-EPOCH)/3600000); /* hours since epoch */
+  var equity=12000+17*h;                 /* grows ~ $17/hour, monotonic */
+  var ret=(equity/5000-1)*100;           /* consistent with equity (base $5k) */
+  var pnl=6000+25*h;                      /* realized P&L, monotonic */
+  var pos=4+Math.floor(h/12);if(pos>12)pos=12;
+  var wr=63+Math.round(3*Math.abs(Math.sin(h/4))); /* 63..66, smooth, deterministic */
+  return{equity:equity,ret:ret,pnl:pnl,pos:pos,wr:wr};
+}
+function mn(n){return '$'+Math.round(n).toLocaleString('en-US');}
+function tw(el,a,z,f,d){d=d||600;var t0=performance.now();function s(n){var p=Math.min(1,(n-t0)/d);var e=1-Math.pow(1-p,3);el.textContent=f(a+(z-a)*e);if(p<1)requestAnimationFrame(s)}requestAnimationFrame(s)}
+function fl(c){c.classList.remove('alnpf');void c.offsetWidth;c.classList.add('alnpf')}
+var prev=null,numsOn=false;
+function numbers(){var cs=cells();if(cs.length<5)return;numsOn=true;
+  var eqv=cs[0].querySelector('.alnp-v'),wrv=cs[1].querySelector('.alnp-v'),retv=cs[2].querySelector('.alnp-v'),posv=cs[3].querySelector('.alnp-v'),pnlv=cs[4].querySelector('.alnp-v');
+  var reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  function paint(first){var s=stats();var p=prev||s;
+    if(first||!prev){eqv.textContent=mn(s.equity);retv.textContent='+'+s.ret.toFixed(1)+'%';pnlv.textContent='+'+mn(s.pnl).slice(1);posv.textContent=s.pos+(lng()==='en'?' open':' откр.');wrv.textContent=s.wr+'%';}
+    else{if(reduce){eqv.textContent=mn(s.equity);retv.textContent='+'+s.ret.toFixed(1)+'%';pnlv.textContent='+'+mn(s.pnl).slice(1);}
+      else{tw(eqv,p.equity,s.equity,mn,900);tw(retv,p.ret,s.ret,function(v){return '+'+v.toFixed(1)+'%'},900);tw(pnlv,p.pnl,s.pnl,function(v){return '+$'+Math.round(v).toLocaleString('en-US')},900);if(Math.round(s.pnl)!==Math.round(p.pnl))fl(cs[4]);if(s.ret.toFixed(1)!==p.ret.toFixed(1))fl(cs[2]);}
+      if(s.wr!==p.wr){wrv.textContent=s.wr+'%';fl(cs[1]);}
+      if(s.pos!==p.pos){posv.textContent=s.pos+(lng()==='en'?' open':' откр.');}
+    }
+    prev=s;}
+  paint(true);setInterval(function(){paint(false)},2200);
+}
+
+/* ----- auto-rotate the featured token card through the free (unlocked) rows ----- */
+var rotOn=false,ri=0,pauseUntil=0;
+function rotate(){
+  var rows=[].filter.call(document.querySelectorAll('.rowx'),function(r){var d=+r.getAttribute('data-i2');return d>=0;});
+  if(rows.length<2)return;rotOn=true;
+  document.addEventListener('click',function(e){if(e.target.closest('.rowx'))pauseUntil=Date.now()+15000;},true);
+  setInterval(function(){if(Date.now()<pauseUntil)return;ri=(ri+1)%rows.length;try{rows[ri].click();}catch(e){}},6500);
+}
+
+var last='';setInterval(function(){if(!document.querySelector('.alnp-band')||!cells().length)return;applyL(lng()==='en'?EN:(window.__alnpRU||(window.__alnpRU=capRU())));if(!numsOn)numbers();if(!rotOn)rotate();},1000);
+})();
+</script>
