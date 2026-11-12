@@ -16,6 +16,7 @@ from .api.assistant import router as assistant_router
 from .api.auth import router as auth_router
 from .api.billing import router as billing_router
 from .api.news import router as news_router
+from .api.autotrade import router as autotrade_router
 from .api.paper import router as paper_router
 from .api.signals import router as signals_router
 from .api.telegram import router as telegram_router
@@ -64,6 +65,7 @@ app.include_router(signals_router)
 app.include_router(paper_router)
 app.include_router(user_paper_router)
 app.include_router(telegram_router)
+app.include_router(autotrade_router)
 app.include_router(news_router)
 app.include_router(articles_router)
 app.include_router(auth_router)

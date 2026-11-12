@@ -465,6 +465,25 @@ async function paperClose(id){
 }
 window.paperBuy=paperBuy;window.paperClose=paperClose;window.startPaper=startPaper;window.resetPaper=resetPaper;
 
+/* ---- simulated autotrade (trades the paper account by rules) ---- */
+let ATCFG=null, ATRUN=null, atPoll=null;
+async function atConfig(method,body){ const tk=getTok();
+  const r=await fetch('/api/autotrade/config',{method:method||'GET',headers:{'Authorization':'Bearer '+tk,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
+  if(!r.ok)throw new Error('cfg '+r.status); return r.json(); }
+function atRender(){ if(VIEW==='autotrade')document.getElementById('otherView').innerHTML=VIEWS.autotrade(); }
+async function atLoad(){ try{ATCFG=await atConfig('GET');}catch(e){} atRender(); }
+async function atTick(){ const tk=getTok();
+  try{ const r=await fetch('/api/autotrade/run',{method:'POST',headers:{'Authorization':'Bearer '+tk}}); if(r.ok)ATRUN=await r.json(); }catch(e){}
+  try{ATCFG=await atConfig('GET');}catch(e){}
+  await syncPaper(); atRender(); }
+async function atToggle(on){ try{ATCFG=await atConfig('PUT',{enabled:!!on});}catch(e){} if(on){atStartPoll();await atTick();} else atRender(); }
+async function atSave(){ const g=id=>document.getElementById(id); if(!g('atMax'))return;
+  const body={max_position_usd:+g('atMax').value||100,daily_cap_usd:+g('atCap').value||500,min_confidence:(+g('atConf').value||90)/100,tp_pct:+g('atTp').value||50,stop_pct:+g('atStop').value||25,chains:(g('atChains').value||'').trim()};
+  try{ATCFG=await atConfig('PUT',body);}catch(e){} atRender(); }
+function atStartPoll(){ if(atPoll)return; atPoll=setInterval(()=>{ if(VIEW!=='autotrade'){clearInterval(atPoll);atPoll=null;return;} atTick(); },25000); }
+function atEnter(){ atLoad().then(()=>{ if(ATCFG&&ATCFG.enabled){atStartPoll();atTick();} }); }
+window.atToggle=atToggle;window.atSave=atSave;window.atTick=atTick;
+
 /* ============ UI ============ */
 const VKEYS=['radar','signals','portfolio','journal','graph','alerts','autotrade','reels','account'];
 let VIEW='radar', radarVisible=true, realPass=null, realSig=null;
@@ -682,6 +701,7 @@ function route(k){
   ov.innerHTML=VIEWS[k]();
   if(k==='graph')drawGraph();
   if(k==='account')wireAccount();
+  if(k==='autotrade')atEnter();
 }
 window.route=route;
 function lockView(need){const nm=need>=2?'Autonomous':'Pro',pr=need>=2?'$89':'$49',key=need>=2?'auto':'pro';
@@ -758,18 +778,34 @@ const VIEWS={
       <div class="field"><div class="lab">Web push</div><div class="sw"><i></i></div></div>
       <div class="field"><div class="lab">Тихие часы <small>не беспокоить</small></div><div class="muted">23:00 — 08:00</div></div></div></div></div>`;
  },
- autotrade(){return `<div class="banner">🛡️ LIVE-исполнение ВЫКЛЮЧЕНО (фиче-флаг). Сейчас — симуляция. Реальная торговля включается только после аудита и paper-трека.</div>
-   <div class="vgrid2"><div class="panel"><div class="ph"><h3>Vault · статус</h3><span style="margin-left:auto;font-size:11px;color:#05060B;background:linear-gradient(90deg,var(--gold),#ffe6a8);padding:3px 10px;border-radius:999px;font-weight:700">SIM · 24/7</span></div>
+ autotrade(){
+  const c=ATCFG||{enabled:false,max_position_usd:100,daily_cap_usd:500,min_confidence:0.9,tp_pct:50,stop_pct:25,chains:'',day_spent_usd:0};
+  const r=ATRUN||{}; const on=!!c.enabled;
+  const pos=(PAPER&&PAPER.positions)||[];
+  const posRows=pos.length?pos.map(p=>{const pc=posPnlPct(p),up=pc>=0;return `<tr><td class="tk">${p.sym}<small>${p.chain}</small></td>
+      <td class="muted">${fmtMoney(p.amt)}</td><td>${fmtMoney(posValue(p))}</td><td class="${up?'pass':'block'}" style="font-family:var(--disp)">${fmtPct(pc)}</td></tr>`;}).join('')
+    :`<tr><td colspan="4" class="muted" style="text-align:center;padding:20px">${on?'Бот ждёт подходящих сигналов…':'Включите бота, чтобы он начал торговать на бумаге.'}</td></tr>`;
+  return `<div class="banner">🛡️ LIVE-исполнение реальными деньгами ВЫКЛЮЧЕНО. Бот торгует только на бумажном счёте (симуляция) — реальная торговля включается после аудита и юр-модели.</div>
+   <div class="vgrid2">
+    <div class="panel"><div class="ph"><h3>Бот · статус</h3><span style="margin-left:auto;font-size:11px;color:#05060B;background:${on?'linear-gradient(90deg,var(--gold),#ffe6a8)':'#3a3d46'};padding:3px 10px;border-radius:999px;font-weight:700">${on?'ВКЛ · SIM':'ВЫКЛ'}</span></div>
      <div class="pbody" style="padding:6px 16px 14px">
-       <div class="field"><div class="lab">Открытых авто-позиций</div><b style="font-family:var(--disp)">4</b></div>
-       <div class="field"><div class="lab">Исполнено сегодня</div><b style="font-family:var(--disp)">12 сделок</b></div>
-       <div class="field"><div class="lab">Vault equity · ДЕМО</div><b style="font-family:var(--disp);color:var(--gold)">$15 880</b></div></div></div>
-    <div class="panel"><div class="ph"><h3>Лимиты и полномочия</h3></div><div class="pbody" style="padding:6px 16px 14px">
-       <div class="field"><div class="lab">Макс. размер позиции</div><input class="inp" value="$150" style="min-width:110px"></div>
-       <div class="field"><div class="lab">Дневной стоп-лосс</div><input class="inp" value="−$500" style="min-width:110px"></div>
-       <div class="field"><div class="lab">Разрешённые сети</div><div class="muted">Base · BSC · Solana</div></div>
-       <div class="field"><div class="lab">Только PASS-токены</div><div class="sw on"><i></i></div></div>
-       <div style="display:flex;gap:10px;margin-top:14px"><button class="btn">Сохранить лимиты</button><button class="btn danger">⛔ Аварийный стоп</button></div></div></div></div>`;
+       <div class="field"><div class="lab">Автотрейд на бумаге</div><div class="sw ${on?'on':''}" onclick="atToggle(${on?'false':'true'})"><i></i></div></div>
+       <div class="field"><div class="lab">Открытых авто-позиций</div><b style="font-family:var(--disp)">${r.open_positions!=null?r.open_positions:pos.length}</b></div>
+       <div class="field"><div class="lab">Потрачено сегодня</div><b style="font-family:var(--disp)">${fmtMoney(c.day_spent_usd||0)} / ${fmtMoney(c.daily_cap_usd)}</b></div>
+       <div class="field"><div class="lab">Equity · бумажный</div><b style="font-family:var(--disp);color:var(--gold)">${r.equity!=null?fmtMoney(r.equity):(PAPER?fmtMoney(paperEquity()):'—')}</b></div>
+       <div style="display:flex;gap:10px;margin-top:12px"><button class="btn" onclick="atTick()">▶ Прогнать тик</button>${on?'<button class="btn danger" onclick="atToggle(false)">⛔ Стоп</button>':''}</div>
+       ${r.note?`<div class="muted" style="font-size:12px;margin-top:8px">Последний тик: ${r.note}</div>`:''}</div></div>
+    <div class="panel"><div class="ph"><h3>Правила бота</h3></div><div class="pbody" style="padding:6px 16px 14px">
+       <div class="field"><div class="lab">Макс. размер позиции</div><input id="atMax" class="inp" value="${c.max_position_usd}" inputmode="numeric" style="min-width:110px;text-align:right"></div>
+       <div class="field"><div class="lab">Дневной кап</div><input id="atCap" class="inp" value="${c.daily_cap_usd}" inputmode="numeric" style="min-width:110px;text-align:right"></div>
+       <div class="field"><div class="lab">Мин. уверенность сигнала, %</div><input id="atConf" class="inp" value="${Math.round((c.min_confidence||0)*100)}" inputmode="numeric" style="min-width:90px;text-align:right"></div>
+       <div class="field"><div class="lab">Take-profit, %</div><input id="atTp" class="inp" value="${c.tp_pct}" inputmode="numeric" style="min-width:90px;text-align:right"></div>
+       <div class="field"><div class="lab">Stop-loss, %</div><input id="atStop" class="inp" value="${c.stop_pct}" inputmode="numeric" style="min-width:90px;text-align:right"></div>
+       <div class="field"><div class="lab">Сети <small>через запятую, пусто = все</small></div><input id="atChains" class="inp" value="${c.chains||''}" placeholder="solana, base, bsc" style="min-width:150px"></div>
+       <div style="margin-top:12px"><button class="btn" onclick="atSave()">Сохранить правила</button></div></div></div>
+   </div>
+   <div class="panel" style="margin-top:16px"><div class="ph"><h3>Открытые авто-позиции</h3></div>
+     <table><thead><tr><th>Токен</th><th>Вход</th><th>Сейчас</th><th>P&L</th></tr></thead><tbody>${posRows}</tbody></table></div>`;
  },
  reels(){const r=[['Как читать вердикт PASS','1:12'],['Разбор рага: 5 красных флагов','2:04'],['Что такое LP-lock','0:58'],['Авто-трейд: как это работает','1:40'],['История $DOG +88%','1:25'],['Сигнал 100%: что дальше','1:08']];
   return `<div class="reels">${r.map(x=>`<div class="reel"><div class="th">▶<span class="dur">${x[1]}</span></div><div class="cap">${x[0]}<small>ALTSR · видео-инсайт</small></div></div>`).join('')}</div>`;

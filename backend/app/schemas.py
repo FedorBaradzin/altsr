@@ -313,6 +313,39 @@ class OpenPaperIn(BaseModel):
     start_balance: float = 1000.0
 
 
+# ---- simulated autotrade ----
+class AutotradeConfigOut(BaseModel):
+    enabled: bool
+    max_position_usd: float
+    daily_cap_usd: float
+    min_confidence: float
+    tp_pct: float
+    stop_pct: float
+    chains: str
+    day_spent_usd: float
+    last_run_at: datetime | None = None
+
+
+class AutotradeConfigIn(BaseModel):
+    enabled: bool | None = None
+    max_position_usd: float | None = None
+    daily_cap_usd: float | None = None
+    min_confidence: float | None = None
+    tp_pct: float | None = None
+    stop_pct: float | None = None
+    chains: str | None = None
+
+
+class AutotradeRunOut(BaseModel):
+    enabled: bool
+    opened: int = 0
+    closed: int = 0
+    open_positions: int = 0
+    day_spent_usd: float = 0.0
+    equity: float = 0.0
+    note: str = ""
+
+
 class BuyPaperIn(BaseModel):
     symbol: str
     chain: str = ""

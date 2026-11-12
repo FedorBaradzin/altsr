@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     DateTime,
     Float,
     ForeignKey,
@@ -307,6 +308,34 @@ class User(Base):
     __table_args__ = (
         UniqueConstraint("auth_method", "subject", name="uq_user_identity"),
         Index("ix_users_auth_subject", "auth_method", "subject"),
+    )
+
+
+class AutotradeConfig(Base):
+    """Настройки симуляционного автотрейда пользователя (бот торгует на бумажном счёте)."""
+
+    __tablename__ = "autotrade_config"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    max_position_usd: Mapped[float] = mapped_column(Float, default=100.0, nullable=False)
+    daily_cap_usd: Mapped[float] = mapped_column(Float, default=500.0, nullable=False)
+    min_confidence: Mapped[float] = mapped_column(Float, default=0.9, nullable=False)
+    tp_pct: Mapped[float] = mapped_column(Float, default=50.0, nullable=False)
+    stop_pct: Mapped[float] = mapped_column(Float, default=25.0, nullable=False)
+    chains: Mapped[str] = mapped_column(String(128), default="", nullable=False)  # csv, "" = все
+    day_key: Mapped[str] = mapped_column(String(10), default="", nullable=False)
+    day_spent_usd: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", name="uq_autotrade_config_user"),
     )
 
 
