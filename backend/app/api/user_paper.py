@@ -80,7 +80,10 @@ async def _assemble(session: AsyncSession, acc: UserPaperAccount | None) -> User
             )
         )
 
-    pnl_pct = ((equity - acc.start_balance) / acc.start_balance * 100.0) if acc.start_balance else None
+    pnl_pct = (
+        ((equity - acc.start_balance) / acc.start_balance * 100.0)
+        if acc.start_balance else None
+    )
     win_rate = None
     if trades:
         wins = sum(1 for t in trades if t.pnl_usd >= 0)

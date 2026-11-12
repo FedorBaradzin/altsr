@@ -311,7 +311,10 @@ class User(Base):
 
 
 class TelegramLinkCode(Base):
-    """Одноразовый код привязки Telegram (deep-link /start=<code>). TTL проверяется по created_at."""
+    """Одноразовый код привязки Telegram (deep-link /start=<code>).
+
+    TTL проверяется по created_at.
+    """
 
     __tablename__ = "telegram_link_codes"
 

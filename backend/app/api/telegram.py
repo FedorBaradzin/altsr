@@ -120,13 +120,19 @@ async def webhook(
     if created < datetime.now(timezone.utc) - timedelta(minutes=CODE_TTL_MIN):
         await session.execute(delete(TelegramLinkCode).where(TelegramLinkCode.code == code))
         await session.commit()
-        await send_to_chat(settings, str(chat_id), "Код привязки устарел. Сгенерируйте новый в кабинете.")
+        await send_to_chat(
+            settings, str(chat_id), "Код привязки устарел. Сгенерируйте новый в кабинете."
+        )
         return {"ok": True}
-    user = (await session.execute(select(User).where(User.id == row.user_id))).scalar_one_or_none()
+    user = (
+        await session.execute(select(User).where(User.id == row.user_id))
+    ).scalar_one_or_none()
     if user is not None:
         user.tg_chat_id = str(chat_id)
         await session.execute(delete(TelegramLinkCode).where(TelegramLinkCode.user_id == user.id))
         await session.commit()
-        await send_to_chat(settings, str(chat_id),
-                           "✅ <b>ALTSR подключён</b>\nЛичные сигналы и алерты будут приходить сюда.")
+        await send_to_chat(
+            settings, str(chat_id),
+            "✅ <b>ALTSR подключён</b>\nЛичные сигналы и алерты будут приходить сюда.",
+        )
     return {"ok": True}
