@@ -20,6 +20,28 @@ logger = logging.getLogger("altsr.notify.alerts")
 _SEVERITY_EMOJI = {"info": "ℹ️", "warning": "⚠️", "error": "🛑", "critical": "🚨"}
 
 
+def format_blocked_scam_alert(
+    chain: str,
+    address: str,
+    symbol: str | None,
+    verdict: str,
+    red_flag_codes: list[str],
+    *,
+    malicious: bool,
+) -> str:
+    """Алерт: свежая перепроверка поймала скам ПЕРЕД отправкой сигнала в Telegram."""
+    tag = "🚫 malicious" if malicious else f"вердикт {_esc(verdict)}"
+    title = _esc(symbol) if symbol else _esc(address[:10] + "…")
+    flags = ", ".join(_esc(c) for c in red_flag_codes[:6]) if red_flag_codes else "—"
+    return (
+        "🛡️ <b>ALTSR · скам пойман перед отправкой</b>\n"
+        f"Токен <b>{title}</b> ({_esc(chain)}) не ушёл в канал сигналов.\n"
+        f"Свежая проверка: {tag}\n"
+        f"Флаги: {flags}\n"
+        f"<code>{_esc(address)}</code>"
+    )
+
+
 def format_system_alert(code: str, message: str, severity: str = "error") -> str:
     emoji = _SEVERITY_EMOJI.get(severity, "🛑")
     return (

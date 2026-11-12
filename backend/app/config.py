@@ -300,6 +300,14 @@ class Settings(BaseSettings):
     telegram_api_base: str = Field(
         default="https://api.telegram.org", alias="TELEGRAM_API_BASE"
     )
+    # Админский чат для служебных алертов (отдельно от пользовательского канала
+    # сигналов). Пусто → админские алерты в Telegram не шлются (только лог).
+    telegram_admin_chat_id: str = Field(default="", alias="TELEGRAM_ADMIN_CHAT_ID")
+    # Алерт в админский чат каждый раз, когда свежая перепроверка поймала скам
+    # ПЕРЕД отправкой в Telegram — видно, что защита реально срабатывает.
+    signal_alert_on_blocked_scam: bool = Field(
+        default=True, alias="SIGNAL_ALERT_ON_BLOCKED_SCAM"
+    )
 
     # Интервал поллинга discovery в секундах.
     poll_interval_seconds: int = Field(default=30, alias="POLL_INTERVAL_SECONDS")
