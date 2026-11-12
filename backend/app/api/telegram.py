@@ -49,9 +49,13 @@ async def link(
 ) -> dict:
     if not settings.telegram_bot_token:
         raise HTTPException(status_code=503, detail="Telegram-бот не настроен")
-    # Личная привязка Telegram — только Autonomous (или админ). Pro получает алерты, но не личного бота.
+    # Личная привязка Telegram — только Autonomous (или админ).
+    # Pro получает алерты, но не личного бота.
     if not is_admin(user, settings) and TIER_RANK.get(effective_tier(user), 0) < 2:
-        raise HTTPException(status_code=402, detail="Личная привязка Telegram доступна на тарифе Autonomous")
+        raise HTTPException(
+            status_code=402,
+            detail="Личная привязка Telegram доступна на тарифе Autonomous",
+        )
     uname = await _bot_name(settings)
     if not uname:
         raise HTTPException(status_code=503, detail="Бот недоступен")
