@@ -753,7 +753,7 @@ const VIEWS={
     <div class="sw ${r[3]?'on':''}" onclick="this.classList.toggle('on')"><i></i></div></div>`).join('');
   return `<div class="vgrid2"><div class="panel"><div class="ph"><h3>Правила уведомлений</h3><button class="btn" style="margin-left:auto;padding:7px 12px;font-size:12px">+ Правило</button></div><div style="padding:4px 16px 12px">${cards}</div></div>
     <div class="panel"><div class="ph"><h3>Каналы и тихие часы</h3></div><div style="padding:4px 16px 14px">
-      <div class="field"><div class="lab">Telegram-бот <small>личные сигналы и алерты в ЛС</small></div><button class="btn" onclick="tgLink(this)">✈️ Привязать Telegram</button></div>
+      <div class="field"><div class="lab">Telegram-бот <small>личная привязка в ЛС · Autonomous</small></div>${tgField()}</div>
       <div class="field"><div class="lab">Email <small>${USEREMAIL||'—'}</small></div><div class="sw on"><i></i></div></div>
       <div class="field"><div class="lab">Web push</div><div class="sw"><i></i></div></div>
       <div class="field"><div class="lab">Тихие часы <small>не беспокоить</small></div><div class="muted">23:00 — 08:00</div></div></div></div></div>`;
@@ -795,7 +795,7 @@ const VIEWS={
      <div class="field"><div class="lab">Web push</div><div class="sw"><i></i></div></div>
      <div class="field"><div class="lab">Тихие часы</div><div class="muted">23:00 — 08:00</div></div></div>
    <div class="acctab-panel" data-t="integ" style="display:none">
-     <div class="field"><div class="lab">Telegram-бот<small>личные сигналы и алерты в ЛС</small></div><button class="btn" onclick="tgLink(this)">✈️ Привязать Telegram</button></div>
+     <div class="field"><div class="lab">Telegram-бот<small>личная привязка в ЛС · Autonomous</small></div>${tgField()}</div>
      <div class="field"><div class="lab">API-ключ<small>доступ к ленте (Pro+)</small></div><button class="btn ghost">Создать ключ</button></div></div>
    <div class="acctab-panel" data-t="sec" style="display:none">
      <div class="field"><div class="lab">Активные сессии</div><div class="muted">2 устройства</div></div>
@@ -873,6 +873,10 @@ function openTok(sym){
   document.getElementById('drawerBk').classList.add('on');
 }
 function closeDrawer(){document.getElementById('drawer').classList.remove('on');document.getElementById('drawerBk').classList.remove('on');}
+// Подвязка личного Telegram-бота — только Autonomous (см. тарифы). Free/Pro → апселл.
+function tgField(){return KEY==='auto'
+  ? `<button class="btn" onclick="tgLink(this)">✈️ Привязать Telegram</button>`
+  : `<button class="btn ghost" onclick="selectTier('auto')" title="Личная привязка Telegram доступна на Autonomous">🔒 На Autonomous</button>`;}
 function tgDone(btn){btn.textContent='✓ Telegram привязан';btn.style.background='color-mix(in srgb,var(--pass) 20%,transparent)';btn.style.color='var(--pass)';btn.disabled=true;}
 async function tgLink(btn){
   const tk=getTok();

@@ -22,9 +22,9 @@ async def client():
             yield c
 
 
-async def _mk_user(subject: str) -> int:
+async def _mk_user(subject: str, tier: str = "free") -> int:
     async with get_sessionmaker()() as s:
-        u = User(auth_method="google", subject=subject, email=f"{subject}@x.com")
+        u = User(auth_method="google", subject=subject, email=f"{subject}@x.com", tier=tier)
         s.add(u); await s.commit(); await s.refresh(u)
         return u.id
 
@@ -66,6 +66,32 @@ async def test_status_and_webhook_link(client):
     # unlink
     r = await client.post("/api/telegram/unlink", headers=h)
     assert r.json()["linked"] is False
+
+
+async def test_link_gated_to_autonomous(client, monkeypatch):
+    """Личная привязка Telegram: Free/Pro → 402, Autonomous → разрешено."""
+    from app.api import telegram as tg
+    from app.config import get_settings as gs
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:abc")
+    gs.cache_clear()
+
+    async def fake_name(settings):
+        return "TestBot"
+    monkeypatch.setattr(tg, "_bot_name", fake_name)
+
+    free = await _mk_user("tg_free", "free")
+    r = await client.post("/api/telegram/link", headers=_auth(free))
+    assert r.status_code == 402, r.text
+
+    pro = await _mk_user("tg_pro", "pro")
+    r = await client.post("/api/telegram/link", headers=_auth(pro))
+    assert r.status_code == 402, r.text
+
+    au = await _mk_user("tg_auto", "autonomous")
+    r = await client.post("/api/telegram/link", headers=_auth(au))
+    assert r.status_code == 200, r.text
+    assert "t.me/TestBot" in r.json()["url"]
+    gs.cache_clear()
 
 
 async def test_webhook_unknown_code_is_noop(client):
