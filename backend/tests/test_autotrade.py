@@ -85,6 +85,49 @@ async def test_run_opens_positions_from_signals(client):
     assert run2["opened"] == 0
 
 
+async def test_second_tick_still_opens_from_existing_pool(client):
+    """Регресс: сигнал, не влезший в кап на 1-м тике, открывается на 2-м.
+
+    Старый код брал окно «created_at > last_run_at», поэтому после первого тика
+    last_run_at==now и окно пустело — бот навсегда переставал открывать позиции.
+    Фикс: фиксированное окно назад + дедуп по символу.
+    """
+    uid = await _mk_user("at_pool", "autonomous")
+    h = _auth(uid)
+    await _mk_signal("PAA", "solana", 0.97)
+    await _mk_signal("PBB", "solana", 0.95)
+
+    # кап = одна позиция: 1-й тик откроет только один символ
+    await client.put("/api/autotrade/config", headers=h,
+                     json={"enabled": True, "min_confidence": 0.9, "chains": "solana",
+                           "max_position_usd": 100, "daily_cap_usd": 100})
+    run1 = (await client.post("/api/autotrade/run", headers=h)).json()
+    assert run1["opened"] == 1
+
+    # поднимаем кап и тикаем снова — второй символ (из того же пула) должен открыться
+    await client.put("/api/autotrade/config", headers=h, json={"daily_cap_usd": 1000})
+    run2 = (await client.post("/api/autotrade/run", headers=h)).json()
+    assert run2["opened"] == 1
+    assert run2["open_positions"] == 2
+
+
+async def test_reset_clears_autotrade_day_counter(client):
+    """Сброс бумажного счёта обнуляет day_spent автотрейда, иначе бот стоит под капом."""
+    uid = await _mk_user("at_reset", "autonomous")
+    h = _auth(uid)
+    await _mk_signal("RAA", "solana", 0.97)
+    await client.put("/api/autotrade/config", headers=h,
+                     json={"enabled": True, "min_confidence": 0.9, "chains": "solana",
+                           "max_position_usd": 100, "daily_cap_usd": 100})
+    await client.post("/api/autotrade/run", headers=h)
+    assert (await client.get("/api/autotrade/config", headers=h)).json()["day_spent_usd"] == 100
+
+    await client.post("/api/paper/me/reset", headers=h)
+    cfg = (await client.get("/api/autotrade/config", headers=h)).json()
+    assert cfg["day_spent_usd"] == 0
+    assert cfg["last_run_at"] is None
+
+
 async def test_disabled_is_noop(client):
     uid = await _mk_user("at_off", "autonomous")
     h = _auth(uid)

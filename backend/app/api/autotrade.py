@@ -30,6 +30,10 @@ from .user_paper import _factor, _utcnow
 
 router = APIRouter(prefix="/api/autotrade", tags=["autotrade"])
 
+# Как далеко назад бот ищет свежие сигналы на каждом тике. Фиксированное окно, а не
+# «с прошлого тика» — иначе после первого же прогона last_run_at==now и окно пустое.
+LOOKBACK_HOURS = 6
+
 
 def _require_autonomous(user: User, settings: Settings) -> None:
     if not is_admin(user, settings) and TIER_RANK.get(effective_tier(user), 0) < 2:
@@ -140,9 +144,18 @@ async def _tick_user(session: AsyncSession, acc: UserPaperAccount, cfg: Autotrad
             held.add(p.symbol.upper())
 
     # --- открытие по свежим сигналам ---
-    since = cfg.last_run_at or (now - timedelta(hours=6))
-    if since.tzinfo is None:
-        since = since.replace(tzinfo=timezone.utc)
+    # Всегда смотрим фиксированное окно назад (а не «с last_run_at»), иначе каждый тик
+    # после первого видит пустое окно. От повторной покупки защищает дедуп по символу:
+    # пропускаем всё, что уже держим ИЛИ уже закрывали на этом счёте.
+    since = now - timedelta(hours=LOOKBACK_HOURS)
+    traded = (
+        await session.execute(
+            select(UserPaperTrade.symbol).where(UserPaperTrade.account_id == acc.id)
+        )
+    ).scalars().all()
+    for s in traded:
+        if s:
+            held.add(s.upper())
     want_chains = [c.strip().lower() for c in cfg.chains.split(",") if c.strip()]
     rows = (
         await session.execute(
@@ -154,7 +167,7 @@ async def _tick_user(session: AsyncSession, acc: UserPaperAccount, cfg: Autotrad
                 Signal.created_at > since,
             )
             .order_by(Signal.confidence.desc())
-            .limit(30)
+            .limit(50)
         )
     ).all()
 

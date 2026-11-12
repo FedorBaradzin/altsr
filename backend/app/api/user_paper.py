@@ -16,7 +16,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.service import current_user
 from ..db import get_session
-from ..models import User, UserPaperAccount, UserPaperPosition, UserPaperTrade
+from ..models import (
+    AutotradeConfig,
+    User,
+    UserPaperAccount,
+    UserPaperPosition,
+    UserPaperTrade,
+)
 from ..schemas import (
     BuyPaperIn,
     OpenPaperIn,
@@ -197,5 +203,15 @@ async def reset_my_paper(
         await session.execute(
             delete(UserPaperAccount).where(UserPaperAccount.id == acc.id)
         )
-        await session.commit()
+    # Сброс счёта обнуляет и дневной счётчик автотрейда — иначе бот думает, что
+    # дневной кап уже выбран (day_spent висит с прошлой сессии) и не открывает позиций.
+    cfg = (
+        await session.execute(
+            select(AutotradeConfig).where(AutotradeConfig.user_id == user.id)
+        )
+    ).scalar_one_or_none()
+    if cfg is not None:
+        cfg.day_spent_usd = 0.0
+        cfg.last_run_at = None
+    await session.commit()
     return UserPaperOut(opened=False)
