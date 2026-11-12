@@ -39,6 +39,14 @@ class Settings(BaseSettings):
         default="https://api.rugcheck.xyz/v1", alias="RUGCHECK_BASE_URL"
     )
     rugcheck_enabled: bool = Field(default=False, alias="RUGCHECK_ENABLED")
+    # GeckoTerminal token-info как доп. safety-сигнал (репутация площадки, та же,
+    # по которой GeckoTerminal рисует плашку «Отмечен как скам-токен»). gt_score —
+    # 0..100, выше = надёжнее; низкий балл → soft-риск (REVIEW, не BLOCK), чтобы не
+    # полагаться только на GoPlus. «Нет данных» не влияет на вердикт.
+    gecko_safety_enabled: bool = Field(default=True, alias="GECKO_SAFETY_ENABLED")
+    gecko_safety_min_score: float = Field(
+        default=35.0, alias="GECKO_SAFETY_MIN_SCORE"
+    )
     # Моментум-движок (DexScreener): входим только в растущие токены.
     momentum_enabled: bool = Field(default=True, alias="MOMENTUM_ENABLED")
     momentum_require_data: bool = Field(default=True, alias="MOMENTUM_REQUIRE_DATA")
@@ -126,6 +134,18 @@ class Settings(BaseSettings):
     signal_vol_spike_min: float = Field(default=0.0, alias="SIGNAL_VOL_SPIKE_MIN")
     signal_batch_size: int = Field(default=30, alias="SIGNAL_BATCH_SIZE")
     signal_interval_seconds: int = Field(default=20, alias="SIGNAL_INTERVAL_SECONDS")
+    # --- Свежая перепроверка безопасности ПЕРЕД отправкой в Telegram (анти-скам) ---
+    # Хранимый safety-отчёт пишется один раз при discovery и может устареть: токен
+    # получил PASS рано, позже его пометили скамом (репорты/изменился LP/холдеры/
+    # появились GoPlus-флаги). Без свежей проверки воркер видит старый PASS и шлёт
+    # BUY в Telegram. Этот флаг заставляет перескринить кандидата ПЕРЕД отправкой;
+    # если свежий вердикт != PASS или токен malicious — сигнал НЕ создаётся и НЕ
+    # уходит в Telegram, а хранимый отчёт обновляется (лента тоже перестаёт его
+    # показывать зелёным). Сетевой вызов делается только для кандидата, уже
+    # прошедшего ворота входа, — это дёшево и не бьёт по rate-limit.
+    signal_recheck_safety_before_send: bool = Field(
+        default=True, alias="SIGNAL_RECHECK_SAFETY_BEFORE_SEND"
+    )
 
     # --- Session controller «ночная смена» (T5, видео 70) ---
     session_enabled: bool = Field(default=False, alias="SESSION_ENABLED")

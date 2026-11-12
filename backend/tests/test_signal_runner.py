@@ -39,6 +39,7 @@ async def test_signal_created_with_venues_and_dedup():
     await _seed_pass_token()
     settings = get_settings()
     settings.momentum_enabled = False  # тест о venues/дедупе, не о моментуме (без live-данных)
+    settings.signal_recheck_safety_before_send = False  # без сети — перепроверка отдельно
 
     created = await run_batch(settings)  # notifier без конфига → no-op
     assert created == 1
@@ -78,6 +79,7 @@ async def test_api_signals_and_venues(client):
     token_id = await _seed_pass_token()
     s = get_settings()
     s.momentum_enabled = False  # тест об API/venues, не о моментуме (без live-данных)
+    s.signal_recheck_safety_before_send = False  # без сети — перепроверка отдельно
     await run_batch(s)
 
     r = await client.get("/api/signals")

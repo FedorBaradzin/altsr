@@ -48,6 +48,10 @@ class SafetyFindings:
     rugged: bool | None = None
     is_true_token: bool | None = None
 
+    # Репутация площадки-агрегатора (GeckoTerminal gt_score, 0..100; выше = надёжнее).
+    # Низкий балл → soft-риск. None = провайдер не дал данных.
+    reputation_score: float | None = None
+
     sources: list[str] = field(default_factory=list)
     raw: dict[str, Any] = field(default_factory=dict)
 

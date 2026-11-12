@@ -17,10 +17,11 @@ from .api.auth import router as auth_router
 from .api.billing import router as billing_router
 from .api.news import router as news_router
 from .api.paper import router as paper_router
-from .api.telegram import router as telegram_router, webhook_secret
-from .api.user_paper import router as user_paper_router
 from .api.signals import router as signals_router
+from .api.telegram import router as telegram_router
+from .api.telegram import webhook_secret
 from .api.tokens import router as tokens_router
+from .api.user_paper import router as user_paper_router
 from .config import get_settings
 from .db import create_all
 from .discovery.runner import PUBSUB_CHANNEL
