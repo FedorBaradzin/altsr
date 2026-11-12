@@ -423,7 +423,7 @@ function mapPaper(d){ // backend UserPaperOut → local PAPER shape (server valu
     closed:(d.trades||[]).map(t=>({sym:t.symbol,chain:t.chain,amt:t.amount_usd,exit:t.exit_value,pnl:t.pnl_usd,pnlPct:t.pnl_pct,closed:+new Date(t.closed_at)}))};
 }
 async function syncPaper(){ if(!PAPER_API)return;
-  try{PAPER=mapPaper(await apiPaper('/',''));}
+  try{PAPER=mapPaper(await apiPaper('',''));}
   catch(e){ PAPER_API=false; PAPER=loadPaper(); } /* backend endpoints not live yet → local fallback */ }
 // deterministic local sim (guests only)
 function posFactor(p){const mins=(Date.now()-p.opened)/60000;
