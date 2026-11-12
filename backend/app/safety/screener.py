@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..config import Settings
 from ..discovery.base import HttpClient
 from ..models import SafetyReport, Token
-from . import cross_source, goplus, honeypot_is, rugcheck
+from . import cross_source, geckoterminal_info, goplus, honeypot_is, rugcheck
 from .base import SafetyFindings, SafetyResult
 from .scoring import evaluate
 
@@ -42,6 +42,12 @@ async def screen_token(
             honeypot_is.fetch(http, settings.honeypot_base_url, chain, address),
         ]
 
+    # Доп. репутационный сигнал GeckoTerminal (gt_score) — для EVM и Solana.
+    if settings.gecko_safety_enabled:
+        providers.append(
+            geckoterminal_info.fetch(http, settings.gecko_base_url, chain, address)
+        )
+
     results = await asyncio.gather(*providers, return_exceptions=True)
 
     # Сохраняем находки каждого провайдера отдельно — нужно для кросс-проверки (T10),
@@ -59,7 +65,11 @@ async def screen_token(
     merged.address = address
 
     result = evaluate(
-        merged, require_lp_lock_solana=settings.safety_solana_require_lp_lock
+        merged,
+        require_lp_lock_solana=settings.safety_solana_require_lp_lock,
+        gecko_min_score=(
+            settings.gecko_safety_min_score if settings.gecko_safety_enabled else None
+        ),
     )
 
     # T10: кросс-проверка двух независимых провайдеров. Расхождение → REVIEW.

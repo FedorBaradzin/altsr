@@ -28,7 +28,12 @@ PASS_MAX = 30               # risk < 30 → PASS
 BLOCK_MIN = 70              # risk ≥ 70 → BLOCK
 
 
-def evaluate(f: SafetyFindings, *, require_lp_lock_solana: bool = False) -> SafetyResult:
+def evaluate(
+    f: SafetyFindings,
+    *,
+    require_lp_lock_solana: bool = False,
+    gecko_min_score: float | None = None,
+) -> SafetyResult:
     red: list[RedFlag] = []
     hard = False
 
@@ -116,6 +121,17 @@ def evaluate(f: SafetyFindings, *, require_lp_lock_solana: bool = False) -> Safe
         # Мало холдеров
         if f.holder_count is not None and f.holder_count < LOW_HOLDERS:
             red.append(RedFlag("few_holders", "soft", f"Мало холдеров: {f.holder_count}", 10))
+        # Низкая репутация площадки (GeckoTerminal gt_score) — независимый soft-сигнал.
+        if (
+            gecko_min_score is not None
+            and f.reputation_score is not None
+            and f.reputation_score < gecko_min_score
+        ):
+            red.append(RedFlag(
+                "low_reputation", "soft",
+                f"Низкий gt_score GeckoTerminal: {f.reputation_score:.0f} < {gecko_min_score:.0f}",
+                25,
+            ))
 
         risk = sum(flag.weight for flag in red if flag.severity == "soft")
 
