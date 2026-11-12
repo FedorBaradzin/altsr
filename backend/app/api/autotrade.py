@@ -107,17 +107,8 @@ async def _ensure_account(session: AsyncSession, user: User, cfg: AutotradeConfi
     return acc
 
 
-@router.post("/run", response_model=AutotradeRunOut)
-async def run_tick(
-    user: User = Depends(current_user), session: AsyncSession = Depends(get_session),
-    settings: Settings = Depends(get_settings),
-) -> AutotradeRunOut:
-    _require_autonomous(user, settings)
-    cfg = await _get_or_create_cfg(session, user)
-    if not cfg.enabled:
-        return AutotradeRunOut(enabled=False, note="Автотрейд выключен")
-
-    acc = await _ensure_account(session, user, cfg)
+async def _tick_user(session: AsyncSession, acc: UserPaperAccount, cfg: AutotradeConfig) -> dict:
+    """Один тик для уже загруженных account+cfg (используется и эндпоинтом, и фоновым тикером)."""
     now = _utcnow()
     today = now.strftime("%Y-%m-%d")
     if cfg.day_key != today:
@@ -201,10 +192,45 @@ async def run_tick(
         )
     ).scalars().all()
     equity = acc.cash + sum(p.amount_usd * _factor(p) for p in positions)
+    return {
+        "opened": opened, "closed": closed, "open_positions": len(positions),
+        "day_spent_usd": round(cfg.day_spent_usd, 2), "equity": round(equity, 2),
+    }
 
-    return AutotradeRunOut(
-        enabled=True, opened=opened, closed=closed,
-        open_positions=len(positions), day_spent_usd=round(cfg.day_spent_usd, 2),
-        equity=round(equity, 2),
-        note=f"Открыто {opened}, закрыто {closed}",
-    )
+
+@router.post("/run", response_model=AutotradeRunOut)
+async def run_tick(
+    user: User = Depends(current_user), session: AsyncSession = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+) -> AutotradeRunOut:
+    _require_autonomous(user, settings)
+    cfg = await _get_or_create_cfg(session, user)
+    if not cfg.enabled:
+        return AutotradeRunOut(enabled=False, note="Автотрейд выключен")
+    acc = await _ensure_account(session, user, cfg)
+    r = await _tick_user(session, acc, cfg)
+    return AutotradeRunOut(enabled=True, note=f"Открыто {r['opened']}, закрыто {r['closed']}", **r)
+
+
+async def tick_all_enabled() -> int:
+    """Фоновый прогон: один тик для всех включённых автотрейд-конфигов. Возвращает число обработанных."""
+    from ..db import get_sessionmaker
+
+    processed = 0
+    async with get_sessionmaker()() as session:
+        cfgs = (
+            await session.execute(
+                select(AutotradeConfig).where(AutotradeConfig.enabled.is_(True))
+            )
+        ).scalars().all()
+        for cfg in cfgs:
+            user = await session.get(User, cfg.user_id)
+            if user is None:
+                continue
+            try:
+                acc = await _ensure_account(session, user, cfg)
+                await _tick_user(session, acc, cfg)
+                processed += 1
+            except Exception:  # noqa: BLE001
+                await session.rollback()
+    return processed

@@ -32,10 +32,27 @@ from .schemas import HealthOut
 logger = logging.getLogger("altsr.api")
 
 
+AUTOTRADE_TICK_SECONDS = 300  # фоновый тик автотрейда (симуляция) раз в 5 минут
+
+
+async def _autotrade_loop() -> None:
+    """24/7 фоновый прогон симуляционного автотрейда для всех включённых пользователей."""
+    from .api.autotrade import tick_all_enabled
+    while True:
+        try:
+            await asyncio.sleep(AUTOTRADE_TICK_SECONDS)
+            await tick_all_enabled()
+        except asyncio.CancelledError:
+            break
+        except Exception:  # noqa: BLE001
+            logging.getLogger(__name__).exception("autotrade loop tick failed")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await create_all()
     app.state.redis = await make_redis()
+    app.state.autotrade_task = asyncio.create_task(_autotrade_loop())
     # Зарегистрировать Telegram webhook, если задан токен бота.
     _s = get_settings()
     if _s.telegram_bot_token:
@@ -45,6 +62,11 @@ async def lifespan(app: FastAPI):
                 _s, f"{_s.site_url.rstrip('/')}/api/telegram/webhook", webhook_secret(_s)
             )
     yield
+    task = getattr(app.state, "autotrade_task", None)
+    if task is not None:
+        task.cancel()
+        with contextlib.suppress(Exception):
+            await task
     if app.state.redis is not None:
         with contextlib.suppress(Exception):
             await app.state.redis.aclose()

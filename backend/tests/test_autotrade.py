@@ -90,3 +90,18 @@ async def test_disabled_is_noop(client):
     h = _auth(uid)
     run = (await client.post("/api/autotrade/run", headers=h)).json()
     assert run["enabled"] is False
+
+
+async def test_background_tick_all_enabled(client):
+    """Фоновый тикер прогоняет всех включённых пользователей без их токена."""
+    from app.api.autotrade import tick_all_enabled
+
+    uid = await _mk_user("at_bg", "autonomous")
+    h = _auth(uid)
+    await _mk_signal("BGX", "solana", 0.95)
+    await client.put("/api/autotrade/config", headers=h,
+                     json={"enabled": True, "min_confidence": 0.9, "chains": "solana"})
+    processed = await tick_all_enabled()
+    assert processed >= 1
+    paper = (await client.get("/api/paper/me", headers=h)).json()
+    assert paper["opened"] is True and len(paper["positions"]) >= 1
