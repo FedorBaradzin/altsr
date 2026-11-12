@@ -123,6 +123,70 @@ async def test_screen_failure_blocks_send():
     assert notifier.sent == []
 
 
+async def test_blocked_scam_sends_admin_alert(monkeypatch):
+    """Пойманный перед отправкой скам → алерт в админский чат."""
+    from app.signals import runner as runner_mod
+    from app.signals.runner import run_batch
+
+    await create_all()
+    await _seed_stored_pass(address="0xscam")
+
+    sent: list[tuple[str, str]] = []
+
+    async def fake_send_to_chat(settings, chat_id, text, *, http=None):
+        sent.append((chat_id, text))
+        return True
+
+    monkeypatch.setattr(runner_mod, "send_to_chat", fake_send_to_chat)
+
+    async def fake_screen(http, settings, chain, address):
+        f = _clean_findings(address)
+        f.is_honeypot = True
+        return evaluate(f)
+
+    s = _settings_recheck_on()
+    s.telegram_admin_chat_id = "999"
+    s.signal_alert_on_blocked_scam = True
+
+    created = await run_batch(s, notifier=_RecordingNotifier(), screen_fn=fake_screen)
+
+    assert created == 0
+    assert len(sent) == 1
+    chat_id, text = sent[0]
+    assert chat_id == "999"
+    assert "перед отправкой" in text
+
+
+async def test_no_admin_chat_no_alert(monkeypatch):
+    """Админский чат не задан → алерт не шлётся (только блок + лог)."""
+    from app.signals import runner as runner_mod
+    from app.signals.runner import run_batch
+
+    await create_all()
+    await _seed_stored_pass(address="0xscam2")
+
+    sent: list = []
+
+    async def fake_send_to_chat(settings, chat_id, text, *, http=None):
+        sent.append(chat_id)
+        return True
+
+    monkeypatch.setattr(runner_mod, "send_to_chat", fake_send_to_chat)
+
+    async def fake_screen(http, settings, chain, address):
+        f = _clean_findings(address)
+        f.is_honeypot = True
+        return evaluate(f)
+
+    s = _settings_recheck_on()
+    s.telegram_admin_chat_id = ""  # не настроен
+
+    created = await run_batch(s, notifier=_RecordingNotifier(), screen_fn=fake_screen)
+
+    assert created == 0
+    assert sent == []
+
+
 async def test_recheck_disabled_uses_stored_verdict():
     """Флаг выключен → старое поведение: шлём по хранимому PASS без сети."""
     from app.signals.runner import run_batch

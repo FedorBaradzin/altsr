@@ -13,10 +13,12 @@ from ..config import Settings, get_settings
 from ..db import get_sessionmaker
 from ..discovery.base import HttpClient
 from ..models import SafetyReport, Signal, Token
+from ..notify.alerts import format_blocked_scam_alert
 from ..notify.format import format_buy_alert
-from ..notify.telegram import TelegramNotifier
+from ..notify.telegram import TelegramNotifier, send_to_chat
 from ..paper.executor import config_from_settings
 from ..paper.exits import build_plan
+from ..safety.base import SafetyResult
 from ..safety.screener import screen_token, store_result
 from .engine import SignalInput, evaluate_entry
 from .hard_rules import HardRuleInput
@@ -100,16 +102,16 @@ async def run_batch(
 
 async def _recheck_blocks(
     settings: Settings, session: AsyncSession, http, token: Token, screen_fn
-) -> tuple[bool, int | None]:
+) -> tuple[bool, SafetyResult | None]:
     """Свежая перепроверка безопасности ПЕРЕД отправкой в Telegram.
 
-    Возвращает (blocked, fresh_risk_score). Хранимый safety-отчёт может устареть
+    Возвращает (blocked, fresh_result). Хранимый safety-отчёт может устареть
     (токен получил PASS рано, позже помечен скамом) — перескриниваем кандидата,
     уже прошедшего ворота входа. Не PASS или malicious → блокируем сигнал и
     обновляем отчёт (лента/радар перестают показывать токен зелёным).
 
-    Падение скрининга → blocked=True (нет свежего подтверждения — не шлём).
-    Если перепроверка выключена или нет http — не блокируем, risk берём из отчёта.
+    Падение скрининга → blocked=True, fresh=None (нет свежего подтверждения — не шлём).
+    Если перепроверка выключена или нет http — не блокируем, fresh=None.
     """
     if not settings.signal_recheck_safety_before_send or http is None:
         return False, None
@@ -131,8 +133,26 @@ async def _recheck_blocks(
             token.chain, token.address, fresh.verdict,
             " (malicious)" if fresh.is_malicious else "",
         )
-        return True, fresh.risk_score
-    return False, fresh.risk_score
+        return True, fresh
+    return False, fresh
+
+
+async def _alert_blocked_scam(
+    settings: Settings, token: Token, fresh: SafetyResult, http
+) -> None:
+    """Сообщить в админский чат, что перепроверка поймала скам перед отправкой."""
+    if not settings.signal_alert_on_blocked_scam or not settings.telegram_admin_chat_id:
+        return
+    text = format_blocked_scam_alert(
+        chain=token.chain, address=token.address, symbol=token.symbol,
+        verdict=fresh.verdict,
+        red_flag_codes=[f.code for f in fresh.red_flags if f.severity in ("hard", "soft")],
+        malicious=fresh.is_malicious,
+    )
+    try:
+        await send_to_chat(settings, settings.telegram_admin_chat_id, text, http=http)
+    except Exception as exc:  # noqa: BLE001 — алерт не должен ронять тик
+        logger.warning("админ-алерт о скаме не отправлен: %s", exc)
 
 
 async def _emit_signals(
@@ -178,10 +198,13 @@ async def _emit_signals(
             continue
 
         # Свежая перепроверка безопасности перед самой отправкой (анти-скам).
-        blocked, fresh_risk = await _recheck_blocks(settings, session, http, token, screen_fn)
+        blocked, fresh = await _recheck_blocks(settings, session, http, token, screen_fn)
         if blocked:
+            # Пойман скам до отправки — сообщаем в админский чат (если есть что).
+            if fresh is not None:
+                await _alert_blocked_scam(settings, token, fresh, http)
             continue
-        risk_score = fresh_risk if fresh_risk is not None else report.risk_score
+        risk_score = fresh.risk_score if fresh is not None else report.risk_score
 
         options = build_buy_options(token.chain, token.address, token.pair_address)
         signal = Signal(
