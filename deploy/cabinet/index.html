@@ -25,6 +25,18 @@
     background:linear-gradient(180deg, rgba(10,12,22,.5), rgba(5,6,11,.2))}
   .logo{display:flex;align-items:center;gap:11px;padding:4px 8px 16px;text-decoration:none;color:inherit;cursor:pointer;transition:opacity .15s}
   .logo:hover{opacity:.82}
+  .adwrap{padding:4px 4px 10px;overflow-x:auto}
+  .adtab{width:100%;border-collapse:collapse;font-size:13px}
+  .adtab th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:9px 14px;border-bottom:1px solid rgba(130,150,210,.14)}
+  .adtab td{padding:11px 14px;border-bottom:1px solid rgba(130,150,210,.09);vertical-align:middle}
+  .adtab tr:last-child td{border-bottom:none}
+  .adu b{display:block;font-weight:600}.adu small{color:var(--muted);font-size:11px}
+  .adbadge{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;background:rgba(130,150,210,.14);color:var(--muted)}
+  .adbadge.adb-pro{background:rgba(93,169,255,.16);color:#8fc0ff}
+  .adbadge.adb-autonomous{background:rgba(240,194,74,.18);color:#f0c24a}
+  .adsel,.addays{background:rgba(130,150,210,.07);color:var(--txt);border:1px solid rgba(130,150,210,.18);border-radius:8px;padding:7px 9px;font-size:13px;outline:none}
+  .addays{width:74px}
+  .adgrant{padding:7px 14px;font-size:12px}
   .mark{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;font-family:var(--disp);
     font-weight:700;color:#05060B;font-size:17px;
     background:radial-gradient(circle at 35% 30%,#fff,var(--cyan) 42%,var(--violet));
@@ -399,6 +411,8 @@ const TIERS={
    sub:'Автономное ядро: дроны свозят монеты в Vault, авто-трейд 24/7 и личные алерты.'},
 };
 let KEY='free';
+let IS_ADMIN=false;
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function hx(n){return '#'+n.toString(16).padStart(6,'0');}
 
 /* ============ user + per-user paper account (starts from 0) ============ */
@@ -485,16 +499,70 @@ function atStartPoll(){ if(atPoll)return; atPoll=setInterval(()=>{ if(VIEW!=='au
 function atEnter(){ atLoad().then(()=>{ if(ATCFG&&ATCFG.enabled){atStartPoll();atTick();} }); }
 window.atToggle=atToggle;window.atSave=atSave;window.atTick=atTick;
 
+/* ============ admin: grant tiers to users ============ */
+async function adApi(path, method, body){
+  const r=await fetch('/api/admin'+path,{method:method||'GET',
+    headers:{'Authorization':'Bearer '+(localStorage.getItem('altsr_token')||''),'Content-Type':'application/json'},
+    body:body?JSON.stringify(body):undefined});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return r.json();
+}
+function adTierLabel(t){return t==='autonomous'?'Autonomous':t==='pro'?'Pro':(t==='trader'||t==='team')?t:'Free';}
+async function adLoad(){
+  const box=document.getElementById('adUsers'); if(!box)return;
+  try{
+    const users=await adApi('/users?limit=200');
+    if(!users.length){box.innerHTML='<div class="muted">Пользователей пока нет.</div>';return;}
+    box.innerHTML='<table class="adtab"><thead><tr><th>Пользователь</th><th>Сейчас</th><th>Выдать</th><th>Дней</th><th></th></tr></thead><tbody>'+
+      users.map(u=>{
+        const who=u.display_name||u.email||u.subject||('#'+u.id);
+        const sub=(u.email&&u.email!==who)?u.email:'';
+        return `<tr data-uid="${u.id}">
+          <td class="adu"><b>${esc(who)}</b>${sub?'<small>'+esc(sub)+'</small>':''}</td>
+          <td><span class="adbadge adb-${esc(u.tier)}">${adTierLabel(u.tier)}</span></td>
+          <td><select class="adsel">
+            <option value="free"${u.tier==='free'?' selected':''}>Free</option>
+            <option value="pro"${u.tier==='pro'?' selected':''}>Pro</option>
+            <option value="autonomous"${u.tier==='autonomous'?' selected':''}>Autonomous</option>
+          </select></td>
+          <td><input class="addays" type="number" min="1" value="365"></td>
+          <td><button class="btn adgrant" onclick="adGrant(${u.id})">Выдать</button></td>
+        </tr>`;
+      }).join('')+'</tbody></table>';
+  }catch(e){
+    const msg=String((e&&e.message)||e);
+    box.innerHTML='<div class="muted">Не удалось загрузить список'+(msg.includes('403')?' — нужны права администратора.':' ('+esc(msg)+').')+'</div>';
+  }
+}
+async function adGrant(uid){
+  const tr=document.querySelector('#adUsers tr[data-uid="'+uid+'"]'); if(!tr)return;
+  const tier=tr.querySelector('.adsel').value;
+  const days=Math.max(1,parseInt(tr.querySelector('.addays').value||'365',10));
+  const btn=tr.querySelector('.adgrant'); const old=btn.textContent; btn.textContent='…'; btn.disabled=true;
+  try{
+    await adApi('/users/'+uid+'/tier','POST',{tier,days});
+    const b=tr.querySelector('.adbadge'); b.className='adbadge adb-'+tier; b.textContent=adTierLabel(tier);
+    btn.textContent='✓ Выдано';
+    setTimeout(()=>{btn.textContent=old;btn.disabled=false;},1400);
+  }catch(e){ btn.textContent='Ошибка'; setTimeout(()=>{btn.textContent=old;btn.disabled=false;},1600); }
+}
+function adEnter(){ adLoad(); }
+window.adGrant=adGrant;
+
 /* ============ UI ============ */
 const VKEYS=['radar','signals','portfolio','journal','graph','alerts','autotrade','reels','account'];
 let VIEW='radar', radarVisible=true, realPass=null, realSig=null;
 function iconSvg(d){return `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;}
 function renderNav(){
   const t=TIERS[KEY];
-  document.getElementById('nav').innerHTML=NAV.map((n,i)=>{
+  let html=NAV.map((n,i)=>{
     const k=VKEYS[i], locked=n[2]>t.tier;
     return `<a data-k="${k}" class="${k===VIEW?'on':''} ${locked?'lock':''}" onclick="route('${k}')">${iconSvg(n[1])}<span>${n[0]}</span>${locked?'<span class="lk">🔒</span>':''}</a>`;
   }).join('');
+  if(IS_ADMIN){
+    html+=`<a data-k="admin" class="${VIEW==='admin'?'on':''}" onclick="route('admin')">${iconSvg('M12 2l7 4v6c0 4-3 7-7 8-4-1-7-4-7-8V6l7-4z')}<span>Админ</span></a>`;
+  }
+  document.getElementById('nav').innerHTML=html;
 }
 function vcls(v){return v;}
 function riskColor(r){return r<30?'var(--pass)':r<65?'var(--review)':'var(--block)';}
@@ -685,7 +753,17 @@ function frame(){if(!WEBGL)return;
 
 /* ============ views / router ============ */
 function money(n){return '$'+n.toLocaleString('en-US');}
+function routeAdmin(){
+  VIEW='admin'; renderNav();
+  const rv=document.getElementById('radarView'), ov=document.getElementById('otherView');
+  radarVisible=false; rv.style.display='none'; ov.style.display='';
+  document.getElementById('pageTitle').textContent='Админ · доступы';
+  document.getElementById('subhead').textContent='Выдача тарифов пользователям. Только для администратора.';
+  ov.innerHTML=VIEWS.admin();
+  adEnter();
+}
 function route(k){
+  if(k==='admin'){ routeAdmin(); return; }
   const idx=VKEYS.indexOf(k), needTier=NAV[idx][2], t=TIERS[KEY];
   VIEW=k; renderNav();
   const rv=document.getElementById('radarView'), ov=document.getElementById('otherView');
@@ -712,6 +790,11 @@ function lockView(need){const nm=need>=2?'Autonomous':'Pro',pr=need>=2?'$89':'$4
 
 let EXTRASIG=[...SIGNALS,{n:'GM',c:'solana',dex:'Jupiter',p:'BUY 88%'},{n:'MOON',c:'base',dex:'Uniswap',p:'BUY 91%'},{n:'VOLT',c:'bsc',dex:'PancakeSwap',p:'BUY 85%'}];
 const VIEWS={
+ admin(){
+  return `<div class="panel"><div class="ph"><h3>Выдача доступов</h3><button class="btn" style="margin-left:auto;padding:7px 12px;font-size:12px" onclick="adLoad()">Обновить</button></div>
+   <div style="padding:2px 16px 10px"><p class="muted" style="margin:0">Назначь тариф пользователю. <b style="color:var(--txt)">Autonomous</b> открывает автоторговлю и личный Telegram, <b style="color:var(--txt)">Pro</b> — полную ленту, историю и Token Intelligence. Платные тарифы действуют заданное число дней, Free — бессрочно.</p></div>
+   <div id="adUsers" class="adwrap"><div class="muted" style="padding:8px 4px">Загрузка пользователей…</div></div></div>`;
+ },
  signals(){
   const hash=s=>{let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return Math.abs(h);};
   const src = EXTRASIG&&EXTRASIG.length?EXTRASIG:SIGNALS;
@@ -978,7 +1061,7 @@ async function initAuth(){
     KEY=mapTier(me.tier);
     USERID=String(me.id);USEREMAIL=me.email||'';USERNAME=me.display_name||me.email||'Аккаунт';
     // admin → full access; otherwise keep any tier the user already unlocked (persists across reloads)
-    if(me.is_admin){KEY='auto';}
+    if(me.is_admin){KEY='auto';IS_ADMIN=true;}
     else{try{const pv=localStorage.getItem('altsr_tier:'+USERID);if(pv&&TIERS[pv]&&TIERS[pv].tier>=TIERS[KEY].tier)KEY=pv;}catch(e){}}
     PAPER_API=true; await syncPaper();   // server-backed paper account (synced across devices)
     const pr=document.querySelector('.proto'); if(pr)pr.style.display='none';
