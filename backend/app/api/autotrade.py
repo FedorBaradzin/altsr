@@ -25,8 +25,9 @@ from ..models import (
     UserPaperPosition,
     UserPaperTrade,
 )
+from ..paper.pricing import get_live_price_map
 from ..schemas import AutotradeConfigIn, AutotradeConfigOut, AutotradeRunOut
-from .user_paper import _factor, _utcnow
+from .user_paper import _pos_keys, _ratio, _utcnow
 
 router = APIRouter(prefix="/api/autotrade", tags=["autotrade"])
 
@@ -125,13 +126,15 @@ async def _tick_user(session: AsyncSession, acc: UserPaperAccount, cfg: Autotrad
         )
     ).scalars().all()
 
-    # --- закрытие по TP/стопу ---
+    # --- закрытие по TP/стопу (по реальной цене с DEX) ---
+    price_map = await get_live_price_map(_pos_keys(list(positions)))
     closed = 0
     held: set[str] = set()
     for p in positions:
-        pnl = (_factor(p) - 1.0) * 100.0
+        ratio = _ratio(p, price_map)
+        pnl = (ratio - 1.0) * 100.0
         if pnl >= cfg.tp_pct or pnl <= -cfg.stop_pct:
-            val = p.amount_usd * _factor(p)
+            val = p.amount_usd * ratio
             acc.cash += val
             session.add(UserPaperTrade(
                 account_id=acc.id, symbol=p.symbol, chain=p.chain,
@@ -159,7 +162,7 @@ async def _tick_user(session: AsyncSession, acc: UserPaperAccount, cfg: Autotrad
     want_chains = [c.strip().lower() for c in cfg.chains.split(",") if c.strip()]
     rows = (
         await session.execute(
-            select(Signal, Token.symbol)
+            select(Signal, Token.symbol, Token.address, Token.pair_address)
             .join(Token, Token.id == Signal.token_id)
             .where(
                 Signal.side == "BUY",
@@ -171,8 +174,17 @@ async def _tick_user(session: AsyncSession, acc: UserPaperAccount, cfg: Autotrad
         )
     ).all()
 
+    # Цена входа — реальная, с DEX. Берём её для всех кандидатов одним батчем;
+    # открываем только то, что удалось оценить (честно: не держим неоцениваемое).
+    cand_keys = {
+        (sig.chain.lower(), addr.lower())
+        for sig, _symbol, addr, _pair in rows
+        if addr
+    }
+    entry_map = await get_live_price_map(cand_keys)
+
     opened = 0
-    for sig, symbol in rows:
+    for sig, symbol, addr, pair in rows:
         if not symbol:
             continue
         sym = symbol.upper()
@@ -180,6 +192,11 @@ async def _tick_user(session: AsyncSession, acc: UserPaperAccount, cfg: Autotrad
             continue
         if want_chains and sig.chain.lower() not in want_chains:
             continue
+        if not addr:
+            continue
+        entry = entry_map.get((sig.chain.lower(), addr.lower()))
+        if not entry or entry <= 0:
+            continue  # нет реальной цены — не открываем
         amt = min(cfg.max_position_usd, acc.cash)
         if amt < 1:
             break
@@ -189,6 +206,7 @@ async def _tick_user(session: AsyncSession, acc: UserPaperAccount, cfg: Autotrad
         session.add(UserPaperPosition(
             account_id=acc.id, symbol=sym, chain=sig.chain[:32],
             amount_usd=round(amt), bias=bias, seed=random.uniform(0, 6.28),
+            entry_price=entry, address=addr, pair_address=pair,
         ))
         acc.cash -= round(amt)
         cfg.day_spent_usd += round(amt)
@@ -198,13 +216,14 @@ async def _tick_user(session: AsyncSession, acc: UserPaperAccount, cfg: Autotrad
     cfg.last_run_at = now
     await session.commit()
 
-    # пересчёт equity
+    # пересчёт equity (по реальной цене)
     positions = (
         await session.execute(
             select(UserPaperPosition).where(UserPaperPosition.account_id == acc.id)
         )
     ).scalars().all()
-    equity = acc.cash + sum(p.amount_usd * _factor(p) for p in positions)
+    eq_map = await get_live_price_map(_pos_keys(list(positions)))
+    equity = acc.cash + sum(p.amount_usd * _ratio(p, eq_map) for p in positions)
     return {
         "opened": opened, "closed": closed, "open_positions": len(positions),
         "day_spent_usd": round(cfg.day_spent_usd, 2), "equity": round(equity, 2),

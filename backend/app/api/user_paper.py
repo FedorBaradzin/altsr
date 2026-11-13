@@ -18,11 +18,13 @@ from ..auth.service import current_user
 from ..db import get_session
 from ..models import (
     AutotradeConfig,
+    Token,
     User,
     UserPaperAccount,
     UserPaperPosition,
     UserPaperTrade,
 )
+from ..paper.pricing import get_live_price_map
 from ..schemas import (
     BuyPaperIn,
     OpenPaperIn,
@@ -39,6 +41,7 @@ def _utcnow() -> datetime:
 
 
 def _factor(pos: UserPaperPosition) -> float:
+    """Legacy-оценка: детерминированная формула (для позиций без реальной цены)."""
     opened = pos.opened_at
     if opened.tzinfo is None:
         opened = opened.replace(tzinfo=timezone.utc)
@@ -46,6 +49,37 @@ def _factor(pos: UserPaperPosition) -> float:
     trend = pos.bias * (1.0 - math.exp(-mins / 90.0))
     wobble = 0.05 * math.sin(mins / 11.0 + pos.seed)
     return max(0.02, 1.0 + trend + wobble)
+
+
+def _pos_keys(positions: list[UserPaperPosition]) -> set[tuple[str, str]]:
+    """(chain, address) для позиций, которые можно оценить по реальной цене."""
+    return {
+        (p.chain.lower(), p.address.lower())
+        for p in positions
+        if p.address and p.entry_price and p.entry_price > 0
+    }
+
+
+def _ratio(pos: UserPaperPosition, price_map: dict[tuple[str, str], float]) -> float:
+    """Множитель текущая/входная. Реальная цена с DEX, иначе — формула (legacy)."""
+    if pos.address and pos.entry_price and pos.entry_price > 0:
+        cur = price_map.get((pos.chain.lower(), pos.address.lower()))
+        if cur and cur > 0:
+            return cur / pos.entry_price
+    return _factor(pos)
+
+
+async def _resolve_token(
+    session: AsyncSession, chain: str | None, symbol: str | None
+) -> Token | None:
+    """Самый свежий токен по символу (и сети, если задана) — для ручной покупки."""
+    if not symbol:
+        return None
+    q = select(Token).where(Token.symbol == symbol)
+    if chain and chain != "—":
+        q = q.where(Token.chain == chain)
+    q = q.order_by(Token.discovered_at.desc()).limit(1)
+    return (await session.execute(q)).scalar_one_or_none()
 
 
 async def _get_account(session: AsyncSession, user: User) -> UserPaperAccount | None:
@@ -72,10 +106,11 @@ async def _assemble(session: AsyncSession, acc: UserPaperAccount | None) -> User
         )
     ).scalars().all()
 
+    price_map = await get_live_price_map(_pos_keys(list(positions)))
     pos_out: list[UserPaperPositionOut] = []
     equity = acc.cash
     for p in positions:
-        f = _factor(p)
+        f = _ratio(p, price_map)
         val = p.amount_usd * f
         equity += val
         pos_out.append(
@@ -148,11 +183,23 @@ async def buy_my_paper(
     if amount < 1 or amount > acc.cash:
         raise HTTPException(status_code=400, detail="Недостаточно средств или неверная сумма")
     bias = 0.2 + random.uniform(-0.3, 0.4)
+    # Пытаемся привязать реальную цену: ищем токен по (chain, symbol) и берём цену с DEX.
+    chain = (body.chain or "—")[:32]
+    entry_price: float | None = None
+    address: str | None = None
+    pair_address: str | None = None
+    tok = await _resolve_token(session, body.chain, body.symbol)
+    if tok and tok.address:
+        pm = await get_live_price_map({(tok.chain.lower(), tok.address.lower())})
+        px = pm.get((tok.chain.lower(), tok.address.lower()))
+        if px and px > 0:
+            entry_price, address, pair_address, chain = px, tok.address, tok.pair_address, tok.chain
     acc.cash -= amount
     session.add(
         UserPaperPosition(
-            account_id=acc.id, symbol=body.symbol[:64], chain=(body.chain or "—")[:32],
+            account_id=acc.id, symbol=body.symbol[:64], chain=chain,
             amount_usd=amount, bias=bias, seed=random.uniform(0, 6.28),
+            entry_price=entry_price, address=address, pair_address=pair_address,
         )
     )
     await session.commit()
@@ -178,7 +225,8 @@ async def close_my_paper(
     ).scalar_one_or_none()
     if pos is None:
         raise HTTPException(status_code=404, detail="Позиция не найдена")
-    f = _factor(pos)
+    price_map = await get_live_price_map(_pos_keys([pos]))
+    f = _ratio(pos, price_map)
     val = pos.amount_usd * f
     acc.cash += val
     session.add(

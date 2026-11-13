@@ -42,6 +42,31 @@ async def _mk_signal(symbol: str, chain: str, conf: float) -> None:
         await s.commit()
 
 
+# --- мок прайс-фида: opening теперь требует реальную цену, поэтому в тестах
+#     подменяем DexScreener на детерминированную карту цен (по умолчанию $1.0). ---
+import app.api.autotrade as _at_mod  # noqa: E402
+import app.api.user_paper as _up_mod  # noqa: E402
+
+_PRICES: dict[tuple[str, str], float] = {}
+
+
+async def _fake_prices(keys):
+    return {k: _PRICES.get((k[0].lower(), k[1].lower()), 1.0) for k in keys}
+
+
+def _set_price(chain: str, symbol: str, price: float) -> None:
+    _PRICES[(chain.lower(), f"0x{symbol}".lower())] = price
+
+
+@pytest.fixture(autouse=True)
+def mock_dex_prices(monkeypatch):
+    _PRICES.clear()
+    monkeypatch.setattr(_at_mod, "get_live_price_map", _fake_prices)
+    monkeypatch.setattr(_up_mod, "get_live_price_map", _fake_prices)
+    yield
+    _PRICES.clear()
+
+
 async def test_gate_autonomous_only(client):
     free = await _mk_user("at_free", "free")
     assert (await client.get("/api/autotrade/config", headers=_auth(free))).status_code == 402
@@ -126,6 +151,42 @@ async def test_reset_clears_autotrade_day_counter(client):
     cfg = (await client.get("/api/autotrade/config", headers=h)).json()
     assert cfg["day_spent_usd"] == 0
     assert cfg["last_run_at"] is None
+
+
+async def test_real_price_drives_pnl_and_tp(client):
+    """P&L идёт от реальной цены: вход по $1.0, цена +60% → закрытие по TP с ~+60%."""
+    uid = await _mk_user("at_px", "autonomous")
+    h = _auth(uid)
+    await _mk_signal("ZZZ", "base", 0.97)
+    await client.put("/api/autotrade/config", headers=h,
+                     json={"enabled": True, "min_confidence": 0.9, "chains": "base",
+                           "max_position_usd": 100, "daily_cap_usd": 1000,
+                           "tp_pct": 50, "stop_pct": 25})
+    r1 = (await client.post("/api/autotrade/run", headers=h)).json()
+    assert r1["opened"] == 1          # вход по реальной цене $1.0
+
+    _set_price("base", "ZZZ", 1.6)    # цена выросла на 60%
+    r2 = (await client.post("/api/autotrade/run", headers=h)).json()
+    assert r2["closed"] == 1 and r2["opened"] == 0
+    paper = (await client.get("/api/paper/me", headers=h)).json()
+    assert len(paper["trades"]) == 1
+    assert paper["trades"][0]["pnl_pct"] > 55   # реальные ~+60%, не формула
+
+
+async def test_unpriced_signal_not_opened(client, monkeypatch):
+    """Нет реальной цены — бот не открывает позицию (честно, не держим неоцениваемое)."""
+    uid = await _mk_user("at_np", "autonomous")
+    h = _auth(uid)
+    await _mk_signal("NOP", "base", 0.97)
+
+    async def _empty(keys):
+        return {}
+    monkeypatch.setattr(_at_mod, "get_live_price_map", _empty)
+
+    await client.put("/api/autotrade/config", headers=h,
+                     json={"enabled": True, "min_confidence": 0.9, "chains": "base"})
+    r = (await client.post("/api/autotrade/run", headers=h)).json()
+    assert r["opened"] == 0
 
 
 async def test_disabled_is_noop(client):

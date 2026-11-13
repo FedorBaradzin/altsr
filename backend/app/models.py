@@ -459,6 +459,11 @@ class UserPaperPosition(Base):
     amount_usd: Mapped[float] = mapped_column(Float, nullable=False)
     bias: Mapped[float] = mapped_column(Float, nullable=False)
     seed: Mapped[float] = mapped_column(Float, nullable=False)
+    # Реальная оценка: цена входа (USD) + адрес токена для текущей цены с DEX.
+    # None на legacy-позициях → оценка падает на детерминированную формулу (_factor).
+    entry_price: Mapped[float | None] = mapped_column(Float)
+    address: Mapped[str | None] = mapped_column(String(128))
+    pair_address: Mapped[str | None] = mapped_column(String(128))
     opened_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, nullable=False
     )
