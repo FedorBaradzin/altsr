@@ -367,6 +367,7 @@ footer{border-top:1px solid var(--line);padding:50px 0 40px;margin-top:40px}
         <div class="frow"><label class="flab">Telegram</label><input class="inp" id="fTg" placeholder="@username"></div>
         <div class="frow"><label class="flab">Комментарий <span style="color:var(--muted)">(необязательно)</span></label><input class="inp" id="fNote" placeholder="Коротко о вас / вопросе"></div>
         <label class="chkrow"><input type="checkbox" id="fConsent"><span>Согласен на обработку указанных данных для связи по инвестиционному предложению.</span></label>
+        <input id="hp" name="company" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
       </div>
       <!-- done -->
       <div class="qstep qdone" data-s="5"><div class="ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 13l4 4L19 7"/></svg></div>
@@ -504,7 +505,7 @@ function submit(){
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(Q.email)){toast('Проверьте email');return;}
   if(!Q.consent){toast('Нужно согласие на обработку данных');return;}
   const u=new URLSearchParams(location.search);
-  const payload={...Q, utm_source:u.get('utm_source')||'', utm_medium:u.get('utm_medium')||'', utm_campaign:u.get('utm_campaign')||'', utm_content:u.get('utm_content')||'', page:'investors', ts:new Date().toISOString()};
+  const payload={...Q, hp:(document.getElementById('hp')||{}).value||'', utm_source:u.get('utm_source')||'', utm_medium:u.get('utm_medium')||'', utm_campaign:u.get('utm_campaign')||'', utm_content:u.get('utm_content')||'', page:'investors', ts:new Date().toISOString()};
   const nx=document.getElementById('qnext');nx.textContent='Отправка…';nx.disabled=true;
   fetch('/api/investors/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
     .then(r=>{ if(r.ok){done(false);} else {done(true,'Приём заявок ещё подключается — но мы сохранили ваш интерес. Напишите напрямую в Telegram, чтобы не ждать.'); } })

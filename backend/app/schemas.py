@@ -350,3 +350,23 @@ class BuyPaperIn(BaseModel):
     symbol: str
     chain: str = ""
     amount_usd: float
+
+
+# ---- investor landing ----
+class InvestorLeadIn(BaseModel):
+    name: str = ""
+    email: str = ""
+    telegram: str = ""
+    note: str = ""
+    amount: str = ""
+    amountNum: float = 0
+    equity: str = ""
+    equityNum: float = 0
+    type: str = ""
+    consent: bool = False
+    utm_source: str = ""
+    utm_medium: str = ""
+    utm_campaign: str = ""
+    utm_content: str = ""
+    page: str = ""
+    hp: str = ""  # honeypot (должен быть пустым)

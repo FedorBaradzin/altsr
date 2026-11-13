@@ -495,3 +495,35 @@ class UserPaperTrade(Base):
     __table_args__ = (
         Index("ix_user_paper_trades_account", "account_id"),
     )
+
+
+class InvestorLead(Base):
+    """Заявка инвестора с инвест-лендинга /investors."""
+
+    __tablename__ = "investor_leads"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    amount: Mapped[str | None] = mapped_column(String(64))
+    amount_num: Mapped[float | None] = mapped_column(Float)
+    equity: Mapped[str | None] = mapped_column(String(64))
+    equity_num: Mapped[float | None] = mapped_column(Float)
+    valuation: Mapped[float | None] = mapped_column(Float)
+    inv_type: Mapped[str | None] = mapped_column(String(64))
+    name: Mapped[str | None] = mapped_column(String(128))
+    email: Mapped[str | None] = mapped_column(String(190))
+    telegram: Mapped[str | None] = mapped_column(String(128))
+    note: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(16), default="new", nullable=False)
+    utm_source: Mapped[str | None] = mapped_column(String(190))
+    utm_medium: Mapped[str | None] = mapped_column(String(190))
+    utm_campaign: Mapped[str | None] = mapped_column(String(190))
+    utm_content: Mapped[str | None] = mapped_column(String(190))
+    ip: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+
+    __table_args__ = (
+        Index("ix_investor_leads_created_at", "created_at"),
+        Index("ix_investor_leads_status", "status"),
+    )

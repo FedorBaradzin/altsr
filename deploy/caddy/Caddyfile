@@ -33,6 +33,14 @@ altsr.space {
 		redir * /landing/cabinet/index.html
 	}
 
+	# Инвест-лендинг
+	handle /investors {
+		redir * /landing/investors/index.html
+	}
+	handle /investors/ {
+		redir * /landing/investors/index.html
+	}
+
 	# всё остальное → фронтенд (Next.js)
 	handle {
 		reverse_proxy frontend:3000

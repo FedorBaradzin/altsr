@@ -561,8 +561,27 @@ async function adGrant(uid){
     setTimeout(()=>{btn.textContent=old;btn.disabled=false;},1400);
   }catch(e){ btn.textContent='Ошибка'; setTimeout(()=>{btn.textContent=old;btn.disabled=false;},1600); }
 }
-function adEnter(){ adLoad(); }
+function adEnter(){ adLoad(); adLoadLeads(); }
 window.adGrant=adGrant;
+const LEAD_ST={new:'Новая',contacted:'Связались',qualified:'Квалифицирован',negotiating:'Переговоры',closed:'Закрыта'};
+async function adLoadLeads(){
+  const box=document.getElementById('adLeads'); if(!box)return;
+  try{
+    const leads=await adApi('/investors?limit=200');
+    if(!leads.length){box.innerHTML='<div class="muted" style="padding:8px 4px">Заявок пока нет.</div>';return;}
+    box.innerHTML='<table class="adtab"><thead><tr><th>Инвестор</th><th>Сумма / доля</th><th>Оценка</th><th>Тип</th><th>Источник</th><th>Статус</th></tr></thead><tbody>'+
+      leads.map(l=>{const who=esc(l.name||'—');const contact=[l.email,l.telegram].filter(Boolean).map(esc).join(' · ');
+        const val=l.valuation?('$'+Math.round(l.valuation).toLocaleString('en-US')):'—';
+        const opts=Object.keys(LEAD_ST).map(k=>`<option value="${k}"${l.status===k?' selected':''}>${LEAD_ST[k]}</option>`).join('');
+        return `<tr><td class="adu"><b>${who}</b><small>${contact}</small></td>
+          <td>${esc(l.amount||'—')}<br><small style="color:var(--muted)">${esc(l.equity||'—')}</small></td>
+          <td>${val}</td><td>${esc(l.type||'—')}</td><td>${esc(l.utm_source||'—')}</td>
+          <td><select class="adsel" onchange="adLeadStatus(${l.id},this.value)">${opts}</select></td></tr>`;}).join('')+'</tbody></table>';
+  }catch(e){ box.innerHTML='<div class="muted" style="padding:8px 4px">Не удалось загрузить заявки'+(String((e&&e.message)||e).includes('403')?' — нужны права админа.':'.')+'</div>'; }
+}
+async function adLeadStatus(id,val){ try{ await fetch('/api/admin/investors/'+id+'/status?value='+encodeURIComponent(val),{method:'POST',headers:{'Authorization':'Bearer '+(localStorage.getItem('altsr_token')||'')}}); toast('Статус обновлён'); }catch(e){ toast('Ошибка'); } }
+async function adExportCsv(){ try{ const r=await fetch('/api/admin/investors?export=csv',{headers:{'Authorization':'Bearer '+(localStorage.getItem('altsr_token')||'')}}); if(!r.ok)throw 0; const b=await r.blob(),u=URL.createObjectURL(b),a=document.createElement('a'); a.href=u;a.download='investor_leads.csv';a.click();URL.revokeObjectURL(u); }catch(e){ toast('Не удалось выгрузить CSV'); } }
+window.adLoadLeads=adLoadLeads;window.adLeadStatus=adLeadStatus;window.adExportCsv=adExportCsv;
 
 /* ============ UI ============ */
 const VKEYS=['radar','signals','portfolio','journal','graph','alerts','autotrade','reels','account'];
@@ -808,7 +827,10 @@ const VIEWS={
  admin(){
   return `<div class="panel"><div class="ph"><h3>Выдача доступов</h3><button class="btn" style="margin-left:auto;padding:7px 12px;font-size:12px" onclick="adLoad()">Обновить</button></div>
    <div style="padding:2px 16px 10px"><p class="muted" style="margin:0">Назначь тариф пользователю. <b style="color:var(--txt)">Autonomous</b> открывает автоторговлю и личный Telegram, <b style="color:var(--txt)">Pro</b> — полную ленту, историю и Token Intelligence. Платные тарифы действуют заданное число дней, Free — бессрочно.</p></div>
-   <div id="adUsers" class="adwrap"><div class="muted" style="padding:8px 4px">Загрузка пользователей…</div></div></div>`;
+   <div id="adUsers" class="adwrap"><div class="muted" style="padding:8px 4px">Загрузка пользователей…</div></div></div>
+   <div class="panel" style="margin-top:16px"><div class="ph"><h3>Заявки инвесторов</h3>
+     <div style="margin-left:auto;display:flex;gap:8px"><button class="btn" style="padding:7px 12px;font-size:12px" onclick="adExportCsv()">Экспорт CSV</button><button class="btn" style="padding:7px 12px;font-size:12px" onclick="adLoadLeads()">Обновить</button></div></div>
+   <div id="adLeads" class="adwrap"><div class="muted" style="padding:8px 4px">Загрузка заявок…</div></div></div>`;
  },
  signals(){
   const hash=s=>{let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return Math.abs(h);};
