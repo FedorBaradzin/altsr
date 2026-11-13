@@ -61,12 +61,31 @@ async def get_session() -> AsyncIterator[AsyncSession]:
         yield session
 
 
+# Колонки, добавленные к уже существующим таблицам. create_all() создаёт только
+# НОВЫЕ таблицы и не добавляет колонки в существующие, а прод работает без Alembic —
+# поэтому на старте идемпотентно досоздаём недостающие колонки (только PostgreSQL).
+_ENSURE_PG_COLUMNS: list[tuple[str, str, str]] = [
+    ("user_paper_positions", "entry_price", "DOUBLE PRECISION"),
+    ("user_paper_positions", "address", "VARCHAR(128)"),
+    ("user_paper_positions", "pair_address", "VARCHAR(128)"),
+    ("users", "tg_chat_id", "VARCHAR(32)"),
+]
+
+
 async def create_all() -> None:
     """Создать таблицы (для тестов и локального старта без Alembic)."""
     from . import models  # noqa: F401  регистрирует модели в метаданных
 
-    async with get_engine().begin() as conn:
+    engine = get_engine()
+    async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        if engine.dialect.name == "postgresql":
+            from sqlalchemy import text
+
+            for table, col, typ in _ENSURE_PG_COLUMNS:
+                await conn.execute(
+                    text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {typ}")
+                )
 
 
 def reset_engine_for_tests() -> None:
