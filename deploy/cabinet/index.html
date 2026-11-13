@@ -230,6 +230,12 @@
 
   /* reels / graph / account */
   .reels{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .tour{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .tstep{display:flex;gap:14px;align-items:flex-start;background:rgba(255,255,255,.035);border:1px solid rgba(130,150,210,.1);border-radius:14px;padding:16px 18px}
+  .tnum{flex:0 0 30px;width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;background:color-mix(in srgb,var(--acc) 20%,transparent);color:var(--acc)}
+  .tstep .th2{font-weight:700;font-size:15px;margin-bottom:5px}
+  .tstep p{margin:0;color:var(--muted);font-size:13px;line-height:1.5}
+  @media(max-width:900px){.tour{grid-template-columns:1fr}}
   .reel{border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;background:var(--panel)}
   .reel .th{height:150px;display:grid;place-items:center;font-size:34px;position:relative;
     background:radial-gradient(circle at 50% 40%, color-mix(in srgb,var(--acc) 30%,transparent), rgba(10,12,22,.6))}
@@ -379,7 +385,7 @@ const NAV=[
  ['Радар','M12 3v18M3 12h18',0],['Сигналы','M4 13l4 4 8-10',0],['Портфель','M4 7h16v12H4zM4 7l3-3h10l3 3',1],
  ['Журнал','M6 4h12v16H6zM9 8h6M9 12h6',1],['Нейро-граф','M6 6a2 2 0 100-.1M18 6a2 2 0 100-.1M12 18a2 2 0 100-.1M6 6l6 12M18 6l-6 12',1],
  ['Алерты','M12 4a5 5 0 015 5v4l2 3H5l2-3V9a5 5 0 015-5',1],['Автоторговля','M4 12a8 8 0 018-8M20 12a8 8 0 01-8 8M12 8v4l3 2',2],
- ['Reels','M4 5h16v14H4zM9 5v14M15 5v14',0],['Аккаунт','M12 12a4 4 0 100-8 4 4 0 000 8M4 20c0-4 4-6 8-6s8 2 8 6',1],
+ ['Обучение','M12 6.5C10.5 5.5 8 5 4 5v12c4 0 6.5.5 8 1.5M12 6.5c1.5-1 4-1.5 8-1.5v12c-4 0-6.5.5-8 1.5M12 6.5v12',0],['Аккаунт','M12 12a4 4 0 100-8 4 4 0 000 8M4 20c0-4 4-6 8-6s8 2 8 6',1],
 ];
 let TOKENS=[
  {s:'DORA',c:'base · 8 мин',v:'pass',r:'LP locked · Mint revoked · не honeypot',risk:14,conf:'96%',liq:'$212K'},
@@ -771,7 +777,7 @@ function route(k){
     portfolio:['Портфель','Избранное и бумажные позиции. Числа — ДЕМО.'],journal:['Журнал сделок','Закрытые позиции и честная сводка. ДЕМО.'],
     graph:['Нейро-граф','Связи токенов, сетей, фондов и основателей — только реальные из данных.'],
     alerts:['Алерты','Правила уведомлений: типы, каналы, тихие часы.'],autotrade:['Автоторговля · Vault','Делегирование, лимиты и аварийный стоп. LIVE OFF до аудита.'],
-    reels:['Reels · обучение','Короткие обучающие видео: как читать радар, вердикты PASS/REVIEW/BLOCK и сигналы.'],account:['Аккаунт','Профиль, подписка, уведомления, интеграции, безопасность.']};
+    reels:['Обучение · как работает ALTSR','Короткий тур по платформе: радар, вердикты, сигналы, автоторговля, алерты и тарифы.'],account:['Аккаунт','Профиль, подписка, уведомления, интеграции, безопасность.']};
   document.getElementById('pageTitle').textContent=T[k][0];
   document.getElementById('subhead').textContent=T[k][1];
   if(k==='radar'){rv.style.display='';ov.style.display='none';radarVisible=true;return;}
@@ -891,8 +897,17 @@ const VIEWS={
    <div class="panel" style="margin-top:16px"><div class="ph"><h3>Открытые авто-позиции</h3></div>
      <table><thead><tr><th>Токен</th><th>Вход</th><th>Сейчас</th><th>P&L</th></tr></thead><tbody>${posRows}</tbody></table></div>`;
  },
- reels(){const r=[['Как читать вердикт PASS','1:12'],['Разбор рага: 5 красных флагов','2:04'],['Что такое LP-lock','0:58'],['Авто-трейд: как это работает','1:40'],['История $DOG +88%','1:25'],['Сигнал 100%: что дальше','1:08']];
-  return `<div class="reels">${r.map(x=>`<div class="reel"><div class="th">▶<span class="dur">${x[1]}</span></div><div class="cap">${x[0]}<small>ALTSR · видео-инсайт</small></div></div>`).join('')}</div>`;
+ reels(){const steps=[
+   ['Радар','Нейро-ядро сканирует новые токены 24/7 и выносит вердикт по анти-скам проверкам. Точки в сцене — это PASS / REVIEW / BLOCK в реальном времени. Начни отсюда: смотри, что прошло проверки прямо сейчас.'],
+   ['Вердикты PASS / REVIEW / BLOCK','<b style="color:var(--pass)">PASS</b> — токен прошёл проверки (это не гарантия роста или безопасности). <b style="color:var(--review)">REVIEW</b> — часть проверок не подтверждена. <b style="color:var(--block)">BLOCK</b> — высокий риск: признаки ловушки или контроля предложения.'],
+   ['Сигналы','BUY-сигналы с процентом уверенности. Он считается из ликвидности, моментума (m5/h1) и возраста токена. Высокая уверенность помогает приоритизировать, но это не обещание прибыли.'],
+   ['Риск и ликвидность','В ленте у каждого токена есть risk-score и ликвидность. Низкий риск и достаточная ликвидность — база для отсева мусора, но финальное решение всегда за тобой: DYOR.'],
+   ['Портфель и Журнал','Избранное и открытые бумажные позиции — в «Портфеле». Закрытые сделки и честная сводка (win-rate, P&L) — в «Журнале». Это бумажный тренажёр, реальных денег нет.'],
+   ['Автоторговля · Vault','Симуляционный бот торгует на бумажном счёте по реальным ценам с DEX: сам открывает по сигналам, держит лимиты (размер позиции, дневной кап), закрывает по TP/стопу и работает 24/7. Live-исполнение реальными деньгами выключено до аудита. Доступно на Autonomous.'],
+   ['Алерты','Правила уведомлений в Telegram и Web: PASS-вердикт, сигнал ≥ порога, TP/стоп по позиции, оживший токен из Watchlist. Личная привязка Telegram-бота — на Autonomous.'],
+   ['Тарифы','<b>Free</b> — радар и базовая лента. <b style="color:#8fc0ff">Pro</b> — полная лента, история и Token Intelligence. <b style="color:var(--gold,#f0c24a)">Autonomous</b> — автоторговля, Vault и личные Telegram-алерты.'],
+ ];
+  return `<div class="tour">${steps.map((s,i)=>`<div class="tstep"><div class="tnum">${i+1}</div><div class="tbody"><div class="th2">${s[0]}</div><p>${s[1]}</p></div></div>`).join('')}</div>`;
  },
  account(){return `<div class="acctabs">
    <div class="acctab on" data-t="prof">Профиль</div><div class="acctab" data-t="bill">Подписка · биллинг</div>
