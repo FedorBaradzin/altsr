@@ -23,7 +23,8 @@
   /* sidebar */
   .side{border-right:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;gap:4px;
     background:linear-gradient(180deg, rgba(10,12,22,.5), rgba(5,6,11,.2))}
-  .logo{display:flex;align-items:center;gap:11px;padding:4px 8px 16px}
+  .logo{display:flex;align-items:center;gap:11px;padding:4px 8px 16px;text-decoration:none;color:inherit;cursor:pointer;transition:opacity .15s}
+  .logo:hover{opacity:.82}
   .mark{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;font-family:var(--disp);
     font-weight:700;color:#05060B;font-size:17px;
     background:radial-gradient(circle at 35% 30%,#fff,var(--cyan) 42%,var(--violet));
@@ -254,7 +255,7 @@
 <div class="app">
   <!-- SIDEBAR -->
   <aside class="side">
-    <div class="logo"><div class="mark">A</div><div><h1>ALTSR</h1><span>Early Crypto Radar</span></div></div>
+    <a class="logo" href="/" title="На главную" aria-label="ALTSR — на главную"><div class="mark">A</div><div><h1>ALTSR</h1><span>Early Crypto Radar</span></div></a>
     <nav class="nav" id="nav"></nav>
     <div class="up" id="upsell">
       <b id="upTitle">Открой весь радар</b>
