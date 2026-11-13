@@ -273,7 +273,7 @@
 <div class="app">
   <!-- SIDEBAR -->
   <aside class="side">
-    <a class="logo" href="/" title="На главную" aria-label="ALTSR — на главную"><div class="mark">A</div><div><h1>ALTSR</h1><span>Early Crypto Radar</span></div></a>
+    <a class="logo" href="#radar" onclick="route('radar');return false;" title="На радар" aria-label="ALTSR — радар"><div class="mark">A</div><div><h1>ALTSR</h1><span>Early Crypto Radar</span></div></a>
     <nav class="nav" id="nav"></nav>
     <div class="up" id="upsell">
       <b id="upTitle">Открой весь радар</b>
@@ -967,6 +967,21 @@ function drawGraph(){
 
 /* ============ Token Intelligence drawer ============ */
 let TOKMAP={};TOKENS.forEach(t=>TOKMAP[t.s]=t);
+let VENUES={};   // symbol(upper) -> [{name,type,url}] реальные ссылки на DEX/обозреватель из сигнала
+function buyLinks(sym, t){
+  const V=VENUES[(sym||'').toUpperCase()];
+  let items=[];
+  if(V&&V.length){ items=V.filter(v=>v&&v.url).map(v=>[v.name,v.url]); }
+  else if(t&&t.addr&&t.chainRaw){
+    const ch=(t.chainRaw||'').toLowerCase(), a=t.addr;
+    const ds='https://dexscreener.com/'+ch+'/'+a;
+    const swap=ch==='solana'?'https://jup.ag/swap/SOL-'+a:ch==='bsc'?'https://pancakeswap.finance/swap?outputCurrency='+a:'https://app.uniswap.org/#/swap?outputCurrency='+a;
+    items=[['DexScreener',ds],[ch==='solana'?'Jupiter':ch==='bsc'?'PancakeSwap':'Uniswap',swap]];
+  } else {
+    items=[['DexScreener (поиск)','https://dexscreener.com/search?q='+encodeURIComponent(sym||'')]];
+  }
+  return items.map(it=>`<div class="venue"><span>${esc(it[0])}</span><a href="${esc(it[1])}" target="_blank" rel="noopener">Открыть ↗</a></div>`).join('');
+}
 function synthTok(sym){return {s:sym,c:'base · 7 мин',v:'pass',r:'LP locked · Mint revoked',risk:18,conf:'94%',liq:'$88K'};}
 function openTok(sym){
   const t=TOKMAP[sym]||synthTok(sym);
@@ -1000,9 +1015,8 @@ function openTok(sym){
         <button class="btn" style="width:100%" onclick="(async function(){var a=+document.getElementById('pbAmt').value||0;if(await paperBuy('${t.s}',a)){applyUI();route('portfolio');closeDrawer();}else{alert('Недостаточно средств или неверная сумма');}})()">Купить «${t.s}» на бумаге</button>`
       :`<div class="muted" style="font-size:13px;line-height:1.5">Бумажный счёт ещё не открыт. Откройте его в <b class="accc" style="cursor:pointer" onclick="closeDrawer();route('portfolio')">Портфеле</b> — и покупайте токены без реальных денег.</div>`}
     </div>
-    <div class="sect"><h4>Где купить</h4>
-      <div class="venue"><span>Uniswap</span><a onclick="event.preventDefault()">Открыть своп ↗</a></div>
-      <div class="venue"><span>Jupiter</span><a onclick="event.preventDefault()">Открыть своп ↗</a></div></div>
+    <div class="sect"><h4>Где купить</h4>${buyLinks(t.s,t)}
+      <div class="muted" style="font-size:11px;margin-top:8px">Ссылки ведут на внешние DEX и обозреватели (как в Telegram). Это не рекомендация — проверяй контракт сам.</div></div>
     <div class="sect" style="color:var(--dim);font-size:11.5px">Не инвест-рекомендация. PASS ≠ «вырастет». DYOR.</div>`;
   document.getElementById('drawer').classList.add('on');
   document.getElementById('drawerBk').classList.add('on');
@@ -1051,8 +1065,11 @@ async function loadReal(){
     const sg=await (await fetch('/api/signals?limit=12',{cache:'no-store'})).json();
     const toks=(tk.items||[]).filter(x=>x.symbol).slice(0,12).map(x=>{const v=(x.verdict||'review').toLowerCase();
       return {s:x.symbol,c:x.chain+' · '+ageTxt(x.created_at),v:v,r:reasonOf(v),risk:x.risk_score||0,
-        conf:x.signal_confidence!=null?Math.round(x.signal_confidence*100)+'%':'—',liq:shortN(x.liquidity_usd)};});
+        conf:x.signal_confidence!=null?Math.round(x.signal_confidence*100)+'%':'—',liq:shortN(x.liquidity_usd),
+        addr:x.address||null,chainRaw:x.chain||null};});
     if(toks.length){TOKENS=toks;TOKMAP={};TOKENS.forEach(t=>TOKMAP[t.s]=t);}
+    // реальные ссылки «где купить» из сигналов (как в Telegram-боте)
+    VENUES={};(sg.items||[]).forEach(x=>{if(x.symbol&&x.venues&&x.venues.length)VENUES[x.symbol.toUpperCase()]=x.venues;});
     const dexBy={bsc:'PancakeSwap',base:'Uniswap',solana:'Jupiter',ethereum:'Uniswap'};
     const sigs=(sg.items||[]).filter(x=>x.symbol).slice(0,8).map(x=>({n:x.symbol,c:x.chain,dex:dexBy[x.chain]||'DEX',p:(x.side||'BUY')+' '+Math.round((x.confidence||0)*100)+'%'}));
     if(sigs.length){SIGNALS=sigs;EXTRASIG=sigs.slice();}
