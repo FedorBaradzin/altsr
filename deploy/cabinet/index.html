@@ -420,6 +420,15 @@ let KEY='free';
 let IS_ADMIN=false;
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function hx(n){return '#'+n.toString(16).padStart(6,'0');}
+function toast(msg){
+  let c=document.getElementById('cabToasts');
+  if(!c){c=document.createElement('div');c.id='cabToasts';c.style.cssText='position:fixed;bottom:26px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none';document.body.appendChild(c);}
+  const t=document.createElement('div');t.textContent=msg;
+  t.style.cssText='background:#141c30;color:#eef3ff;border:1px solid rgba(130,150,210,.28);border-radius:12px;padding:12px 18px;font-size:13px;line-height:1.4;box-shadow:0 12px 34px rgba(0,0,0,.45);max-width:380px;text-align:center;opacity:0;transition:opacity .2s';
+  c.appendChild(t);requestAnimationFrame(()=>t.style.opacity='1');
+  setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),260);},3400);
+}
+window.toast=toast;
 
 /* ============ user + per-user paper account (starts from 0) ============ */
 let USERID='demo', USERNAME='Гость', USEREMAIL='';
@@ -1012,7 +1021,7 @@ function openTok(sym){
     <div class="sect"><h4>Бумажная сделка</h4>
       ${PAPER?`<div class="field" style="border:0;padding:0 0 10px"><div class="lab">Сумма входа <small>свободно ${fmtMoney(PAPER.cash)}</small></div>
         <input id="pbAmt" class="inp" value="100" inputmode="numeric" style="min-width:120px;text-align:right"></div>
-        <button class="btn" style="width:100%" onclick="(async function(){var a=+document.getElementById('pbAmt').value||0;if(await paperBuy('${t.s}',a)){applyUI();route('portfolio');closeDrawer();}else{alert('Недостаточно средств или неверная сумма');}})()">Купить «${t.s}» на бумаге</button>`
+        <button class="btn" style="width:100%" onclick="(async function(){var a=+document.getElementById('pbAmt').value||0;if(a<1){toast('Введите сумму больше 0');return;}if(await paperBuy('${t.s}',a)){applyUI();route('portfolio');closeDrawer();toast('Куплено на бумаге: ${t.s} · '+fmtMoney(a));}else{toast('Свободно '+fmtMoney(PAPER?PAPER.cash:0)+'. Бот занял бумажный счёт — уменьши сумму или сбрось счёт в Портфеле.');}})()">Купить «${t.s}» на бумаге</button>`
       :`<div class="muted" style="font-size:13px;line-height:1.5">Бумажный счёт ещё не открыт. Откройте его в <b class="accc" style="cursor:pointer" onclick="closeDrawer();route('portfolio')">Портфеле</b> — и покупайте токены без реальных денег.</div>`}
     </div>
     <div class="sect"><h4>Где купить</h4>${buyLinks(t.s,t)}
@@ -1059,7 +1068,7 @@ addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});
 function ageTxt(iso){const m=Math.max(0,Math.round((Date.now()-new Date(iso))/60000));return m<60?m+' мин':Math.round(m/60)+' ч';}
 function shortN(n){if(n==null)return '—';if(n>=1e6)return '$'+(n/1e6).toFixed(1)+'M';if(n>=1e3)return '$'+Math.round(n/1e3)+'K';return '$'+Math.round(n);}
 function reasonOf(v){return v==='block'?'Высокий риск · отброшен':v==='review'?'Часть проверок не подтверждена':'Анти-скам проверки пройдены';}
-async function loadReal(){
+async function loadReal(poll){
   try{
     const tk=await (await fetch('/api/tokens?limit=40',{cache:'no-store'})).json();
     const sg=await (await fetch('/api/signals?limit=12',{cache:'no-store'})).json();
@@ -1075,7 +1084,10 @@ async function loadReal(){
     if(sigs.length){SIGNALS=sigs;EXTRASIG=sigs.slice();}
     realSig=String(sg.total!=null?sg.total:sigs.length);
     realPass=String((tk.items||[]).filter(x=>x.verdict==='PASS').length);
-    applyUI(); if(VIEW!=='radar')route(VIEW);
+    const _dr=document.getElementById('drawer')&&document.getElementById('drawer').classList.contains('on');
+    applyUI();
+    if(poll){ if(!_dr && (VIEW==='radar'||VIEW==='signals')) route(VIEW); }
+    else if(VIEW!=='radar'){ route(VIEW); }
     document.getElementById('liveTxt')&&(document.getElementById('liveTxt').textContent='живые данные · ДЕМО-счёт');
   }catch(e){/* offline → demo data stays */}
 }
@@ -1109,6 +1121,7 @@ PAPER=loadPaper();   // demo/guest account until auth resolves to a real user
 applyUI();
 initGL();
 loadReal();
+setInterval(()=>loadReal(true), 20000);   // живое обновление ленты, как уведомления в Telegram
 initAuth();
 if(WEBGL){applyScene();reduce?frame():requestAnimationFrame(frame);
   // click orbs → open token drawer
