@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import get_settings
@@ -20,22 +20,31 @@ router = APIRouter(prefix="/api/public", tags=["public"])
 
 
 async def _owner_account(session: AsyncSession) -> UserPaperAccount | None:
-    """Счёт владельца = первый идентификатор из ADMIN_IDENTIFIERS (обычно e-mail)."""
+    """Счёт владельца: первый из ADMIN_IDENTIFIERS (email или subject), у кого
+    реально открыт бумажный счёт. Идентификаторов может быть несколько, а счёт —
+    только у одного из них, поэтому перебираем всех админов."""
     ids = get_settings().admin_identifier_list
     if not ids:
         return None
-    user = (
+    users = (
         await session.execute(
-            select(User).where(func.lower(User.email) == ids[0])
+            select(User).where(
+                or_(
+                    func.lower(User.email).in_(ids),
+                    func.lower(User.subject).in_(ids),
+                )
+            )
         )
-    ).scalar_one_or_none()
-    if user is None:
-        return None
-    return (
-        await session.execute(
-            select(UserPaperAccount).where(UserPaperAccount.user_id == user.id)
-        )
-    ).scalar_one_or_none()
+    ).scalars().all()
+    for u in users:
+        acc = (
+            await session.execute(
+                select(UserPaperAccount).where(UserPaperAccount.user_id == u.id)
+            )
+        ).scalar_one_or_none()
+        if acc is not None:
+            return acc
+    return None
 
 
 @router.get("/paper")
