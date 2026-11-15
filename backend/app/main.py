@@ -20,6 +20,7 @@ from .api.autotrade import router as autotrade_router
 from .api.investors import admin_router as investors_admin_router
 from .api.investors import router as investors_router
 from .api.paper import router as paper_router
+from .api.public_stats import router as public_stats_router
 from .api.signals import router as signals_router
 from .api.telegram import router as telegram_router
 from .api.telegram import webhook_secret
@@ -88,6 +89,7 @@ app.include_router(tokens_router)
 app.include_router(signals_router)
 app.include_router(paper_router)
 app.include_router(user_paper_router)
+app.include_router(public_stats_router)
 app.include_router(telegram_router)
 app.include_router(autotrade_router)
 app.include_router(investors_router)
