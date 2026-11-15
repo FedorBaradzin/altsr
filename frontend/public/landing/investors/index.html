@@ -28,8 +28,8 @@ section{position:relative}
 .nav{position:fixed;top:0;left:0;right:0;z-index:50;backdrop-filter:blur(14px);background:rgba(8,11,8,.72);border-bottom:1px solid transparent;transition:border-color .3s,background .3s}
 .nav.scrolled{border-color:var(--line);background:rgba(8,11,8,.9)}
 .nav-in{display:flex;align-items:center;gap:26px;height:68px;max-width:var(--wrap);margin:0 auto;padding:0 28px}
-.logo{display:flex;align-items:center;gap:11px;cursor:pointer}
-.logo .mk{width:34px;height:34px}
+.logo{display:flex;align-items:center;gap:11px;cursor:pointer;flex:none}
+.logo .mk{width:34px;height:34px;flex:none}
 .logo b{font-family:var(--disp);font-weight:700;font-size:20px;letter-spacing:.02em}
 .logo .v2{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--lime);border:1px solid var(--line);border-radius:7px;padding:2px 7px}
 .nav-links{display:flex;gap:4px;margin-left:12px}
@@ -198,10 +198,25 @@ footer{border-top:1px solid var(--line);padding:50px 0 40px;margin-top:40px}
 
 @media(max-width:1000px){
   .nav-links,.langs{display:none}.navtog{display:inline-flex}
-  .hero-grid{grid-template-columns:1fr;gap:10px}.scene-hold{height:360px;order:-1;margin-bottom:10px}
+  .hero{padding:104px 0 48px;min-height:auto}
+  .hero-grid{grid-template-columns:1fr;gap:18px}
+  .scene-hold{height:370px;order:0;margin-top:8px}
   .stats{grid-template-columns:repeat(2,1fr)}.stat{border-right:0;border-bottom:1px solid var(--line)}
   .cards3,.tiers{grid-template-columns:1fr}.scen{grid-template-columns:1fr}.mk4{grid-template-columns:1fr}
   .opts{grid-template-columns:1fr}.barrow .bl{width:150px;flex-basis:150px}
+}
+@media(max-width:600px){
+  .nav-in{gap:10px;padding:0 14px;height:60px}
+  .nav-right{gap:8px}
+  .nav-right .btn-ghost{display:none}
+  .btn-lime{padding:9px 13px;font-size:13px}
+  .logo b{font-size:17px}.logo .v2{display:none}
+  .hero{padding:88px 0 40px}
+  h1.head{font-size:clamp(33px,8.8vw,44px);margin-bottom:18px}
+  .sub{margin-bottom:24px}.eyebrow{gap:12px;margin-bottom:18px}
+  .cta-row .btn{padding:13px 20px;font-size:14px}
+  .scene-hold{height:340px}
+  .tok{padding:9px 13px}.tok .nm{font-size:14px}.tok .pl{font-size:14px}.tok .ic{width:30px;height:30px}
 }
 @media(max-width:560px){ .wrap{padding:0 18px} .sec{padding:70px 0} .stats{grid-template-columns:1fr} .facts{gap:14px} }
 </style>
