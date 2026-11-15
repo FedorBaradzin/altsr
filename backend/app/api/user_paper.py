@@ -40,6 +40,14 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+# Предохранитель оценки: даже реальная цена с DEX иногда бьётся (микро-цена входа
+# у свежей монеты, смена пула, глитч агрегатора) и даёт абсурдный множитель
+# вроде 43000x. Режем множитель в разумный диапазон, чтобы одна битая котировка
+# не рисовала миллионы на бумажном счёте. 50x = максимум +4900% на позицию.
+_MAX_RATIO = 50.0
+_MIN_RATIO = 0.0
+
+
 def _factor(pos: UserPaperPosition) -> float:
     """Legacy-оценка: детерминированная формула (для позиций без реальной цены)."""
     opened = pos.opened_at
@@ -65,7 +73,7 @@ def _ratio(pos: UserPaperPosition, price_map: dict[tuple[str, str], float]) -> f
     if pos.address and pos.entry_price and pos.entry_price > 0:
         cur = price_map.get((pos.chain.lower(), pos.address.lower()))
         if cur and cur > 0:
-            return cur / pos.entry_price
+            return max(_MIN_RATIO, min(cur / pos.entry_price, _MAX_RATIO))
     return _factor(pos)
 
 

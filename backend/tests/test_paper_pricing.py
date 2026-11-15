@@ -44,3 +44,40 @@ async def test_fetch_prices_missing_token_absent_from_result():
     http = _FakeHttp({"pairs": []})
     out = await pricing.fetch_prices_usd(http, "http://x", {("base", "0xZZZ")})
     assert ("base", "0xzzz") not in out
+
+
+# --- предохранитель оценки (_ratio clamp): битая цена не рисует миллионы ---
+
+class _Pos:
+    def __init__(self, chain, address, entry_price, amount_usd=100.0,
+                 bias=0.0, seed=0.0):
+        self.chain = chain
+        self.address = address
+        self.entry_price = entry_price
+        self.amount_usd = amount_usd
+        self.bias = bias
+        self.seed = seed
+        import datetime as _dt
+        self.opened_at = _dt.datetime.now(_dt.timezone.utc)
+
+
+def test_ratio_clamps_absurd_glitch():
+    from app.api.user_paper import _ratio, _MAX_RATIO
+    # вход почти ноль (микро-монета), текущая нормальная -> множитель ~1e6
+    pos = _Pos("solana", "AbC", entry_price=1e-10)
+    r = _ratio(pos, {("solana", "abc"): 0.0004})
+    assert r == _MAX_RATIO, f"ожидали кап {_MAX_RATIO}, получили {r}"
+
+
+def test_ratio_normal_pass_through():
+    from app.api.user_paper import _ratio
+    pos = _Pos("solana", "AbC", entry_price=1.0)
+    r = _ratio(pos, {("solana", "abc"): 1.6})
+    assert abs(r - 1.6) < 1e-9
+
+
+def test_ratio_floor_non_negative():
+    from app.api.user_paper import _ratio
+    pos = _Pos("solana", "AbC", entry_price=1.0)
+    r = _ratio(pos, {("solana", "abc"): 0.0})  # cur<=0 -> падаем в legacy, не минус
+    assert r >= 0.0
