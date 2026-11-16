@@ -61,17 +61,24 @@ def test_top_holder_50_to_90_is_warning():
     assert "holder_concentration_extreme" in _codes(r)
 
 
-def test_top_holder_over_90_hard_block():
-    # Почти весь объём у одного адреса (>90%) → критический риск → BLOCK.
+def test_top_holder_over_90_is_warning_not_block():
+    # Почти весь объём у одного адреса (>90%) — у свежих токенов это бондинг-кривая,
+    # а не доказанный скам → сильное ПРЕДУПРЕЖДЕНИЕ (REVIEW), не красный BLOCK.
     r = evaluate(_clean_evm(top_holder_pct=0.95))
-    assert r.verdict == "BLOCK"
+    assert r.verdict == "REVIEW"
     assert "holder_concentration_extreme" in _codes(r)
 
 
 def test_concentration_plus_unlocked_lp_blocks():
-    # Высокая концентрация (50–90%) + незалоченный LP в сумме → BLOCK (реально rug-ready).
+    # Высокая концентрация + незалоченный LP в сумме → BLOCK (реально rug-ready).
     r = evaluate(_clean_evm(top_holder_pct=0.62, lp_locked=False))
     assert r.verdict == "BLOCK"
+
+
+def test_concentration_stays_warning_but_real_scam_blocks():
+    # Даже ~100% концентрация сама по себе → REVIEW; honeypot → BLOCK.
+    assert evaluate(_clean_evm(top_holder_pct=0.99)).verdict == "REVIEW"
+    assert evaluate(_clean_evm(top_holder_pct=0.99, is_honeypot=True)).verdict == "BLOCK"
 
 
 def test_owner_change_balance_hard_block():
