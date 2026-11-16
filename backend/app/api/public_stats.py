@@ -68,3 +68,38 @@ async def public_paper(session: AsyncSession = Depends(get_session)) -> dict:
         "losses": len(out.trades) - wins,
         "realized_pnl": realized,
     }
+
+
+@router.get("/radar")
+async def public_radar(session: AsyncSession = Depends(get_session)) -> dict:
+    """Публичная статистика работы радара для лендинга (реальные агрегаты).
+
+    Честные счётчики: сколько монет отслежено, за 24ч, анти-скам проверок,
+    пойманных скам-токенов и прошедших проверку (PASS). Без демо-формул.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from ..models import SafetyReport, Token
+
+    async def _count(stmt):
+        return int((await session.execute(stmt)).scalar_one() or 0)
+
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    tokens_total = await _count(select(func.count()).select_from(Token))
+    tokens_24h = await _count(
+        select(func.count()).select_from(Token).where(Token.discovered_at >= cutoff)
+    )
+    checks_total = await _count(select(func.count()).select_from(SafetyReport))
+    scams_blocked = await _count(
+        select(func.count()).select_from(SafetyReport).where(SafetyReport.verdict == "BLOCK")
+    )
+    clean_pass = await _count(
+        select(func.count()).select_from(SafetyReport).where(SafetyReport.verdict == "PASS")
+    )
+    return {
+        "tokens_total": tokens_total,
+        "tokens_24h": tokens_24h,
+        "checks_total": checks_total,
+        "scams_blocked": scams_blocked,
+        "clean_pass": clean_pass,
+    }
