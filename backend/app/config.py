@@ -209,6 +209,13 @@ class Settings(BaseSettings):
     # Рост налога на продажу (абсолютные проценты) считается критическим изменением.
     paper_sell_tax_jump_pct: float = Field(default=5.0, alias="PAPER_SELL_TAX_JUMP_PCT")
 
+    # --- Анти-скам гейт входа автотрейда ---
+    # Не входить в токены с плохим вердиктом безопасности (меньше, но качественнее сделок).
+    # BLOCK = доказанный скам → всегда пропускаем. REVIEW = не подтверждён → пропускаем по
+    # умолчанию. Токены без отчёта (ещё не сканированы) и PASS — входим.
+    paper_skip_block_safety: bool = Field(default=True, alias="PAPER_SKIP_BLOCK_SAFETY")
+    paper_skip_review_safety: bool = Field(default=True, alias="PAPER_SKIP_REVIEW_SAFETY")
+
     # --- Reviewer (T6) — пост-трейд разбор + авто-блеклист ---
     # Мастер-гейт: включает учёт блеклиста на входе executor. Консервативно OFF.
     reviewer_enabled: bool = Field(default=False, alias="REVIEWER_ENABLED")
