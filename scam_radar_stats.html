@@ -1,28 +1,39 @@
-<script>/*altsr-nebula-radar-v1*/
+<script>/*altsr-nebula-radar-v2*/
 (function(){
   if(window.__altsrNebRadar)return; window.__altsrNebRadar=1;
-  // Витрина работы радара вместо вымышленной «прибыли». Реальные агрегаты из
-  // /api/public/radar. realpaper-v2 и движок анимации отключены в разметке, поэтому
-  // борьбы за DOM нет — просто держим честные значения.
+  // Живая витрина радара. Числа анимируются в реальном времени, но только между
+  // РЕАЛЬНЫМИ значениями из /api/public/radar (частый ре-синк) — ничего не выдумываем.
   var L=['Монет на радаре','Отслежено за 24ч','Анти-скам проверок','Скам-токенов поймано','Чистых (PASS)'];
-  var V=['—','—','—','—','—'];
-  function fmt(n){try{return Number(n).toLocaleString('ru-RU').replace(/ /g,' ').replace(/,/g,' ');}catch(e){return String(n);}}
+  var KEYS=['tokens_total','tokens_24h','checks_total','scams_blocked','clean_pass'];
+  var target=[0,0,0,0,0], shown=[0,0,0,0,0], got=false;
+  function fmt(n){try{return Math.round(n).toLocaleString('ru-RU').replace(/ /g,' ').replace(/,/g,' ');}catch(e){return String(Math.round(n));}}
   function leaf(re){return [].slice.call(document.querySelectorAll('*')).find(function(e){return e.children.length===0&&re.test(e.textContent);});}
-  function paint(){
+  function labels(){
     var r=window.__alnpRU; if(r){r.labels=L;r.sech='Радар в цифрах';r.demo='РАДАР';}
     var cells=document.querySelectorAll('.alnp-strip .alnp-cell');
-    if(cells.length>=5){for(var i=0;i<5;i++){var l=cells[i].querySelector('.alnp-l'),v=cells[i].querySelector('.alnp-v');if(l&&l.textContent!==L[i])l.textContent=L[i];if(v&&v.textContent!==V[i])v.textContent=V[i];}}
+    for(var i=0;i<5&&i<cells.length;i++){var l=cells[i].querySelector('.alnp-l');if(l&&l.textContent!==L[i])l.textContent=L[i];}
     var h=leaf(/Цифры прибыли/); if(h)h.textContent='Радар в цифрах';
     var lv=leaf(/теперь живые/); if(lv)lv.textContent='за всё время';
     var d=[].slice.call(document.querySelectorAll('*')).find(function(e){return e.children.length===0&&e.textContent.trim()==='ДЕМО';}); if(d)d.textContent='РАДАР';
   }
+  function anim(){
+    var cells=document.querySelectorAll('.alnp-strip .alnp-v');
+    for(var i=0;i<5&&i<cells.length;i++){
+      if(got){var diff=target[i]-shown[i]; shown[i]=Math.abs(diff)<1?target[i]:shown[i]+diff*0.12;}
+      var t=got?fmt(shown[i]):'—';
+      if(cells[i].textContent!==t)cells[i].textContent=t;
+    }
+    requestAnimationFrame(anim);
+  }
   function load(){
     fetch('/api/public/radar',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
       if(!j)return;
-      V=[fmt(j.tokens_total),fmt(j.tokens_24h),fmt(j.checks_total),fmt(j.scams_blocked),fmt(j.clean_pass)];
-      paint();
+      for(var i=0;i<5;i++){var nv=Number(j[KEYS[i]])||0; if(!got)shown[i]=nv; target[i]=nv;}
+      got=true;
     }).catch(function(){});
   }
-  load(); setInterval(load,30000); setInterval(paint,1000);
+  labels(); setInterval(labels,1000);
+  load(); setInterval(load,5000);
+  requestAnimationFrame(anim);
 })();
 </script>
