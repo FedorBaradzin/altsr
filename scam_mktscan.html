@@ -1,0 +1,47 @@
+<script>/*altsr-mktscan-v1*/
+(function(){
+  if(window.__altsrMkt)return; window.__altsrMkt=1;
+  // Верхний блок «Сканирование рынка»: подключаем к реальным данным /api/public/radar,
+  // убираем вымышленные проценты роста и демо-заработок (заменён на реальный счётчик).
+  var MAP=[
+    {lab:'Пулов за 24ч', key:'tokens_24h'},
+    {lab:'Токенов проанализ', key:'checks_total'},
+    {lab:'Прошли проверку', key:'clean_pass'},
+    {lab:'Активных сигналов', key:'active_signals'},
+    {lab:'Заработок по сигналам', key:'scams_blocked', relabel:'Скам-токенов отсеяно'}
+  ];
+  var data=null, stats=null;
+  function fmt(n){try{return Math.round(n).toLocaleString('ru-RU').replace(/ /g,' ').replace(/,/g,' ');}catch(e){return String(n);}}
+  function statFor(labStart){
+    var mks=[].slice.call(document.querySelectorAll('.mk'));
+    for(var i=0;i<mks.length;i++){
+      if(mks[i].textContent.indexOf(labStart)>=0){
+        var stat=mks[i].parentElement;
+        var spans=[].slice.call(mks[i].querySelectorAll('span')).filter(function(sp){return !sp.classList.contains('delta');});
+        return {num:stat.querySelector('.num'), label:spans[0]||mks[i], delta:mks[i].querySelector('.delta')};
+      }
+    }
+    return null;
+  }
+  function bind(){ var arr=[]; for(var i=0;i<MAP.length;i++){var s=statFor(MAP[i].lab); if(!s||!s.num)return null; arr.push(s);} return arr; }
+  function paint(){
+    if(!data)return;
+    if(stats && (!stats[0].num||!document.contains(stats[0].num))) stats=null;
+    if(!stats)stats=bind();
+    if(!stats)return;
+    for(var i=0;i<MAP.length;i++){
+      var s=stats[i], m=MAP[i];
+      var v=fmt(data[m.key]);
+      if(s.num&&s.num.textContent!==v)s.num.textContent=v;
+      if(s.delta&&s.delta.textContent)s.delta.textContent='';
+      if(m.relabel&&s.label&&s.label.textContent!==m.relabel)s.label.textContent=m.relabel;
+    }
+    var dl=[].slice.call(document.querySelectorAll('*')).find(function(e){return e.children.length===0&&/демо-данные/.test(e.textContent);});
+    if(dl)dl.textContent=dl.textContent.replace('демо-данные','в реальном времени');
+    var dc=[].slice.call(document.querySelectorAll('*')).find(function(e){return e.children.length===0&&e.textContent.trim()==='DEMO';});
+    if(dc)dc.textContent='LIVE';
+  }
+  function load(){ fetch('/api/public/radar',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){data=j;paint();}).catch(function(){}); }
+  load(); setInterval(load,5000); setInterval(paint,1000);
+})();
+</script>

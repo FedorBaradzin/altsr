@@ -79,7 +79,7 @@ async def public_radar(session: AsyncSession = Depends(get_session)) -> dict:
     """
     from datetime import datetime, timedelta, timezone
 
-    from ..models import SafetyReport, Token
+    from ..models import SafetyReport, Signal, Token
 
     async def _count(stmt):
         return int((await session.execute(stmt)).scalar_one() or 0)
@@ -96,10 +96,12 @@ async def public_radar(session: AsyncSession = Depends(get_session)) -> dict:
     clean_pass = await _count(
         select(func.count()).select_from(SafetyReport).where(SafetyReport.verdict == "PASS")
     )
+    active_signals = await _count(select(func.count()).select_from(Signal))
     return {
         "tokens_total": tokens_total,
         "tokens_24h": tokens_24h,
         "checks_total": checks_total,
         "scams_blocked": scams_blocked,
         "clean_pass": clean_pass,
+        "active_signals": active_signals,
     }
