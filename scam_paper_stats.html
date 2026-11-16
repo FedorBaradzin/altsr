@@ -1,0 +1,38 @@
+<script>/*altsr-scw-paper-v1*/
+(function(){
+  if(window.__altsrSCWpaper)return; window.__altsrSCWpaper=1;
+  // Плитки «Paper-доходность» и «Win-rate» показывали захардкоженные ДЕМО-значения.
+  // Тянем правду из боевого движка /api/paper/summary и держим её свежей.
+  function tileV(sub){
+    var l=[].slice.call(document.querySelectorAll('.l')).find(function(e){
+      return e.textContent.replace(/\s+/g,' ').indexOf(sub)>=0;
+    });
+    if(!l||!l.parentElement)return null;
+    return l.parentElement.querySelector('.v');
+  }
+  function fmtSigned(x){ return (x>=0?'+':'−')+Math.abs(x).toFixed(1)+'%'; }
+  function apply(s){
+    if(!s)return;
+    var rv=tileV('доходность'); // "доходность"
+    if(rv && typeof s.return_pct==='number'){
+      rv.textContent=fmtSigned(s.return_pct);
+      rv.style.setProperty('color', s.return_pct>=0?'#2ec9a0':'#ff5d6c','important');
+    }
+    var wv=tileV('Win-rate');
+    if(wv && typeof s.win_rate==='number'){
+      wv.textContent=(s.win_rate*100).toFixed(1)+'%';
+    }
+  }
+  var last=null;
+  function refresh(){
+    fetch('/api/paper/summary',{cache:'no-store'})
+      .then(function(r){return r.json();})
+      .then(function(s){ last=s; apply(s); })
+      .catch(function(){});
+  }
+  refresh();
+  setInterval(refresh,30000);
+  // перекрываем возможные перерисовки кабинета своим правдивым значением
+  setInterval(function(){ if(last)apply(last); },2500);
+})();
+</script>
