@@ -88,6 +88,9 @@ class Settings(BaseSettings):
     # Сколько токенов скринить за один тик screener-воркера.
     screen_batch_size: int = Field(default=20, alias="SCREEN_BATCH_SIZE")
     screen_interval_seconds: int = Field(default=15, alias="SCREEN_INTERVAL_SECONDS")
+    # Сколько REVIEW-токенов дополнительно ПЕРЕ-скринить за тик (поднять «мало данных»
+    # до настоящего вердикта; 0 = выключить пере-скрининг).
+    screen_rescreen_per_cycle: int = Field(default=6, alias="SCREEN_RESCREEN_PER_CYCLE")
 
     # --- Cross-source (T10) ---
     # Кросс-проверка сигналов между независимыми источниками для роста доверия.

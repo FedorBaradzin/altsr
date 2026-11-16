@@ -140,3 +140,22 @@ async def unscored_tokens(session: AsyncSession, limit: int) -> list[Token]:
         .limit(limit)
     )
     return list((await session.execute(stmt)).scalars().all())
+
+
+async def stale_review_tokens(session: AsyncSession, limit: int) -> list[Token]:
+    """Токены с вердиктом REVIEW, дольше всего не перепроверявшиеся — для пере-скрининга.
+
+    REVIEW чаще всего значит «не хватило данных» (провайдер был под rate-limit, или
+    для Solana не было RugCheck). Периодический пере-скрининг поднимает их до настоящего
+    вердикта PASS/BLOCK — именно так радар начинает ЛОВИТЬ скам, а не висеть в REVIEW.
+    store_result обновляет created_at, поэтому перепроверенные уходят в конец очереди —
+    round-robin без застревания.
+    """
+    stmt = (
+        select(Token)
+        .join(SafetyReport, SafetyReport.token_id == Token.id)
+        .where(SafetyReport.verdict == "REVIEW")
+        .order_by(SafetyReport.created_at.asc())
+        .limit(limit)
+    )
+    return list((await session.execute(stmt)).scalars().all())

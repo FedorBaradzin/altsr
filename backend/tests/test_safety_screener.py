@@ -78,6 +78,34 @@ async def test_screen_batch_persists_report(respx_mock):
     assert await screen_batch(settings) == 0
 
 
+async def test_stale_review_tokens_picks_only_review():
+    from datetime import datetime, timezone
+
+    from app.models import SafetyReport, Token
+    from app.safety.screener import stale_review_tokens
+
+    await create_all()
+    async with get_sessionmaker()() as s:
+        await upsert_tokens(s, [
+            NormalizedToken(chain="solana", address="revmint", source="t", symbol="REV"),
+            NormalizedToken(chain="solana", address="passmint", source="t", symbol="GOOD"),
+        ])
+    async with get_sessionmaker()() as s:
+        rows = (await s.execute(select(Token))).scalars().all()
+        now = datetime.now(timezone.utc)
+        for t in rows:
+            v = "REVIEW" if t.address == "revmint" else "PASS"
+            s.add(SafetyReport(token_id=t.id, chain=t.chain, address=t.address,
+                               risk_score=10, verdict=v, red_flags="[]",
+                               findings="{}", sources="goplus", created_at=now))
+        await s.commit()
+    async with get_sessionmaker()() as s:
+        stale = await stale_review_tokens(s, 10)
+    addrs = {t.address for t in stale}
+    assert "revmint" in addrs        # REVIEW picked for re-screen
+    assert "passmint" not in addrs   # PASS left alone
+
+
 @pytest.fixture
 async def client():
     from app.main import app
