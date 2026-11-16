@@ -45,6 +45,17 @@ def test_rugcheck_clean_parse():
     assert evaluate(f).verdict == "PASS"
 
 
+def test_rugcheck_zero_holders_is_unknown():
+    # RugCheck totalHolders=0 means "not computed", not literally zero holders —
+    # must become None so few_holders doesn't fire falsely.
+    f = rugcheck.parse_report("MintZeroHolders", {
+        "mintAuthority": None, "freezeAuthority": None, "rugged": False,
+        "totalHolders": 0, "topHolders": [], "markets": [],
+    })
+    assert f.holder_count is None
+    assert not any(flag.code == "few_holders" for flag in evaluate(f).red_flags)
+
+
 def test_honeypot_is_parse():
     data = load_fixture("honeypot_is_clean.json")
     f = honeypot_is.parse("0xTOKENabc", data)

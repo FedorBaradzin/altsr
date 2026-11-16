@@ -49,10 +49,12 @@ def _fake_result(chain=" evm", address=USDC, verdict="PASS", risk=10, flags=None
     )
 
 
-def _patch_screen(monkeypatch, result=None, counter=None):
-    async def fake(http, settings, chain, address):
+def _patch_screen(monkeypatch, result=None, counter=None, calls=None):
+    async def fake(http, settings, chain, address, **kw):
         if counter is not None:
             counter.append((chain, address))
+        if calls is not None:
+            calls.append({"chain": chain, "address": address, "kw": kw})
         return result or _fake_result(address=address)
     monkeypatch.setattr(scan_mod, "screen_token", fake)
 
@@ -132,8 +134,17 @@ async def test_rate_limit_429(client, monkeypatch):
 
 
 async def test_provider_failure_502(client, monkeypatch):
-    async def boom(http, settings, chain, address):
+    async def boom(http, settings, chain, address, **kw):
         raise RuntimeError("provider down")
     monkeypatch.setattr(scan_mod, "screen_token", boom)
     r = await client.post("/api/scan", json={"chain": "ethereum", "address": USDC})
     assert r.status_code == 502
+
+
+async def test_solana_forces_rugcheck(client, monkeypatch):
+    # on-demand Solana scan must force RugCheck (GoPlus-solana is rate-limited)
+    calls = []
+    _patch_screen(monkeypatch, result=_fake_result(verdict="PASS"), calls=calls)
+    r = await client.post("/api/scan", json={"chain": "solana", "address": SOL_MINT})
+    assert r.status_code == 200
+    assert calls and calls[0]["kw"].get("force_solana_rugcheck") is True

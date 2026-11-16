@@ -164,7 +164,12 @@ async def scan(payload: ScanIn, request: Request) -> dict:
         async with HttpClient(
             timeout=settings.http_timeout_seconds, max_retries=1
         ) as http:
-            result = await screen_token(http, settings, chain, address)
+            # On-demand path: force RugCheck for Solana (GoPlus's free Solana tier
+            # is rate-limited under batch load; RugCheck is fast for a single mint
+            # and is the reliable Solana safety source). Batch screener unaffected.
+            result = await screen_token(
+                http, settings, chain, address, force_solana_rugcheck=True
+            )
     except Exception as exc:  # noqa: BLE001 — внешние провайдеры ненадёжны
         logger.warning("scan: не удалось проверить %s:%s — %s", chain, address, exc)
         raise HTTPException(
