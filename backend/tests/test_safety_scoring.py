@@ -47,16 +47,31 @@ def test_mint_authority_hard_block():
     assert "mint_authority" in _codes(r)
 
 
-def test_unlocked_lp_hard_block():
+def test_unlocked_lp_is_warning_not_block():
+    # Незалоченный LP — ПРЕДУПРЕЖДЕНИЕ (REVIEW), не авто-BLOCK (у свежих токенов структурно).
     r = evaluate(_clean_evm(lp_locked=False))
-    assert r.verdict == "BLOCK"
+    assert r.verdict == "REVIEW"
     assert "lp_unlocked" in _codes(r)
 
 
-def test_top_holder_over_50_hard_block():
+def test_top_holder_50_to_90_is_warning():
+    # Концентрация 50–90% — сильное предупреждение (REVIEW), не BLOCK.
     r = evaluate(_clean_evm(top_holder_pct=0.62))
+    assert r.verdict == "REVIEW"
+    assert "holder_concentration_extreme" in _codes(r)
+
+
+def test_top_holder_over_90_hard_block():
+    # Почти весь объём у одного адреса (>90%) → критический риск → BLOCK.
+    r = evaluate(_clean_evm(top_holder_pct=0.95))
     assert r.verdict == "BLOCK"
     assert "holder_concentration_extreme" in _codes(r)
+
+
+def test_concentration_plus_unlocked_lp_blocks():
+    # Высокая концентрация (50–90%) + незалоченный LP в сумме → BLOCK (реально rug-ready).
+    r = evaluate(_clean_evm(top_holder_pct=0.62, lp_locked=False))
+    assert r.verdict == "BLOCK"
 
 
 def test_owner_change_balance_hard_block():

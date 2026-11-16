@@ -20,8 +20,16 @@ from .base import RedFlag, SafetyFindings, SafetyResult
 SELL_TAX_HARD = 0.15        # >15% налога на продажу → HARD
 TAX_SOFT = 0.05             # 5–15% → SOFT
 BUY_TAX_SOFT = 0.10
-TOP_HOLDER_HARD = 0.50      # топ-1 > 50% → HARD
-TOP_HOLDER_SOFT = 0.25      # 25–50% → SOFT
+TOP_HOLDER_CRITICAL = 0.90  # топ-1 > 90% (почти весь объём у одного) → HARD BLOCK
+TOP_HOLDER_HARD = 0.50      # 50–90% → сильное ПРЕДУПРЕЖДЕНИЕ (soft), не авто-BLOCK
+TOP_HOLDER_SOFT = 0.25      # 25–50% → предупреждение (soft)
+
+# Веса предупреждений (soft). Концентрация 50–90% и незалоченный LP — это риск, но у
+# свежих bonding-curve токенов часто структурный (кривая/пул), а не злой умысел. Поэтому
+# они дают REVIEW (жёлтое предупреждение), а BLOCK — только в сумме или с HARD-флагом.
+CONCENTRATION_HIGH_WEIGHT = 45   # топ-1 50–90%
+CONCENTRATION_MID_WEIGHT = 20    # топ-1 25–50%
+LP_UNLOCKED_WEIGHT = 30
 LOW_HOLDERS = 50
 
 PASS_MAX = 30               # risk < 30 → PASS
@@ -52,13 +60,13 @@ def evaluate(
         red.append(RedFlag("owner_change_balance", "hard",
                            "Владелец может менять балансы кошельков"))
         hard = True
-    if f.top_holder_pct is not None and f.top_holder_pct > TOP_HOLDER_HARD:
+    if f.top_holder_pct is not None and f.top_holder_pct > TOP_HOLDER_CRITICAL:
         red.append(RedFlag("holder_concentration_extreme", "hard",
-                           f"Топ-1 холдер держит {f.top_holder_pct*100:.0f}% (>50%)"))
+                           f"Топ-1 холдер держит {f.top_holder_pct*100:.0f}% — почти весь объём "
+                           f"у одного адреса (критический риск дампа)"))
         hard = True
-    if f.lp_locked is False:
-        red.append(RedFlag("lp_unlocked", "hard", "Ликвидность не залочена (риск вытаскивания LP)"))
-        hard = True
+    # Концентрация 50–90% и незалоченный LP НЕ являются авто-BLOCK — это предупреждения
+    # (soft, ниже), т.к. у свежих токенов это часто структура кривой/пула, а не скам.
     if f.rugged is True:
         red.append(RedFlag("rugged", "hard", "Помечен как rugged источником данных"))
         hard = True
@@ -105,10 +113,20 @@ def evaluate(
         if f.is_true_token is False:
             red.append(RedFlag("fake_token", "soft",
                               "Признан не настоящим токеном (is_true_token=false)", 20))
-        # Концентрация холдеров (не критичная)
-        if f.top_holder_pct is not None and TOP_HOLDER_SOFT < f.top_holder_pct <= TOP_HOLDER_HARD:
+        # Концентрация холдеров — предупреждение (BLOCK только >90%, см. HARD выше).
+        if f.top_holder_pct is not None and f.top_holder_pct > TOP_HOLDER_HARD:
+            red.append(RedFlag("holder_concentration_extreme", "soft",
+                              f"Топ-1 холдер держит {f.top_holder_pct*100:.0f}% (>50%) — "
+                              f"высокий риск дампа", CONCENTRATION_HIGH_WEIGHT))
+        elif f.top_holder_pct is not None and TOP_HOLDER_SOFT < f.top_holder_pct <= TOP_HOLDER_HARD:
             red.append(RedFlag("holder_concentration", "soft",
-                              f"Высокая концентрация: топ-1 {f.top_holder_pct*100:.0f}%", 20))
+                              f"Высокая концентрация: топ-1 {f.top_holder_pct*100:.0f}%",
+                              CONCENTRATION_MID_WEIGHT))
+        # Ликвидность не залочена — предупреждение (риск вытаскивания LP).
+        if f.lp_locked is False:
+            red.append(RedFlag("lp_unlocked", "soft",
+                              "Ликвидность не залочена (риск вытаскивания LP)",
+                              LP_UNLOCKED_WEIGHT))
         # Налоги (не критичные)
         if f.sell_tax is not None and TAX_SOFT < f.sell_tax <= SELL_TAX_HARD:
             red.append(RedFlag("sell_tax", "soft", f"Налог на продажу {f.sell_tax*100:.0f}%", 15))
