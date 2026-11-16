@@ -14,6 +14,7 @@
 """
 from __future__ import annotations
 
+from .allowlist import verified_name
 from .base import RedFlag, SafetyFindings, SafetyResult
 
 # Пороги (вынесены ради тестов/конфигурации).
@@ -45,6 +46,19 @@ def evaluate(
 ) -> SafetyResult:
     red: list[RedFlag] = []
     hard = False
+
+    # ---------- Allowlist проверенных активов ----------
+    # Стейблкоины (USDC/USDT/DAI…) по устройству имеют активную mint/freeze authority и
+    # концентрацию у эмитента — это не скам. Точный матч по адресу контракта → PASS,
+    # минуя скоринг (символ не проверяем — его подделывают, адрес нет).
+    verified = verified_name(f.address)
+    if verified:
+        return SafetyResult(
+            chain=f.chain, address=f.address, risk_score=0, verdict="PASS",
+            red_flags=[RedFlag("verified_asset", "info",
+                              f"Проверенный актив ({verified}) — в allowlist", 0)],
+            findings=f,
+        )
 
     # ---------- HARD-BLOCK ----------
     if f.is_honeypot is True:

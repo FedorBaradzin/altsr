@@ -163,3 +163,37 @@ def test_evm_not_affected_by_solana_rule():
     # EVM с неизвестным LP не трогаем этим правилом (у EVM есть honeypot.is).
     f = _clean_evm(lp_locked=None)
     assert evaluate(f, require_lp_lock_solana=True).verdict == "PASS"
+
+
+# ---------- Allowlist проверенных активов (стейблы) ----------
+
+def test_verified_stablecoin_passes_despite_mint_authority():
+    # USDC (Solana) — активна mint authority по устройству, но это не скам.
+    r = evaluate(SafetyFindings(
+        chain="solana", address="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        mint_authority_active=True, freeze_authority_active=True, top_holder_pct=0.95,
+    ))
+    assert r.verdict == "PASS"
+    assert r.risk_score == 0
+    assert "verified_asset" in _codes(r)
+    assert r.is_malicious is False
+
+
+def test_verified_evm_stable_case_insensitive():
+    # USDC (Ethereum) в верхнем регистре — всё равно должен попасть в allowlist.
+    r = evaluate(SafetyFindings(
+        chain="ethereum", address="0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        mint_authority_active=True,
+    ))
+    assert r.verdict == "PASS"
+    assert "verified_asset" in _codes(r)
+
+
+def test_non_allowlisted_mint_authority_still_blocks():
+    # Обычный токен с активной mint authority — по-прежнему BLOCK.
+    r = evaluate(SafetyFindings(
+        chain="solana", address="SomeRandomMint1111111111111111111111111111",
+        mint_authority_active=True,
+    ))
+    assert r.verdict == "BLOCK"
+    assert "mint_authority" in _codes(r)
