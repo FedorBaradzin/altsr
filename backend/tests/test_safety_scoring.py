@@ -69,9 +69,19 @@ def test_top_holder_over_90_is_warning_not_block():
     assert "holder_concentration_extreme" in _codes(r)
 
 
-def test_concentration_plus_unlocked_lp_blocks():
-    # Высокая концентрация + незалоченный LP в сумме → BLOCK (реально rug-ready).
-    r = evaluate(_clean_evm(top_holder_pct=0.62, lp_locked=False))
+def test_newness_signals_never_sum_to_block():
+    # Все «признаки новизны» вместе (концентрация ~100% + незалоченный LP + мало холдеров)
+    # → максимум REVIEW, НЕ красный BLOCK. Красный — только за доказанный скам.
+    r = evaluate(_clean_evm(top_holder_pct=0.99, lp_locked=False, holder_count=5))
+    assert r.verdict == "REVIEW"
+    assert r.risk_score >= 70  # риск для отображения высокий, но не красный
+
+
+def test_behavioral_flags_sum_to_block():
+    # Поведенческие (не-newness) soft-флаги в сумме → BLOCK.
+    # unverified(25) + tax_modifiable(25) + blacklist(18) + proxy(12) = 80 ≥ 70.
+    r = evaluate(_clean_evm(is_open_source=False, tax_modifiable=True,
+                            can_blacklist=True, is_proxy=True))
     assert r.verdict == "BLOCK"
 
 

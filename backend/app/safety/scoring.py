@@ -87,6 +87,7 @@ def evaluate(
 
     # ---------- SOFT-FLAG (вес в risk_score) ----------
     risk = 0
+    behavioral_risk = 0
     if not hard:
         if f.owner_can_take_ownership is True:
             red.append(RedFlag("takeable_ownership", "soft",
@@ -118,33 +119,36 @@ def evaluate(
             red.append(RedFlag("holder_concentration_extreme", "soft",
                               f"Топ-1 адрес держит {f.top_holder_pct*100:.0f}% — почти весь объём "
                               f"(типично для совсем новых токенов; высокий риск дампа)",
-                              CONCENTRATION_CRIT_WEIGHT))
+                              CONCENTRATION_CRIT_WEIGHT, category="newness"))
         elif f.top_holder_pct is not None and f.top_holder_pct > TOP_HOLDER_HARD:
             red.append(RedFlag("holder_concentration_extreme", "soft",
                               f"Топ-1 холдер держит {f.top_holder_pct*100:.0f}% (>50%) — "
-                              f"высокий риск дампа", CONCENTRATION_HIGH_WEIGHT))
+                              f"высокий риск дампа", CONCENTRATION_HIGH_WEIGHT, category="newness"))
         elif f.top_holder_pct is not None and TOP_HOLDER_SOFT < f.top_holder_pct <= TOP_HOLDER_HARD:
             red.append(RedFlag("holder_concentration", "soft",
                               f"Высокая концентрация: топ-1 {f.top_holder_pct*100:.0f}%",
-                              CONCENTRATION_MID_WEIGHT))
+                              CONCENTRATION_MID_WEIGHT, category="newness"))
         # Ликвидность не залочена — предупреждение (риск вытаскивания LP).
         if f.lp_locked is False:
             red.append(RedFlag("lp_unlocked", "soft",
                               "Ликвидность не залочена (риск вытаскивания LP)",
-                              LP_UNLOCKED_WEIGHT))
+                              LP_UNLOCKED_WEIGHT, category="newness"))
         # Налоги (не критичные)
         if f.sell_tax is not None and TAX_SOFT < f.sell_tax <= SELL_TAX_HARD:
             red.append(RedFlag("sell_tax", "soft", f"Налог на продажу {f.sell_tax*100:.0f}%", 15))
         if f.buy_tax is not None and f.buy_tax > BUY_TAX_SOFT:
             red.append(RedFlag("buy_tax", "soft", f"Налог на покупку {f.buy_tax*100:.0f}%", 12))
-        # LP частично залочен
+        # LP частично залочен — тоже структурный признак (newness).
         if f.lp_locked is True and f.lp_locked_pct is not None and f.lp_locked_pct < 0.5:
             red.append(RedFlag("lp_partial_lock", "soft",
-                              f"LP залочен лишь на {f.lp_locked_pct*100:.0f}%", 15))
-        # Мало холдеров
+                              f"LP залочен лишь на {f.lp_locked_pct*100:.0f}%", 15,
+                              category="newness"))
+        # Мало холдеров — у свежих токенов нормально (newness).
         if f.holder_count is not None and f.holder_count < LOW_HOLDERS:
-            red.append(RedFlag("few_holders", "soft", f"Мало холдеров: {f.holder_count}", 10))
-        # Низкая репутация площадки (GeckoTerminal gt_score) — независимый soft-сигнал.
+            red.append(RedFlag("few_holders", "soft", f"Мало холдеров: {f.holder_count}", 10,
+                              category="newness"))
+        # Низкая репутация площадки (GeckoTerminal gt_score) — у новых токенов низкая по
+        # определению (newness).
         if (
             gecko_min_score is not None
             and f.reputation_score is not None
@@ -153,10 +157,18 @@ def evaluate(
             red.append(RedFlag(
                 "low_reputation", "soft",
                 f"Низкий gt_score GeckoTerminal: {f.reputation_score:.0f} < {gecko_min_score:.0f}",
-                25,
+                25, category="newness",
             ))
 
+        # Полный risk_score — для отображения (все soft-флаги).
         risk = sum(flag.weight for flag in red if flag.severity == "soft")
+        # «Поведенческий» риск — только НЕ-newness soft-флаги. Красный BLOCK по сумме даём
+        # лишь за него: признаки новизны (концентрация/мало холдеров/низкая репутация/
+        # незалоченный LP) сами по себе → максимум REVIEW, а не красный «скам».
+        behavioral_risk = sum(
+            flag.weight for flag in red
+            if flag.severity == "soft" and flag.category != "newness"
+        )
 
     # ---------- Неполнота данных ----------
     unknown = _unknown_signals(f)
@@ -170,10 +182,10 @@ def evaluate(
         risk = max(risk, 90)
     else:
         risk = min(risk, 100)
-        if risk >= BLOCK_MIN:
-            verdict = "BLOCK"
+        if behavioral_risk >= BLOCK_MIN:
+            verdict = "BLOCK"               # доказанно-поведенческий скам по сумме
         elif risk >= PASS_MAX:
-            verdict = "REVIEW"
+            verdict = "REVIEW"              # есть риск (в т.ч. признаки новизны) → предупреждение
         else:
             # Нет данных по честной оценке honeypot/authority → не ставим PASS.
             verdict = "REVIEW" if _cannot_clear(f, require_lp_lock_solana) else "PASS"
