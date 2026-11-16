@@ -153,7 +153,7 @@ async def _seed_signal(address: str, chain: str = "ethereum") -> int:
         ])
         token = res.inserted[0]
         sess.add(Signal(token_id=token.id, chain=chain, address=address, side="BUY",
-                        confidence=0.8, reasons="[]", venues="[]", status="new",
+                        confidence=0.95, reasons="[]", venues="[]", status="new",
                         created_at=datetime.now(timezone.utc)))
         await sess.commit()
         return token.id

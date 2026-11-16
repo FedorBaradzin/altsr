@@ -113,7 +113,7 @@ class Settings(BaseSettings):
     signal_max_risk: int = Field(default=30, alias="SIGNAL_MAX_RISK")
     # Минимальная уверенность сигнала для входа (0..1). Выше порог → меньше,
     # но качественнее входов, меньше просадок.
-    signal_min_confidence: float = Field(default=0.0, alias="SIGNAL_MIN_CONFIDENCE")
+    signal_min_confidence: float = Field(default=0.85, alias="SIGNAL_MIN_CONFIDENCE")
     # Веса динамической части уверенности: краткосрочный моментум (m5/h1),
     # давление покупок и оборот к ликвидности. Повышают ожидаемую ценность и
     # качество ранжирования входов — это НЕ гарантия прибыли (большинство новых
@@ -193,10 +193,12 @@ class Settings(BaseSettings):
     paper_max_positions: int = Field(default=10, alias="PAPER_MAX_POSITIONS")
     paper_daily_loss_limit_usd: float = Field(default=500.0, alias="PAPER_DAILY_LOSS_LIMIT_USD")
     paper_hard_stop_pct: float = Field(default=0.25, alias="PAPER_HARD_STOP_PCT")
-    paper_arm_after_profit_pct: float = Field(default=0.20, alias="PAPER_ARM_AFTER_PROFIT_PCT")
-    paper_trailing_stop_pct: float = Field(default=0.08, alias="PAPER_TRAILING_STOP_PCT")
-    paper_take_profit_x: float = Field(default=2.0, alias="PAPER_TAKE_PROFIT_X")
-    paper_take_profit_fraction: float = Field(default=0.5, alias="PAPER_TAKE_PROFIT_FRACTION")
+    paper_arm_after_profit_pct: float = Field(default=0.12, alias="PAPER_ARM_AFTER_PROFIT_PCT")
+    paper_trailing_stop_pct: float = Field(default=0.06, alias="PAPER_TRAILING_STOP_PCT")
+    # Реалистичный тейк для мемов: +100% (2x) за всю историю взяла 1 сделка из 115,
+    # а +30% доходили 17 — поэтому фиксируем бóльшую часть на +35%, остаток ведём трейлингом.
+    paper_take_profit_x: float = Field(default=1.35, alias="PAPER_TAKE_PROFIT_X")
+    paper_take_profit_fraction: float = Field(default=0.7, alias="PAPER_TAKE_PROFIT_FRACTION")
     paper_stall_minutes: int = Field(default=15, alias="PAPER_STALL_MINUTES")
     paper_max_hold_minutes: int = Field(default=240, alias="PAPER_MAX_HOLD_MINUTES")
     paper_cost_pct: float = Field(default=0.01, alias="PAPER_COST_PCT")  # издержки на сторону

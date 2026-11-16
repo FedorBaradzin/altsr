@@ -31,7 +31,7 @@ async def _seed_signal(address="0xtokenabc", chain="ethereum"):
         ])
         token = res.inserted[0]
         s.add(Signal(token_id=token.id, chain=chain, address=address, side="BUY",
-                     confidence=0.8, reasons="[]", venues="[]", status="new",
+                     confidence=0.95, reasons="[]", venues="[]", status="new",
                      created_at=datetime.now(timezone.utc)))
         await s.commit()
         return token.id
@@ -84,7 +84,7 @@ async def test_partial_take_profit():
     async with get_sessionmaker()() as sess:
         pos = (await sess.execute(select(PaperPosition))).scalar_one()
         assert pos.tp_taken is True
-        assert abs(pos.remaining_fraction - 0.5) < 1e-9
+        assert abs(pos.remaining_fraction - 0.3) < 1e-9  # tp_fraction 0.7 → остаток 0.3
         assert pos.realized_pnl_usd > 0  # зафиксировали прибыль на части
 
 
@@ -200,3 +200,23 @@ async def test_gate_allows_unscreened_token():
         opened = await open_from_signals(sess, s, _price_fn(1.0), datetime.now(timezone.utc))
         await sess.commit()
     assert opened == 1
+
+
+async def test_low_confidence_signal_is_skipped():
+    # Сигнал с уверенностью ниже порога (0.85) не входит.
+    await create_all()
+    async with get_sessionmaker()() as s:
+        res = await upsert_tokens(s, [
+            NormalizedToken(chain="solana", address="LowConfMint111111111111111111111111111111",
+                            source="t", symbol="LOWC")
+        ])
+        tok = res.inserted[0]
+        s.add(Signal(token_id=tok.id, chain="solana", address="LowConfMint111111111111111111111111111111",
+                     side="BUY", confidence=0.70, reasons="[]", venues="[]", status="new",
+                     created_at=datetime.now(timezone.utc)))
+        await s.commit()
+    st = get_settings()
+    async with get_sessionmaker()() as sess:
+        opened = await open_from_signals(sess, st, _price_fn(1.0), datetime.now(timezone.utc))
+        await sess.commit()
+    assert opened == 0
