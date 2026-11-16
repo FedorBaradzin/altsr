@@ -1,8 +1,12 @@
-<script>/*altsr-nebula-radar-v2*/
+<style>/*altsr-nebula-radar-v3*/
+@keyframes altsrVFlash{0%{filter:brightness(1.85);text-shadow:0 0 16px rgba(80,240,190,.85);transform:translateY(-1px)}100%{filter:none;text-shadow:none;transform:none}}
+.alnp-strip .alnp-v.altsr-vflash{animation:altsrVFlash .7s ease-out}
+</style>
+<script>/*altsr-nebula-radar-v3*/
 (function(){
   if(window.__altsrNebRadar)return; window.__altsrNebRadar=1;
-  // Живая витрина радара. Числа анимируются в реальном времени, но только между
-  // РЕАЛЬНЫМИ значениями из /api/public/radar (частый ре-синк) — ничего не выдумываем.
+  // Живая витрина радара: числа анимируются к РЕАЛЬНЫМ значениям из /api/public/radar
+  // (ре-синк каждые 5с), и плитка подсвечивается в момент изменения.
   var L=['Монет на радаре','Отслежено за 24ч','Анти-скам проверок','Скам-токенов поймано','Чистых (PASS)'];
   var KEYS=['tokens_total','tokens_24h','checks_total','scams_blocked','clean_pass'];
   var target=[0,0,0,0,0], shown=[0,0,0,0,0], got=false;
@@ -16,12 +20,13 @@
     var lv=leaf(/теперь живые/); if(lv)lv.textContent='за всё время';
     var d=[].slice.call(document.querySelectorAll('*')).find(function(e){return e.children.length===0&&e.textContent.trim()==='ДЕМО';}); if(d)d.textContent='РАДАР';
   }
+  function flash(el){ el.classList.remove('altsr-vflash'); void el.offsetWidth; el.classList.add('altsr-vflash'); }
   function anim(){
     var cells=document.querySelectorAll('.alnp-strip .alnp-v');
     for(var i=0;i<5&&i<cells.length;i++){
       if(got){var diff=target[i]-shown[i]; shown[i]=Math.abs(diff)<1?target[i]:shown[i]+diff*0.12;}
       var t=got?fmt(shown[i]):'—';
-      if(cells[i].textContent!==t)cells[i].textContent=t;
+      if(cells[i].textContent!==t){ cells[i].textContent=t; if(got)flash(cells[i]); }
     }
     requestAnimationFrame(anim);
   }
