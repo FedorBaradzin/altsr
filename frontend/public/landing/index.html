@@ -757,5 +757,56 @@ const help=()=>window.open('https://t.me/altsr_manager','_blank','noopener');
 
 renderTable();select(0);renderSteps();renderPrices();applyStatic();
 </script>
+
+<!-- altsr-bands-v4: durable, baked into repo. TOP strip = real demo account (/api/public/paper). BOTTOM band = real scan metrics (/api/public/radar). Replacing the top strip's inner HTML drops id="m1"/id="earn", so the base random-increment intervals become no-ops (no fabricated numbers). -->
+<script>
+(function(){
+  var fInt=function(n){return Math.round(+n||0).toLocaleString('en-US');};
+  var fUsd=function(n){return '$'+fInt(n);};
+  var fPct=function(n){n=+n||0;return (n>=0?'+':'')+(Math.round(n*10)/10).toFixed(1)+'%';};
+  var RED='#f87171', GRN='var(--emerald)';
+  function cell(v,l,col){return '<div class="metric"><div><div class="mv num"'+(col?' style="color:'+col+'"':'')+'>'+v+'</div><div class="mk">'+l+'</div></div></div>';}
+  function nets(){return '<div class="metric"><div class="nets"><span class="net-ic" style="color:var(--signal)">SOL</span><span class="net-ic" style="color:var(--cyan)">ETH</span><span class="net-ic" style="color:var(--warn)">BSC</span><span class="net-ic">+9</span></div><div class="mk" style="margin-top:6px">Поддерживаемых сетей</div></div>';}
+
+  function topDemo(d){
+    var box=document.querySelector('.strip .metrics'); if(!box||!d||d.equity==null) return;
+    var retCol=(+d.return_pct>=0)?GRN:RED, pnlCol=(+d.realized_pnl>=0)?GRN:RED;
+    var pnl=+d.realized_pnl||0, pnlStr=(pnl>=0?'+':'-')+'$'+fInt(Math.abs(pnl));
+    box.innerHTML=cell(fUsd(d.equity),'Бумажный счёт',null)
+      +cell(Math.round(+d.win_rate||0)+'%','Win-rate',null)
+      +cell(fPct(d.return_pct),'Доходность',retCol)
+      +cell(fInt(d.open_positions)+' откр.','Позиции',null)
+      +cell(pnlStr,'Реализ. P&L',pnlCol)
+      +nets();
+    var desc=document.querySelector('.strip .strip-desc'); if(desc){desc.removeAttribute('data-i');desc.textContent='Демо-счёт автоторговли · бумажная торговля';}
+  }
+
+  function ensureBottom(){
+    var b=document.getElementById('altsr-scan-band'); if(b) return b;
+    b=document.createElement('div'); b.id='altsr-scan-band'; b.className='strip';
+    b.innerHTML='<div class="strip-in"><div class="live-badge"><span class="d"></span>LIVE</div>'
+      +'<div class="strip-desc">Сколько рынка просканировал ALTSR</div>'
+      +'<div class="metrics" id="altsr-scan-metrics"></div></div>';
+    var foot=document.querySelector('footer.foot');
+    if(foot&&foot.parentNode){foot.parentNode.insertBefore(b,foot);} else {document.body.appendChild(b);}
+    return b;
+  }
+  function bottomScan(r){
+    ensureBottom(); var m=document.getElementById('altsr-scan-metrics'); if(!m||!r||r.checks_total==null) return;
+    m.innerHTML=cell(fInt(r.tokens_total),'Монет на радаре',null)
+      +cell(fInt(r.tokens_24h),'Новых за 24ч',null)
+      +cell(fInt(r.checks_total),'Анти-скам проверок',null)
+      +cell(fInt(r.scams_blocked),'Скам-токенов поймано',RED)
+      +cell(fInt(r.clean_pass),'Чистых (PASS)',GRN)
+      +cell(fInt(r.active_signals),'Активных сигналов',null);
+  }
+
+  function pull(){
+    fetch('/api/public/paper?cb='+Date.now()).then(function(r){return r.json();}).then(topDemo).catch(function(){});
+    fetch('/api/public/radar?cb='+Date.now()).then(function(r){return r.json();}).then(bottomScan).catch(function(){});
+  }
+  ensureBottom(); pull(); setInterval(pull,15000);
+})();
+</script>
 </body>
 </html>
