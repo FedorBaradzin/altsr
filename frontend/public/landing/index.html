@@ -793,9 +793,8 @@ renderTable();select(0);renderSteps();renderPrices();applyStatic();
   }
   function bottomScan(r){
     ensureBottom(); var m=document.getElementById('altsr-scan-metrics'); if(!m||!r||r.checks_total==null) return;
-    m.innerHTML=cell(fInt(r.tokens_total),'Монет на радаре',null)
+    m.innerHTML=cell(fInt(r.checks_total),'Токенов проверено',null)
       +cell(fInt(r.tokens_24h),'Новых за 24ч',null)
-      +cell(fInt(r.checks_total),'Анти-скам проверок',null)
       +cell(fInt(r.scams_blocked),'Скам-токенов поймано',RED)
       +cell(fInt(r.clean_pass),'Чистых (PASS)',GRN)
       +cell(fInt(r.active_signals),'Активных сигналов',null);
