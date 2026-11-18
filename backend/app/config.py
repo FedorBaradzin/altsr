@@ -105,12 +105,12 @@ class Settings(BaseSettings):
     )
 
     # --- Signal engine (Фаза 2) ---
-    signal_min_liquidity_usd: float = Field(default=5000.0, alias="SIGNAL_MIN_LIQUIDITY_USD")
-    signal_min_age_minutes: int = Field(default=0, alias="SIGNAL_MIN_AGE_MINUTES")
+    signal_min_liquidity_usd: float = Field(default=15000.0, alias="SIGNAL_MIN_LIQUIDITY_USD")
+    signal_min_age_minutes: int = Field(default=20, alias="SIGNAL_MIN_AGE_MINUTES")
     signal_max_age_minutes: int = Field(default=1440, alias="SIGNAL_MAX_AGE_MINUTES")
     signal_min_holders: int = Field(default=0, alias="SIGNAL_MIN_HOLDERS")
     signal_require_pass: bool = Field(default=True, alias="SIGNAL_REQUIRE_PASS")
-    signal_max_risk: int = Field(default=30, alias="SIGNAL_MAX_RISK")
+    signal_max_risk: int = Field(default=20, alias="SIGNAL_MAX_RISK")
     # Минимальная уверенность сигнала для входа (0..1). Выше порог → меньше,
     # но качественнее входов, меньше просадок.
     signal_min_confidence: float = Field(default=0.85, alias="SIGNAL_MIN_CONFIDENCE")
@@ -189,10 +189,10 @@ class Settings(BaseSettings):
 
     # --- Paper executor (Фаза 3) — ТОЛЬКО бумага, реальных денег нет ---
     paper_start_balance: float = Field(default=100_000.0, alias="PAPER_START_BALANCE")
-    paper_position_size_usd: float = Field(default=500.0, alias="PAPER_POSITION_SIZE_USD")
+    paper_position_size_usd: float = Field(default=300.0, alias="PAPER_POSITION_SIZE_USD")
     paper_max_positions: int = Field(default=10, alias="PAPER_MAX_POSITIONS")
     paper_daily_loss_limit_usd: float = Field(default=500.0, alias="PAPER_DAILY_LOSS_LIMIT_USD")
-    paper_hard_stop_pct: float = Field(default=0.25, alias="PAPER_HARD_STOP_PCT")
+    paper_hard_stop_pct: float = Field(default=0.15, alias="PAPER_HARD_STOP_PCT")
     paper_arm_after_profit_pct: float = Field(default=0.12, alias="PAPER_ARM_AFTER_PROFIT_PCT")
     paper_trailing_stop_pct: float = Field(default=0.06, alias="PAPER_TRAILING_STOP_PCT")
     # Реалистичный тейк для мемов: +100% (2x) за всю историю взяла 1 сделка из 115,
@@ -205,7 +205,7 @@ class Settings(BaseSettings):
     paper_interval_seconds: int = Field(default=10, alias="PAPER_INTERVAL_SECONDS")
     # --- Тренд ликвидности + быстрый выход (T2, рычаги ②⑤) ---
     # Падение ликвидности между срезами больше порога → не входить / немедленный выход.
-    paper_liq_drop_pct: float = Field(default=0.15, alias="PAPER_LIQ_DROP_PCT")
+    paper_liq_drop_pct: float = Field(default=0.10, alias="PAPER_LIQ_DROP_PCT")
     # Ускоренный опрос цены/ликвидности для ОТКРЫТЫХ позиций (вместо paper_interval).
     paper_open_poll_seconds: int = Field(default=5, alias="PAPER_OPEN_POLL_SECONDS")
     # Рост налога на продажу (абсолютные проценты) считается критическим изменением.
