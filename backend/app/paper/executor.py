@@ -17,7 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import Settings
-from ..models import PaperAccount, PaperPosition, Signal, Token
+from ..models import PaperAccount, PaperPosition, SafetyReport, Signal, Token
 from ..risk.engine import evaluate as risk_evaluate
 from ..risk.policy import RiskPolicy
 from ..risk.types import PortfolioState, TradeIntent
@@ -167,14 +167,15 @@ async def open_from_signals(
     opened = 0
     # Сигналы без бумажной позиции.
     stmt = (
-        select(Signal, Token.symbol)
+        select(Signal, Token.symbol, SafetyReport.verdict)
         .join(Token, Token.id == Signal.token_id)
+        .outerjoin(SafetyReport, SafetyReport.token_id == Signal.token_id)
         .outerjoin(PaperPosition, PaperPosition.token_id == Signal.token_id)
         .where(PaperPosition.id.is_(None))
         .order_by(Signal.created_at.desc())
     )
     rows = (await session.execute(stmt)).all()
-    for sig, symbol in rows:
+    for sig, symbol, verdict in rows:
         if await _count_open(session) >= s.paper_max_positions:
             break
         if acc.cash < s.paper_position_size_usd:
@@ -183,6 +184,22 @@ async def open_from_signals(
         # Входим только в сигналы с достаточной уверенностью — меньше, но
         # качественнее сделок (снижает просадку и повышает win-rate).
         if (sig.confidence or 0.0) < s.signal_min_confidence:
+            continue
+
+        # Пер-chain отсечка для бумажного входа (напр. убыточная сеть base).
+        if sig.chain and sig.chain.lower() in s.paper_deny_chain_list:
+            logger.info("Пропуск входа %s:%s — сеть в deny-списке", sig.chain, sig.address)
+            continue
+
+        # Анти-скам гейт входа: не входим в доказанный скам (BLOCK) и, по умолчанию,
+        # в неподтверждённые (REVIEW). Токены без отчёта (None) и PASS — проходят.
+        if verdict == "BLOCK" and s.paper_skip_block_safety:
+            logger.info("Пропуск входа %s:%s — вердикт безопасности BLOCK",
+                        sig.chain, sig.address)
+            continue
+        if verdict == "REVIEW" and s.paper_skip_review_safety:
+            logger.info("Пропуск входа %s:%s — вердикт безопасности REVIEW",
+                        sig.chain, sig.address)
             continue
 
         # Reviewer-гейт (T6): не входим в токен, пока он в карантине после убытка.
@@ -200,7 +217,7 @@ async def open_from_signals(
             token_address=sig.address,
             notional_usd=s.paper_position_size_usd,
             recipient="paper",
-            safety_verdict="PASS",
+            safety_verdict=verdict or "PASS",
             strategy="paper",
             is_exit=False,
         )

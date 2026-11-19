@@ -28,7 +28,7 @@ def _price_fn(value):
     return get_price
 
 
-async def _seed_signal(address="0xtokenabc", chain="ethereum", confidence=0.8):
+async def _seed_signal(address="0xtokenabc", chain="ethereum", confidence=0.95):
     async with get_sessionmaker()() as s:
         res = await upsert_tokens(s, [
             NormalizedToken(chain=chain, address=address, source="t", symbol="PEPE2")

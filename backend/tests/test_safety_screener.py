@@ -78,6 +78,36 @@ async def test_screen_batch_persists_report(respx_mock):
     assert await screen_batch(settings) == 0
 
 
+async def test_stale_tokens_rescreens_review_and_block_not_pass():
+    from datetime import datetime, timezone
+
+    from app.models import SafetyReport, Token
+    from app.safety.screener import stale_review_tokens
+
+    await create_all()
+    async with get_sessionmaker()() as s:
+        await upsert_tokens(s, [
+            NormalizedToken(chain="solana", address="RevMint1", source="t", symbol="REV"),
+            NormalizedToken(chain="solana", address="BlkMint2", source="t", symbol="BLK"),
+            NormalizedToken(chain="solana", address="PassMint3", source="t", symbol="GOOD"),
+        ])
+    async with get_sessionmaker()() as s:
+        rows = (await s.execute(select(Token))).scalars().all()
+        now = datetime.now(timezone.utc)
+        verdicts = {"RevMint1": "REVIEW", "BlkMint2": "BLOCK", "PassMint3": "PASS"}
+        for t in rows:
+            s.add(SafetyReport(token_id=t.id, chain=t.chain, address=t.address,
+                               risk_score=10, verdict=verdicts[t.address], red_flags="[]",
+                               findings="{}", sources="goplus", created_at=now))
+        await s.commit()
+    async with get_sessionmaker()() as s:
+        stale = await stale_review_tokens(s, 10)
+    addrs = {t.address for t in stale}
+    assert "RevMint1" in addrs        # REVIEW re-screened
+    assert "BlkMint2" in addrs        # BLOCK re-screened (so softened scoring recomputes)
+    assert "PassMint3" not in addrs   # PASS left alone
+
+
 @pytest.fixture
 async def client():
     from app.main import app

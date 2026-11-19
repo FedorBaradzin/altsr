@@ -88,6 +88,9 @@ class Settings(BaseSettings):
     # Сколько токенов скринить за один тик screener-воркера.
     screen_batch_size: int = Field(default=20, alias="SCREEN_BATCH_SIZE")
     screen_interval_seconds: int = Field(default=15, alias="SCREEN_INTERVAL_SECONDS")
+    # Сколько REVIEW-токенов дополнительно ПЕРЕ-скринить за тик (поднять «мало данных»
+    # до настоящего вердикта; 0 = выключить пере-скрининг).
+    screen_rescreen_per_cycle: int = Field(default=6, alias="SCREEN_RESCREEN_PER_CYCLE")
 
     # --- Cross-source (T10) ---
     # Кросс-проверка сигналов между независимыми источниками для роста доверия.
@@ -102,15 +105,15 @@ class Settings(BaseSettings):
     )
 
     # --- Signal engine (Фаза 2) ---
-    signal_min_liquidity_usd: float = Field(default=5000.0, alias="SIGNAL_MIN_LIQUIDITY_USD")
-    signal_min_age_minutes: int = Field(default=0, alias="SIGNAL_MIN_AGE_MINUTES")
+    signal_min_liquidity_usd: float = Field(default=25000.0, alias="SIGNAL_MIN_LIQUIDITY_USD")
+    signal_min_age_minutes: int = Field(default=30, alias="SIGNAL_MIN_AGE_MINUTES")
     signal_max_age_minutes: int = Field(default=1440, alias="SIGNAL_MAX_AGE_MINUTES")
     signal_min_holders: int = Field(default=0, alias="SIGNAL_MIN_HOLDERS")
     signal_require_pass: bool = Field(default=True, alias="SIGNAL_REQUIRE_PASS")
-    signal_max_risk: int = Field(default=30, alias="SIGNAL_MAX_RISK")
+    signal_max_risk: int = Field(default=15, alias="SIGNAL_MAX_RISK")
     # Минимальная уверенность сигнала для входа (0..1). Выше порог → меньше,
     # но качественнее входов, меньше просадок.
-    signal_min_confidence: float = Field(default=0.0, alias="SIGNAL_MIN_CONFIDENCE")
+    signal_min_confidence: float = Field(default=0.88, alias="SIGNAL_MIN_CONFIDENCE")
     # Веса динамической части уверенности: краткосрочный моментум (m5/h1),
     # давление покупок и оборот к ликвидности. Повышают ожидаемую ценность и
     # качество ранжирования входов — это НЕ гарантия прибыли (большинство новых
@@ -186,25 +189,35 @@ class Settings(BaseSettings):
 
     # --- Paper executor (Фаза 3) — ТОЛЬКО бумага, реальных денег нет ---
     paper_start_balance: float = Field(default=100_000.0, alias="PAPER_START_BALANCE")
-    paper_position_size_usd: float = Field(default=500.0, alias="PAPER_POSITION_SIZE_USD")
+    paper_position_size_usd: float = Field(default=300.0, alias="PAPER_POSITION_SIZE_USD")
     paper_max_positions: int = Field(default=10, alias="PAPER_MAX_POSITIONS")
     paper_daily_loss_limit_usd: float = Field(default=500.0, alias="PAPER_DAILY_LOSS_LIMIT_USD")
-    paper_hard_stop_pct: float = Field(default=0.25, alias="PAPER_HARD_STOP_PCT")
-    paper_arm_after_profit_pct: float = Field(default=0.20, alias="PAPER_ARM_AFTER_PROFIT_PCT")
-    paper_trailing_stop_pct: float = Field(default=0.08, alias="PAPER_TRAILING_STOP_PCT")
-    paper_take_profit_x: float = Field(default=2.0, alias="PAPER_TAKE_PROFIT_X")
-    paper_take_profit_fraction: float = Field(default=0.5, alias="PAPER_TAKE_PROFIT_FRACTION")
+    paper_hard_stop_pct: float = Field(default=0.15, alias="PAPER_HARD_STOP_PCT")
+    paper_arm_after_profit_pct: float = Field(default=0.12, alias="PAPER_ARM_AFTER_PROFIT_PCT")
+    paper_trailing_stop_pct: float = Field(default=0.06, alias="PAPER_TRAILING_STOP_PCT")
+    # Реалистичный тейк для мемов: +100% (2x) за всю историю взяла 1 сделка из 115,
+    # а +30% доходили 17 — поэтому фиксируем бóльшую часть на +35%, остаток ведём трейлингом.
+    paper_take_profit_x: float = Field(default=1.35, alias="PAPER_TAKE_PROFIT_X")
+    paper_take_profit_fraction: float = Field(default=0.7, alias="PAPER_TAKE_PROFIT_FRACTION")
     paper_stall_minutes: int = Field(default=15, alias="PAPER_STALL_MINUTES")
     paper_max_hold_minutes: int = Field(default=240, alias="PAPER_MAX_HOLD_MINUTES")
     paper_cost_pct: float = Field(default=0.01, alias="PAPER_COST_PCT")  # издержки на сторону
+    paper_deny_chains: str = Field(default="", alias="PAPER_DENY_CHAINS")  # сети, исключённые из бумажного входа (напр. "base")
     paper_interval_seconds: int = Field(default=10, alias="PAPER_INTERVAL_SECONDS")
     # --- Тренд ликвидности + быстрый выход (T2, рычаги ②⑤) ---
     # Падение ликвидности между срезами больше порога → не входить / немедленный выход.
-    paper_liq_drop_pct: float = Field(default=0.15, alias="PAPER_LIQ_DROP_PCT")
+    paper_liq_drop_pct: float = Field(default=0.10, alias="PAPER_LIQ_DROP_PCT")
     # Ускоренный опрос цены/ликвидности для ОТКРЫТЫХ позиций (вместо paper_interval).
     paper_open_poll_seconds: int = Field(default=5, alias="PAPER_OPEN_POLL_SECONDS")
     # Рост налога на продажу (абсолютные проценты) считается критическим изменением.
     paper_sell_tax_jump_pct: float = Field(default=5.0, alias="PAPER_SELL_TAX_JUMP_PCT")
+
+    # --- Анти-скам гейт входа автотрейда ---
+    # Не входить в токены с плохим вердиктом безопасности (меньше, но качественнее сделок).
+    # BLOCK = доказанный скам → всегда пропускаем. REVIEW = не подтверждён → пропускаем по
+    # умолчанию. Токены без отчёта (ещё не сканированы) и PASS — входим.
+    paper_skip_block_safety: bool = Field(default=True, alias="PAPER_SKIP_BLOCK_SAFETY")
+    paper_skip_review_safety: bool = Field(default=True, alias="PAPER_SKIP_REVIEW_SAFETY")
 
     # --- Reviewer (T6) — пост-трейд разбор + авто-блеклист ---
     # Мастер-гейт: включает учёт блеклиста на входе executor. Консервативно OFF.
@@ -353,6 +366,10 @@ class Settings(BaseSettings):
     @property
     def gecko_network_list(self) -> list[str]:
         return [n.strip() for n in self.gecko_networks.split(",") if n.strip()]
+
+    @property
+    def paper_deny_chain_list(self) -> list[str]:
+        return [c.strip().lower() for c in self.paper_deny_chains.split(",") if c.strip()]
 
     @property
     def cors_origin_list(self) -> list[str]:

@@ -47,16 +47,48 @@ def test_mint_authority_hard_block():
     assert "mint_authority" in _codes(r)
 
 
-def test_unlocked_lp_hard_block():
+def test_unlocked_lp_is_warning_not_block():
+    # Незалоченный LP — ПРЕДУПРЕЖДЕНИЕ (REVIEW), не авто-BLOCK (у свежих токенов структурно).
     r = evaluate(_clean_evm(lp_locked=False))
-    assert r.verdict == "BLOCK"
+    assert r.verdict == "REVIEW"
     assert "lp_unlocked" in _codes(r)
 
 
-def test_top_holder_over_50_hard_block():
+def test_top_holder_50_to_90_is_warning():
+    # Концентрация 50–90% — сильное предупреждение (REVIEW), не BLOCK.
     r = evaluate(_clean_evm(top_holder_pct=0.62))
-    assert r.verdict == "BLOCK"
+    assert r.verdict == "REVIEW"
     assert "holder_concentration_extreme" in _codes(r)
+
+
+def test_top_holder_over_90_is_warning_not_block():
+    # Почти весь объём у одного адреса (>90%) — у свежих токенов это бондинг-кривая,
+    # а не доказанный скам → сильное ПРЕДУПРЕЖДЕНИЕ (REVIEW), не красный BLOCK.
+    r = evaluate(_clean_evm(top_holder_pct=0.95))
+    assert r.verdict == "REVIEW"
+    assert "holder_concentration_extreme" in _codes(r)
+
+
+def test_newness_signals_never_sum_to_block():
+    # Все «признаки новизны» вместе (концентрация ~100% + незалоченный LP + мало холдеров)
+    # → максимум REVIEW, НЕ красный BLOCK. Красный — только за доказанный скам.
+    r = evaluate(_clean_evm(top_holder_pct=0.99, lp_locked=False, holder_count=5))
+    assert r.verdict == "REVIEW"
+    assert r.risk_score >= 70  # риск для отображения высокий, но не красный
+
+
+def test_behavioral_flags_sum_to_block():
+    # Поведенческие (не-newness) soft-флаги в сумме → BLOCK.
+    # unverified(25) + tax_modifiable(25) + blacklist(18) + proxy(12) = 80 ≥ 70.
+    r = evaluate(_clean_evm(is_open_source=False, tax_modifiable=True,
+                            can_blacklist=True, is_proxy=True))
+    assert r.verdict == "BLOCK"
+
+
+def test_concentration_stays_warning_but_real_scam_blocks():
+    # Даже ~100% концентрация сама по себе → REVIEW; honeypot → BLOCK.
+    assert evaluate(_clean_evm(top_holder_pct=0.99)).verdict == "REVIEW"
+    assert evaluate(_clean_evm(top_holder_pct=0.99, is_honeypot=True)).verdict == "BLOCK"
 
 
 def test_owner_change_balance_hard_block():
@@ -131,3 +163,37 @@ def test_evm_not_affected_by_solana_rule():
     # EVM с неизвестным LP не трогаем этим правилом (у EVM есть honeypot.is).
     f = _clean_evm(lp_locked=None)
     assert evaluate(f, require_lp_lock_solana=True).verdict == "PASS"
+
+
+# ---------- Allowlist проверенных активов (стейблы) ----------
+
+def test_verified_stablecoin_passes_despite_mint_authority():
+    # USDC (Solana) — активна mint authority по устройству, но это не скам.
+    r = evaluate(SafetyFindings(
+        chain="solana", address="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        mint_authority_active=True, freeze_authority_active=True, top_holder_pct=0.95,
+    ))
+    assert r.verdict == "PASS"
+    assert r.risk_score == 0
+    assert "verified_asset" in _codes(r)
+    assert r.is_malicious is False
+
+
+def test_verified_evm_stable_case_insensitive():
+    # USDC (Ethereum) в верхнем регистре — всё равно должен попасть в allowlist.
+    r = evaluate(SafetyFindings(
+        chain="ethereum", address="0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        mint_authority_active=True,
+    ))
+    assert r.verdict == "PASS"
+    assert "verified_asset" in _codes(r)
+
+
+def test_non_allowlisted_mint_authority_still_blocks():
+    # Обычный токен с активной mint authority — по-прежнему BLOCK.
+    r = evaluate(SafetyFindings(
+        chain="solana", address="SomeRandomMint1111111111111111111111111111",
+        mint_authority_active=True,
+    ))
+    assert r.verdict == "BLOCK"
+    assert "mint_authority" in _codes(r)

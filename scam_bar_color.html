@@ -1,0 +1,31 @@
+<script>/*altsr-scw-bar-v1*/
+(function(){
+  if(window.__altsrSCWbar)return; window.__altsrSCWbar=1;
+  // Полоску риска красим по ВЕРДИКТУ, а не по сырому числу: REVIEW (в т.ч. из-за
+  // признаков новизны) не должен выглядеть «красным», как доказанный скам.
+  var COL={pass:'#2ec9a0',review:'#f0b429',block:'#ff4d60'};
+  function vf(tr){
+    var vb=tr.querySelector('.vb');
+    var c=vb&&typeof vb.className==='string'?vb.className:'';
+    if(/\bblock\b/.test(c))return 'block';
+    if(/\breview\b/.test(c))return 'review';
+    if(/\bpass\b/.test(c))return 'pass';
+    return null;
+  }
+  function paint(){
+    var feed=document.getElementById('feed'); if(!feed)return;
+    feed.querySelectorAll('tr').forEach(function(tr){
+      var v=vf(tr); if(!v)return;
+      var i=tr.querySelector('.bar i'); if(!i)return;
+      if(i.getAttribute('data-scwbar')===v)return;
+      i.style.setProperty('background',COL[v],'important');
+      i.style.setProperty('background-color',COL[v],'important');
+      i.setAttribute('data-scwbar',v);
+    });
+  }
+  var feedEl=document.getElementById('feed');
+  if(feedEl){ new MutationObserver(paint).observe(feedEl,{childList:true,subtree:true}); }
+  paint();
+  setInterval(paint,3000);
+})();
+</script>

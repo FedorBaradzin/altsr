@@ -1,0 +1,123 @@
+<style>/*altsr-scan-ui-v1*/
+.altsr-sc-fab{position:fixed;right:18px;bottom:18px;z-index:2147483000;display:flex;align-items:center;gap:8px;
+  background:linear-gradient(135deg,#0f9d8f,#36e3c0);color:#05211d;font-weight:800;font-size:14px;
+  font-family:inherit;border:0;border-radius:999px;padding:12px 18px;cursor:pointer;
+  box-shadow:0 10px 30px -8px rgba(54,227,192,.5);transition:transform .15s,box-shadow .15s}
+.altsr-sc-fab:hover{transform:translateY(-2px);box-shadow:0 14px 34px -8px rgba(54,227,192,.65)}
+.altsr-sc-fab svg{width:18px;height:18px}
+.altsr-sc-ov{position:fixed;inset:0;z-index:2147483001;background:rgba(3,7,14,.72);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;padding:18px}
+.altsr-sc-ov.open{display:flex}
+.altsr-sc-card{width:100%;max-width:460px;max-height:92vh;overflow:auto;background:#0e1626;color:#e8eef7;
+  border:1px solid rgba(255,255,255,.08);border-radius:18px;box-shadow:0 30px 80px -20px rgba(0,0,0,.7);
+  font-family:inherit;padding:20px 20px 22px}
+.altsr-sc-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px}
+.altsr-sc-title{font-size:18px;font-weight:800;letter-spacing:-.01em}
+.altsr-sc-x{background:none;border:0;color:#8aa0bd;font-size:22px;line-height:1;cursor:pointer;padding:2px 6px}
+.altsr-sc-sub{color:#8aa0bd;font-size:12.5px;margin:2px 0 16px}
+.altsr-sc-row{display:flex;gap:8px;margin-bottom:10px}
+.altsr-sc-sel,.altsr-sc-inp{background:#0a1220;border:1px solid rgba(255,255,255,.12);border-radius:10px;
+  color:#e8eef7;font-size:14px;font-family:inherit;padding:11px 12px;outline:none}
+.altsr-sc-sel{flex:0 0 118px}
+.altsr-sc-inp{flex:1;min-width:0}
+.altsr-sc-inp:focus,.altsr-sc-sel:focus{border-color:#36e3c0}
+.altsr-sc-go{width:100%;background:linear-gradient(135deg,#0f9d8f,#36e3c0);color:#05211d;font-weight:800;
+  font-size:15px;font-family:inherit;border:0;border-radius:11px;padding:12px;cursor:pointer;transition:opacity .15s}
+.altsr-sc-go:disabled{opacity:.55;cursor:default}
+.altsr-sc-res{margin-top:16px;display:none}
+.altsr-sc-res.show{display:block}
+.altsr-sc-verdict{display:flex;align-items:center;gap:10px;padding:14px;border-radius:12px;margin-bottom:12px}
+.altsr-sc-badge{font-weight:800;font-size:15px;padding:4px 12px;border-radius:999px}
+.altsr-sc-vmeta{font-size:13px;color:#aab8cc}
+.altsr-sc-pass{background:rgba(61,220,132,.12);border:1px solid rgba(61,220,132,.35)}
+.altsr-sc-pass .altsr-sc-badge{background:#3ddc84;color:#05211d}
+.altsr-sc-review{background:rgba(240,180,41,.12);border:1px solid rgba(240,180,41,.38)}
+.altsr-sc-review .altsr-sc-badge{background:#f0b429;color:#2a1c00}
+.altsr-sc-block{background:rgba(255,93,108,.12);border:1px solid rgba(255,93,108,.4)}
+.altsr-sc-block .altsr-sc-badge{background:#ff5d6c;color:#2a0006}
+.altsr-sc-mal{display:inline-block;margin-left:auto;font-size:11px;font-weight:700;color:#ff8a94}
+.altsr-sc-flags{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.altsr-sc-flags li{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;line-height:1.4;
+  background:#0a1220;border:1px solid rgba(255,255,255,.07);border-radius:9px;padding:8px 10px}
+.altsr-sc-dot{flex:none;width:8px;height:8px;border-radius:50%;margin-top:5px}
+.altsr-sc-dot.hard{background:#ff5d6c}.altsr-sc-dot.soft{background:#f0b429}.altsr-sc-dot.info{background:#5a7599}
+.altsr-sc-disc{color:#7e8ea3;font-size:11px;line-height:1.45;margin-top:12px;border-top:1px solid rgba(255,255,255,.07);padding-top:10px}
+.altsr-sc-err{background:rgba(255,93,108,.1);border:1px solid rgba(255,93,108,.3);color:#ffb3ba;
+  border-radius:10px;padding:11px 12px;font-size:13px}
+.altsr-sc-spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(5,33,29,.4);
+  border-top-color:#05211d;border-radius:50%;animation:altsr-sc-sp .7s linear infinite;vertical-align:-2px;margin-right:7px}
+@keyframes altsr-sc-sp{to{transform:rotate(360deg)}}
+@media(max-width:560px){.altsr-sc-fab{right:12px;bottom:12px;padding:11px 15px;font-size:13px}.altsr-sc-sel{flex-basis:104px}}
+</style>
+<script>/*altsr-scan-ui-v1*/
+(function(){
+  if(window.__altsrScanUI)return; window.__altsrScanUI=1;
+  var CHAINS=[["ethereum","Ethereum"],["bsc","BSC"],["base","Base"],["solana","Solana"],
+    ["polygon","Polygon"],["arbitrum","Arbitrum"],["optimism","Optimism"],["avalanche","Avalanche"]];
+  var VMAP={PASS:["altsr-sc-pass","PASS","прошёл проверки"],REVIEW:["altsr-sc-review","REVIEW","нужна ручная проверка"],
+    BLOCK:["altsr-sc-block","BLOCK","высокий риск / скам"]};
+  function el(tag,cls,html){var e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;}
+  var fab=el("button","altsr-sc-fab",
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/></svg>Проверить токен');
+  var ov=el("div","altsr-sc-ov");
+  ov.innerHTML=''
+   +'<div class="altsr-sc-card" role="dialog" aria-modal="true">'
+   +'<div class="altsr-sc-head"><div class="altsr-sc-title">🛡 Проверка токена на скам</div>'
+   +'<button class="altsr-sc-x" aria-label="Закрыть">×</button></div>'
+   +'<div class="altsr-sc-sub">Вставьте адрес контракта — проверим honeypot, налоги, mint/authority, концентрацию холдеров и LP-lock.</div>'
+   +'<div class="altsr-sc-row">'
+   +'<select class="altsr-sc-sel" id="altsrScChain">'+CHAINS.map(function(c){return '<option value="'+c[0]+'">'+c[1]+'</option>';}).join('')+'</select>'
+   +'<input class="altsr-sc-inp" id="altsrScAddr" placeholder="0x… или адрес минта Solana" autocomplete="off" spellcheck="false">'
+   +'</div>'
+   +'<button class="altsr-sc-go" id="altsrScGo">Проверить</button>'
+   +'<div class="altsr-sc-res" id="altsrScRes"></div>'
+   +'</div>';
+  document.body.appendChild(fab); document.body.appendChild(ov);
+  var res=ov.querySelector("#altsrScRes"), go=ov.querySelector("#altsrScGo"),
+      addr=ov.querySelector("#altsrScAddr"), chain=ov.querySelector("#altsrScChain");
+  function open(){ov.classList.add("open");setTimeout(function(){addr.focus();},50);}
+  function close(){ov.classList.remove("open");}
+  fab.addEventListener("click",open);
+  ov.querySelector(".altsr-sc-x").addEventListener("click",close);
+  ov.addEventListener("click",function(e){if(e.target===ov)close();});
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")close();});
+  addr.addEventListener("keydown",function(e){if(e.key==="Enter")run();});
+  go.addEventListener("click",run);
+  function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+  function err(msg){res.className="altsr-sc-res show";res.innerHTML='<div class="altsr-sc-err">'+esc(msg)+'</div>';}
+  function run(){
+    var a=(addr.value||"").trim(), c=chain.value;
+    if(!a){err("Введите адрес контракта.");return;}
+    go.disabled=true;go.innerHTML='<span class="altsr-sc-spin"></span>Проверяем…';
+    res.className="altsr-sc-res";res.innerHTML="";
+    fetch("/api/scan",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({chain:c,address:a})})
+    .then(function(r){return r.json().then(function(j){return {s:r.status,j:j};});})
+    .then(function(o){
+      if(o.s===200){render(o.j);}
+      else if(o.s===422){err("Некорректный адрес для сети «"+c+"». Проверьте формат.");}
+      else if(o.s===429){err("Слишком много проверок. Подождите минуту.");}
+      else if(o.s===502){err("Провайдеры безопасности временно недоступны. Попробуйте ещё раз.");}
+      else{err((o.j&&o.j.detail)||("Ошибка "+o.s));}
+    })
+    .catch(function(){err("Сеть недоступна. Попробуйте ещё раз.");})
+    .finally(function(){go.disabled=false;go.textContent="Проверить";});
+  }
+  function render(j){
+    var v=VMAP[j.verdict]||["altsr-sc-review",j.verdict||"?",""];
+    var mal=j.is_malicious?'<span class="altsr-sc-mal">⚠ помечен как скам</span>':"";
+    var flags=(j.red_flags||[]).filter(function(f){return f.severity!=="info"||((f.message||"").length>0);});
+    var flagsHtml=flags.length?'<ul class="altsr-sc-flags">'+flags.map(function(f){
+      return '<li><span class="altsr-sc-dot '+esc(f.severity)+'"></span><span>'+esc(f.message)+'</span></li>';}).join('')+'</ul>'
+      :'<div class="altsr-sc-vmeta" style="margin-bottom:10px">Явных красных флагов не найдено.</div>';
+    var src=(j.sources&&j.sources.length)?j.sources.join(", "):"нет ответа провайдеров";
+    res.className="altsr-sc-res show";
+    res.innerHTML=''
+     +'<div class="altsr-sc-verdict '+v[0]+'"><span class="altsr-sc-badge">'+esc(v[1])+'</span>'
+     +'<span class="altsr-sc-vmeta">риск '+esc(j.risk_score)+'/100 · '+esc(v[2])+'</span>'+mal+'</div>'
+     +flagsHtml
+     +'<div class="altsr-sc-vmeta" style="margin-top:10px;font-size:11.5px">Источники: '+esc(src)+(j.cached?" · из кэша":"")+'</div>'
+     +'<div class="altsr-sc-disc">'+esc(j.disclaimer||"")+'</div>';
+  }
+})();
+</script>

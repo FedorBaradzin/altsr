@@ -26,15 +26,23 @@ EVM_CHAINS = set(goplus.GOPLUS_CHAIN_ID.keys())
 
 
 async def screen_token(
-    http: HttpClient, settings: Settings, chain: str, address: str
+    http: HttpClient,
+    settings: Settings,
+    chain: str,
+    address: str,
+    *,
+    force_solana_rugcheck: bool = False,
 ) -> SafetyResult:
     if chain == "solana":
-        # RugCheck's /report endpoint currently returns 400 for most mints and
-        # its retries stall the whole batch (~8s/token) → screening falls behind
-        # and fresh coins never get a verdict. GoPlus(solana) covers the core
-        # checks, so rely on it and only add RugCheck when explicitly enabled.
+        # RugCheck's /report stalls the whole *batch* (~8s/token), so the 24/7
+        # screener keeps it off by default (settings.rugcheck_enabled=False) and
+        # leans on GoPlus(solana). But GoPlus's free Solana tier gets rate-limited
+        # (code 4029 → empty) under batch load, so a single on-demand scan would
+        # otherwise get no Solana data. For that one-off path the caller passes
+        # force_solana_rugcheck=True: RugCheck is fast for a single mint and gives
+        # real authority / LP-lock / holder / rugged data. Batch stays untouched.
         providers = [goplus.fetch(http, settings.goplus_base_url, chain, address)]
-        if settings.rugcheck_enabled:
+        if settings.rugcheck_enabled or force_solana_rugcheck:
             providers.append(rugcheck.fetch(http, settings.rugcheck_base_url, address))
     else:
         providers = [
@@ -129,6 +137,24 @@ async def unscored_tokens(session: AsyncSession, limit: int) -> list[Token]:
         .outerjoin(SafetyReport, SafetyReport.token_id == Token.id)
         .where(SafetyReport.id.is_(None))
         .order_by(Token.discovered_at.desc())
+        .limit(limit)
+    )
+    return list((await session.execute(stmt)).scalars().all())
+
+
+async def stale_review_tokens(session: AsyncSession, limit: int) -> list[Token]:
+    """Давно не перепроверявшиеся НЕ-PASS токены (REVIEW или BLOCK) — для пере-скрининга.
+
+    REVIEW чаще всего значит «не хватило данных»; пере-скрининг поднимает его до настоящего
+    вердикта. BLOCK тоже перепроверяем — чтобы при изменении правил скоринга (напр. смягчение
+    концентрации/LP до предупреждения) старые BLOCK пересчитались в REVIEW/PASS, а реальный
+    скам остался BLOCK. PASS не трогаем. store_result обновляет created_at → round-robin.
+    """
+    stmt = (
+        select(Token)
+        .join(SafetyReport, SafetyReport.token_id == Token.id)
+        .where(SafetyReport.verdict.in_(("REVIEW", "BLOCK")))
+        .order_by(SafetyReport.created_at.asc())
         .limit(limit)
     )
     return list((await session.execute(stmt)).scalars().all())
