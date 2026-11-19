@@ -105,15 +105,15 @@ class Settings(BaseSettings):
     )
 
     # --- Signal engine (Фаза 2) ---
-    signal_min_liquidity_usd: float = Field(default=15000.0, alias="SIGNAL_MIN_LIQUIDITY_USD")
-    signal_min_age_minutes: int = Field(default=20, alias="SIGNAL_MIN_AGE_MINUTES")
+    signal_min_liquidity_usd: float = Field(default=25000.0, alias="SIGNAL_MIN_LIQUIDITY_USD")
+    signal_min_age_minutes: int = Field(default=30, alias="SIGNAL_MIN_AGE_MINUTES")
     signal_max_age_minutes: int = Field(default=1440, alias="SIGNAL_MAX_AGE_MINUTES")
     signal_min_holders: int = Field(default=0, alias="SIGNAL_MIN_HOLDERS")
     signal_require_pass: bool = Field(default=True, alias="SIGNAL_REQUIRE_PASS")
-    signal_max_risk: int = Field(default=20, alias="SIGNAL_MAX_RISK")
+    signal_max_risk: int = Field(default=15, alias="SIGNAL_MAX_RISK")
     # Минимальная уверенность сигнала для входа (0..1). Выше порог → меньше,
     # но качественнее входов, меньше просадок.
-    signal_min_confidence: float = Field(default=0.85, alias="SIGNAL_MIN_CONFIDENCE")
+    signal_min_confidence: float = Field(default=0.88, alias="SIGNAL_MIN_CONFIDENCE")
     # Веса динамической части уверенности: краткосрочный моментум (m5/h1),
     # давление покупок и оборот к ликвидности. Повышают ожидаемую ценность и
     # качество ранжирования входов — это НЕ гарантия прибыли (большинство новых
