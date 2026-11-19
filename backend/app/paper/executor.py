@@ -186,6 +186,11 @@ async def open_from_signals(
         if (sig.confidence or 0.0) < s.signal_min_confidence:
             continue
 
+        # Пер-chain отсечка для бумажного входа (напр. убыточная сеть base).
+        if sig.chain and sig.chain.lower() in s.paper_deny_chain_list:
+            logger.info("Пропуск входа %s:%s — сеть в deny-списке", sig.chain, sig.address)
+            continue
+
         # Анти-скам гейт входа: не входим в доказанный скам (BLOCK) и, по умолчанию,
         # в неподтверждённые (REVIEW). Токены без отчёта (None) и PASS — проходят.
         if verdict == "BLOCK" and s.paper_skip_block_safety:

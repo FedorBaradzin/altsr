@@ -202,6 +202,7 @@ class Settings(BaseSettings):
     paper_stall_minutes: int = Field(default=15, alias="PAPER_STALL_MINUTES")
     paper_max_hold_minutes: int = Field(default=240, alias="PAPER_MAX_HOLD_MINUTES")
     paper_cost_pct: float = Field(default=0.01, alias="PAPER_COST_PCT")  # издержки на сторону
+    paper_deny_chains: str = Field(default="", alias="PAPER_DENY_CHAINS")  # сети, исключённые из бумажного входа (напр. "base")
     paper_interval_seconds: int = Field(default=10, alias="PAPER_INTERVAL_SECONDS")
     # --- Тренд ликвидности + быстрый выход (T2, рычаги ②⑤) ---
     # Падение ликвидности между срезами больше порога → не входить / немедленный выход.
@@ -365,6 +366,10 @@ class Settings(BaseSettings):
     @property
     def gecko_network_list(self) -> list[str]:
         return [n.strip() for n in self.gecko_networks.split(",") if n.strip()]
+
+    @property
+    def paper_deny_chain_list(self) -> list[str]:
+        return [c.strip().lower() for c in self.paper_deny_chains.split(",") if c.strip()]
 
     @property
     def cors_origin_list(self) -> list[str]:
