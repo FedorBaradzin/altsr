@@ -20,7 +20,18 @@
 #altsr-verified-section .avf-lowliq{font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;letter-spacing:.02em;display:inline-block;margin-left:8px;background:var(--dn-dim);color:var(--danger);border:1px solid #f8717133;white-space:nowrap}
 #altsr-verified-section .avf-trend{font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;letter-spacing:.02em;display:inline-block;margin-left:8px;background:var(--warn-dim,#f59e0b1f);color:var(--warn,#f59e0b);border:1px solid #f59e0b33;white-space:nowrap}
 #altsr-verified-section .avf-empty{padding:34px 10px;text-align:center;color:var(--muted);font-size:14px}
-@media(max-width:640px){#altsr-verified-section .avf-tbl th.avf-hide-sm,#altsr-verified-section .avf-tbl td.avf-hide-sm{display:none}}
+#altsr-verified-section .avf-lock{position:relative;margin-top:2px;min-height:236px;border-top:1px solid var(--line-soft)}
+#altsr-verified-section .avf-lock-rows{filter:blur(6px);opacity:.4;pointer-events:none;user-select:none;-webkit-mask-image:linear-gradient(180deg,#000 0%,#0007 55%,transparent 94%);mask-image:linear-gradient(180deg,#000 0%,#0007 55%,transparent 94%)}
+#altsr-verified-section .avf-lock-ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:11px;padding:22px 18px}
+#altsr-verified-section .avf-lock-ic{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;background:var(--em-dim);border:1px solid #34d39940;color:var(--emerald)}
+#altsr-verified-section .avf-lock-t{font-family:'Manrope',sans-serif;font-size:17px;font-weight:600}
+#altsr-verified-section .avf-lock-s{font-size:12.5px;color:var(--muted);max-width:430px;line-height:1.45}
+#altsr-verified-section .avf-lock-cta{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:3px}
+#altsr-verified-section .avf-lock-btn{font-family:'Manrope',sans-serif;font-size:13px;font-weight:600;padding:10px 18px;border-radius:10px;text-decoration:none;background:linear-gradient(135deg,var(--emerald),var(--cyan));color:#06101a;border:1px solid transparent;transition:transform .13s,box-shadow .13s}
+#altsr-verified-section .avf-lock-btn:hover{transform:translateY(-1px);box-shadow:0 10px 26px -12px var(--emerald)}
+#altsr-verified-section .avf-lock-btn-2{background:transparent;color:var(--text);border:1px solid var(--line)}
+#altsr-verified-section .avf-lock-btn-2:hover{border-color:var(--emerald);box-shadow:none}
+@media(max-width:640px){#altsr-verified-section .avf-tbl th.avf-hide-sm,#altsr-verified-section .avf-tbl td.avf-hide-sm{display:none}#altsr-verified-section .avf-lock-t{font-size:15px}#altsr-verified-section .avf-lock-btn{width:100%;text-align:center}}
 </style>
 <script>/*altsr-verified-v1*/
 (function(){
@@ -76,27 +87,35 @@
     body.innerHTML='<div class="avf-empty">Пока нет проверенных токенов — радар наполняется.</div>';
   }
 
+  function rowHtml(t){
+    t=t||{};
+    var label=t.symbol?String(t.symbol):shortAddr(t.address);
+    var initials=label.replace(/[^A-Za-zА-Яа-я0-9]/g,'').slice(0,2).toUpperCase()||'?';
+    var liqCell=fmtUsd(t.liquidity_usd);
+    if(t.low_liquidity){liqCell+=' <span class="avf-lowliq">🔴 Низкая ликвидность</span>';}
+    var trendBadge=t.trending?'<span class="avf-trend">🔥 В тренде</span>':'';
+    return ''+
+      '<tr>'+
+        '<td><div class="avf-tkn"><div class="avf-ic">'+esc(initials)+'</div><div class="avf-nm">'+esc(label)+'</div>'+trendBadge+'</div></td>'+
+        '<td><span class="avf-net">'+esc(String(t.chain||'—').toUpperCase())+'</span></td>'+
+        '<td><span class="avf-liq">'+liqCell+'</span></td>'+
+        '<td class="avf-r avf-hide-sm"><span class="avf-age">'+esc(fmtAge(t.age_hours))+'</span></td>'+
+        '<td class="avf-r avf-hide-sm"><span class="avf-risk">'+esc(fmtRisk(t.risk_score))+'</span></td>'+
+        '<td class="avf-r"><span class="avf-pill">PASS</span></td>'+
+      '</tr>';
+  }
+
+  var VISIBLE=5;       // строк видно бесплатно
+  var LOCK_PREVIEW=6;  // сколько заблюренных строк показать под замком
+
   function renderTable(tokens){
     if(!tokens||!tokens.length){renderEmpty();return;}
-    var rows='';
-    for(var i=0;i<tokens.length;i++){
-      var t=tokens[i]||{};
-      var label=t.symbol?String(t.symbol):shortAddr(t.address);
-      var initials=label.replace(/[^A-Za-zА-Яа-я0-9]/g,'').slice(0,2).toUpperCase()||'?';
-      var liqCell=fmtUsd(t.liquidity_usd);
-      if(t.low_liquidity){liqCell+=' <span class="avf-lowliq">🔴 Низкая ликвидность</span>';}
-      var trendBadge=t.trending?'<span class="avf-trend">🔥 В тренде</span>':'';
-      rows+=''+
-        '<tr>'+
-          '<td><div class="avf-tkn"><div class="avf-ic">'+esc(initials)+'</div><div class="avf-nm">'+esc(label)+'</div>'+trendBadge+'</div></td>'+
-          '<td><span class="avf-net">'+esc(String(t.chain||'—').toUpperCase())+'</span></td>'+
-          '<td><span class="avf-liq">'+liqCell+'</span></td>'+
-          '<td class="avf-r avf-hide-sm"><span class="avf-age">'+esc(fmtAge(t.age_hours))+'</span></td>'+
-          '<td class="avf-r avf-hide-sm"><span class="avf-risk">'+esc(fmtRisk(t.risk_score))+'</span></td>'+
-          '<td class="avf-r"><span class="avf-pill">PASS</span></td>'+
-        '</tr>';
-    }
-    body.innerHTML=''+
+    var vis=tokens.slice(0,VISIBLE);
+    var locked=tokens.slice(VISIBLE);
+    var visRows='';
+    for(var i=0;i<vis.length;i++){visRows+=rowHtml(vis[i]);}
+
+    var html=''+
       '<table class="avf-tbl">'+
         '<thead><tr>'+
           '<th>Токен</th>'+
@@ -106,8 +125,27 @@
           '<th class="avf-r avf-hide-sm">Риск</th>'+
           '<th class="avf-r">Вердикт</th>'+
         '</tr></thead>'+
-        '<tbody>'+rows+'</tbody>'+
+        '<tbody>'+visRows+'</tbody>'+
       '</table>';
+
+    if(locked.length){
+      var prev='',cap=Math.min(locked.length,LOCK_PREVIEW);
+      for(var k=0;k<cap;k++){prev+=rowHtml(locked[k]);}
+      html+=''+
+        '<div class="avf-lock">'+
+          '<div class="avf-lock-rows"><table class="avf-tbl"><tbody>'+prev+'</tbody></table></div>'+
+          '<div class="avf-lock-ov">'+
+            '<div class="avf-lock-ic"><svg width="22" height="22" viewBox="0 0 20 20" fill="none"><rect x="4" y="9" width="12" height="8" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M7 9V7a3 3 0 016 0v2" stroke="currentColor" stroke-width="1.4"/></svg></div>'+
+            '<div class="avf-lock-t">Ещё '+locked.length+' проверенных токенов</div>'+
+            '<div class="avf-lock-s">Полный список, фильтры и свежие проверки открываются на платных тарифах. На бесплатном — топ-5 для ознакомления.</div>'+
+            '<div class="avf-lock-cta">'+
+              '<a class="avf-lock-btn" href="#pricing">PREMIUM — $49/мес</a>'+
+              '<a class="avf-lock-btn avf-lock-btn-2" href="#pricing">ELITE — $89/мес</a>'+
+            '</div>'+
+          '</div>'+
+        '</div>';
+    }
+    body.innerHTML=html;
   }
 
   function load(){
