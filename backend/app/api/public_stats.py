@@ -126,6 +126,10 @@ async def public_verified(
     now = datetime.now(timezone.utc)
     age_cutoff = now - timedelta(hours=settings.verified_min_age_hours)
 
+    # Санитарный потолок ликвидности: источники иногда отдают мусорные значения
+    # (FDV/резерв как $1B+). Для честной витрины «проверенных» отсекаем абсурд.
+    max_liq = settings.verified_max_liquidity_usd
+    # Берём с запасом — ниже дедуплицируем по символу/адресу и обрезаем до limit.
     rows = (
         await session.execute(
             select(Token, SafetyReport)
@@ -134,16 +138,26 @@ async def public_verified(
                 SafetyReport.verdict == "PASS",
                 Token.liquidity_usd.is_not(None),
                 Token.liquidity_usd > 0,
+                Token.liquidity_usd <= max_liq,
                 Token.created_at.is_not(None),
                 Token.created_at <= age_cutoff,
             )
             .order_by(Token.liquidity_usd.desc())
-            .limit(limit)
+            .limit(min(limit * 8, 400))
         )
     ).all()
 
     tokens: list[dict] = []
+    seen: set[str] = set()
     for token, report in rows:
+        if len(tokens) >= limit:
+            break
+        # Дедуп: один токен на символ (или адрес, если символа нет) — убираем
+        # повторы одного и того же проекта из разных пулов/источников.
+        key = (token.symbol or token.address or "").strip().lower()
+        if key in seen:
+            continue
+        seen.add(key)
         created = token.created_at
         # created_at может прийти naive (без tz) из БД — приводим к UTC, чтобы
         # вычитание не падало.

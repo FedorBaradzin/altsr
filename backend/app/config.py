@@ -115,6 +115,7 @@ class Settings(BaseSettings):
     # токена, после которого он считается "выжившим" (проверенным).
     radar_low_liquidity_usd: float = Field(default=15000.0, alias="RADAR_LOW_LIQUIDITY_USD")
     verified_min_age_hours: float = Field(default=6.0, alias="VERIFIED_MIN_AGE_HOURS")
+    verified_max_liquidity_usd: float = Field(default=5_000_000.0, alias="VERIFIED_MAX_LIQUIDITY_USD")
     # Минимальная уверенность сигнала для входа (0..1). Выше порог → меньше,
     # но качественнее входов, меньше просадок.
     signal_min_confidence: float = Field(default=0.88, alias="SIGNAL_MIN_CONFIDENCE")
