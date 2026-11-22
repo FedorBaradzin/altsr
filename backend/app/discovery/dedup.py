@@ -88,6 +88,14 @@ async def upsert_tokens(
                 existing.liquidity_usd = tok.liquidity_usd
             if existing.symbol is None and tok.symbol:
                 existing.symbol = tok.symbol
+            # Цена: текущую и 24ч-изменение обновляем всегда (свежие данные);
+            # базовую (first_price_usd) ставим один раз — она нужна для «иксов».
+            if tok.price_usd is not None:
+                existing.price_usd = tok.price_usd
+                if existing.first_price_usd is None:
+                    existing.first_price_usd = tok.price_usd
+            if tok.price_change_h24 is not None:
+                existing.price_change_h24 = tok.price_change_h24
             updated += 1
             continue
 
@@ -103,6 +111,9 @@ async def upsert_tokens(
             created_at=tok.created_at,
             liquidity_usd=tok.liquidity_usd,
             fdv=tok.fdv,
+            price_usd=tok.price_usd,
+            first_price_usd=tok.price_usd,
+            price_change_h24=tok.price_change_h24,
             pair_address=tok.pair_address,
             dex=tok.dex,
             socials=tok.socials_json(),

@@ -62,6 +62,9 @@ def normalize_pool(pool: dict, included: dict[str, dict], network: str) -> Norma
             socials[key] = val
 
     chain = NETWORK_TO_CHAIN.get(network, network)
+    # Изменение цены за 24ч (%) — из price_change_percentage.h24 (строка).
+    pcp = attrs.get("price_change_percentage") or {}
+    price_change_h24 = to_float(pcp.get("h24")) if isinstance(pcp, dict) else None
     return NormalizedToken(
         chain=chain,
         address=address,
@@ -71,6 +74,8 @@ def normalize_pool(pool: dict, included: dict[str, dict], network: str) -> Norma
         created_at=parse_ts(attrs.get("pool_created_at")),
         liquidity_usd=to_float(attrs.get("reserve_in_usd")),
         fdv=to_float(attrs.get("fdv_usd")),
+        price_usd=to_float(attrs.get("base_token_price_usd")),
+        price_change_h24=price_change_h24,
         pair_address=attrs.get("address"),
         dex=dex_ref,
         socials=socials,

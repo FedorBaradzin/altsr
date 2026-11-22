@@ -27,6 +27,8 @@ class NormalizedToken:
     created_at: datetime | None = None
     liquidity_usd: float | None = None
     fdv: float | None = None
+    price_usd: float | None = None
+    price_change_h24: float | None = None
     pair_address: str | None = None
     dex: str | None = None
     socials: dict[str, Any] = field(default_factory=dict)

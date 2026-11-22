@@ -48,6 +48,12 @@ class Token(Base):
 
     liquidity_usd: Mapped[float | None] = mapped_column(Float)
     fdv: Mapped[float | None] = mapped_column(Float)
+    # Текущая цена базового токена (USD) из источника; обновляется каждый цикл.
+    price_usd: Mapped[float | None] = mapped_column(Float)
+    # Цена при ПЕРВОМ обнаружении (базовая для «иксов»); ставится один раз.
+    first_price_usd: Mapped[float | None] = mapped_column(Float)
+    # Изменение цены за 24ч (%) из источника; обновляется каждый цикл.
+    price_change_h24: Mapped[float | None] = mapped_column(Float)
     pair_address: Mapped[str | None] = mapped_column(String(128))
     dex: Mapped[str | None] = mapped_column(String(64))
     # socials/links как JSON-строка (websites, twitter, telegram, explorer).

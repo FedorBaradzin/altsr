@@ -69,6 +69,9 @@ _ENSURE_PG_COLUMNS: list[tuple[str, str, str]] = [
     ("user_paper_positions", "address", "VARCHAR(128)"),
     ("user_paper_positions", "pair_address", "VARCHAR(128)"),
     ("users", "tg_chat_id", "VARCHAR(32)"),
+    ("tokens", "price_usd", "DOUBLE PRECISION"),
+    ("tokens", "first_price_usd", "DOUBLE PRECISION"),
+    ("tokens", "price_change_h24", "DOUBLE PRECISION"),
 ]
 
 

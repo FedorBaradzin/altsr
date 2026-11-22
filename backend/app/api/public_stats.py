@@ -171,6 +171,18 @@ async def public_verified(
         if created.tzinfo is None:
             created = created.replace(tzinfo=timezone.utc)
         age_hours = round((now - created).total_seconds() / 3600.0, 1)
+        # Изменение цены за 24ч (%) — реальные ончейн-данные, не выдуманный профит.
+        ch24 = token.price_change_h24
+        ch24 = round(float(ch24), 1) if ch24 is not None else None
+        # «Иксы» с момента обнаружения = текущая / базовая цена. Показываем только
+        # при валидной базе; иначе None (на фронте скрываем).
+        multiple = None
+        if (
+            token.price_usd is not None
+            and token.first_price_usd is not None
+            and token.first_price_usd > 0
+        ):
+            multiple = round(float(token.price_usd) / float(token.first_price_usd), 2)
         tokens.append(
             {
                 "symbol": token.symbol,
@@ -182,6 +194,8 @@ async def public_verified(
                 "verdict": "PASS",
                 "low_liquidity": liq < settings.radar_low_liquidity_usd,
                 "trending": trending,
+                "change_24h": ch24,
+                "multiple": multiple,
             }
         )
 
