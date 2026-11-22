@@ -22,7 +22,7 @@ from ..risk.engine import evaluate as risk_evaluate
 from ..risk.policy import RiskPolicy
 from ..risk.types import PortfolioState, TradeIntent
 from ..risk.types import Position as RiskPosition
-from .exits import ExitConfig, PositionState, evaluate_exit
+from .exits import ExitConfig, PositionState, evaluate_exit, parse_ladder
 from .reviewer import is_blacklisted
 
 logger = logging.getLogger("altsr.paper.executor")
@@ -102,6 +102,10 @@ def config_from_settings(s: Settings) -> ExitConfig:
         stall_minutes=s.paper_stall_minutes,
         max_hold_minutes=s.paper_max_hold_minutes,
         liq_drop_pct=s.paper_liq_drop_pct,
+        # Лестница TP — OPT-IN. getattr: пока orchestrator не добавит настройки в
+        # config.py, безопасные дефолты сохраняют прежнее одноуровневое поведение.
+        ladder_enabled=bool(getattr(s, "paper_exit_ladder_enabled", False)),
+        ladder=parse_ladder(getattr(s, "paper_exit_ladder", "") or ""),
     )
 
 
@@ -287,6 +291,7 @@ async def process_positions(
             minutes_since_open=_minutes(now, pos.opened_at),
             minutes_since_high=_minutes(now, pos.last_high_at),
             tp_taken=pos.tp_taken,
+            tiers_hit=int(getattr(pos, "tp_tiers_hit", 0) or 0),
             kill_switch=bool(ctx and ctx.kill_switch),
             session_stopped=bool(ctx and ctx.session_stopped),
             safety_regression=(ctx.safety_regression if ctx else None),
@@ -301,7 +306,20 @@ async def process_positions(
         if action.kind == "partial":
             acc.cash += _sell(pos, action.fraction, price, s.paper_cost_pct)
             pos.tp_taken = True
+            # Отмечаем сработавшие уровни лестницы, чтобы каждый фиксировался раз.
+            if action.tiers_mask:
+                pos.tp_tiers_hit = int(getattr(pos, "tp_tiers_hit", 0) or 0) | action.tiers_mask
             logger.info("Частичный выход %s: %s", pos.address, action.reason)
+            # Лестница без moon-bag распродала весь размер → закрываем позицию.
+            if pos.remaining_fraction <= 1e-9:
+                pos.status = "closed"
+                pos.closed_at = now
+                pos.exit_reason = action.reason
+                pos.pnl_pct = round(pos.realized_pnl_usd / pos.size_usd * 100, 2)
+                acc.realized_pnl += pos.realized_pnl_usd
+                closed += 1
+                logger.info("Закрыта позиция %s: %s pnl=%.2f (лестница распродана)",
+                            pos.address, action.reason, pos.realized_pnl_usd)
             continue
 
         # close — продаём остаток

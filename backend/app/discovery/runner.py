@@ -14,6 +14,7 @@ import time
 from ..config import Settings, get_settings
 from ..db import get_sessionmaker
 from ..notify.alerts import SystemAlerter
+from ..smartmoney import update_smart_money
 from . import birdeye, dexscreener, geckoterminal, rugcheck
 from .base import HttpClient
 from .dedup import upsert_tokens
@@ -115,10 +116,18 @@ async def run_tick(settings: Settings, redis=None) -> int:
     ) as http:
         tokens = await collect_once(http, settings, alerter=alerter, redis=redis)
 
-    async with get_sessionmaker()() as session:
-        result = await upsert_tokens(
-            session, tokens, redis=redis, dedup_ttl=settings.dedup_ttl_seconds
-        )
+        async with get_sessionmaker()() as session:
+            result = await upsert_tokens(
+                session, tokens, redis=redis, dedup_ttl=settings.dedup_ttl_seconds
+            )
+            # Доп. шаг: smart-money (анализ ончейн-сделок). ПОСЛЕ upsert, чтобы
+            # у токенов были id/verdict. Полностью отказоустойчив: любая ошибка
+            # этого шага НИКОГДА не ломает discovery. Гейтится флагом конфига.
+            if settings.smartmoney_enabled:
+                try:
+                    await update_smart_money(session, settings, http, tokens, redis=redis)
+                except Exception as exc:  # noqa: BLE001 — smart-money не валит тик
+                    logger.warning("smart-money шаг пропущен из-за ошибки: %s", exc)
 
     # Публикуем новинки в шину для живой ленты.
     if redis is not None and result.inserted:

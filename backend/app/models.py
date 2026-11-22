@@ -59,6 +59,9 @@ class Token(Base):
     # socials/links как JSON-строка (websites, twitter, telegram, explorer).
     socials: Mapped[str | None] = mapped_column(String(2048))
 
+    # Число notable smart-money кошельков, купивших токен рано (0 = нет/не считано).
+    smart_wallets: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
     source: Mapped[str] = mapped_column(String(32), nullable=False)
     # Монотонный ключ для WS-курсора «что нового».
     discovered_at: Mapped[datetime] = mapped_column(
@@ -189,6 +192,8 @@ class PaperPosition(Base):
     last_price: Mapped[float] = mapped_column(Float, nullable=False)
     remaining_fraction: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
     tp_taken: Mapped[bool] = mapped_column(default=False, nullable=False)
+    # Битовая маска сработавших уровней лестницы TP (бит i == уровень i).
+    tp_tiers_hit: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     realized_pnl_usd: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     pnl_pct: Mapped[float | None] = mapped_column(Float)
@@ -532,4 +537,59 @@ class InvestorLead(Base):
     __table_args__ = (
         Index("ix_investor_leads_created_at", "created_at"),
         Index("ix_investor_leads_status", "status"),
+    )
+
+
+class SmartWallet(Base):
+    """«Notable»-кошелёк: ранний повторяющийся покупатель PASS-токенов (эвристика,
+    НЕ сертифицированный прибыльный кошелёк; PnL не считается — см. label)."""
+
+    __tablename__ = "smart_wallets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    # Адрес кошелька: EVM 0x… (lower) или Solana base58 (регистр сохранён).
+    address: Mapped[str] = mapped_column(String(128), nullable=False)
+    # Число РАЗНЫХ PASS-токенов, где кошелёк был ранним покупателем.
+    early_pass_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    notable: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Хук для будущей разметки по реальной прибыли (PnL). NULL = не размечен.
+    label: Mapped[str | None] = mapped_column(String(32))
+    first_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint("address", name="uq_smart_wallet_address"),
+        Index("ix_smart_wallets_notable", "notable"),
+    )
+
+
+class TokenBuyer(Base):
+    """Факт: кошелёк был ранним покупателем токена (одна запись на token+wallet)."""
+
+    __tablename__ = "token_buyers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    token_id: Mapped[int] = mapped_column(
+        ForeignKey("tokens.id", ondelete="CASCADE"), nullable=False
+    )
+    wallet_address: Mapped[str] = mapped_column(String(128), nullable=False)
+    chain: Mapped[str] = mapped_column(String(32), nullable=False)
+    # 0-based позиция среди ранних buy-сделок пула.
+    rank: Mapped[int | None] = mapped_column(Integer)
+    volume_usd: Mapped[float | None] = mapped_column(Float)
+    # Снимок: токен был PASS на момент записи (пересчёт использует живой join с safety).
+    verdict_pass: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    bought_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint("token_id", "wallet_address", name="uq_token_buyer"),
+        Index("ix_token_buyers_wallet", "wallet_address"),
+        Index("ix_token_buyers_token_id", "token_id"),
     )

@@ -36,7 +36,7 @@ async def test_collect_once_merges_all_sources():
         async with HttpClient() as http:
             tokens = await collect_once(http, settings)
     sources = {t.source for t in tokens}
-    assert sources == {"geckoterminal", "rugcheck", "dexscreener"}
+    assert sources == {"geckoterminal", "geckoterminal_trending", "rugcheck", "dexscreener"}
 
 
 @respx.mock(assert_all_called=False)

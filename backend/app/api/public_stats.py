@@ -196,6 +196,7 @@ async def public_verified(
                 "trending": trending,
                 "change_24h": ch24,
                 "multiple": multiple,
+                "smart_wallets": token.smart_wallets or 0,
             }
         )
 
@@ -271,6 +272,7 @@ async def public_fresh(
                 "verdict": "PASS",
                 "change_24h": ch24,
                 "multiple_24h": round(1.0 + ch24 / 100.0, 2),
+                "smart_wallets": token.smart_wallets or 0,
             }
         )
         if len(tokens) >= limit:

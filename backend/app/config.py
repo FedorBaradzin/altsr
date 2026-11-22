@@ -212,6 +212,16 @@ class Settings(BaseSettings):
     # --- Тренд ликвидности + быстрый выход (T2, рычаги ②⑤) ---
     # Падение ликвидности между срезами больше порога → не входить / немедленный выход.
     paper_liq_drop_pct: float = Field(default=0.10, alias="PAPER_LIQ_DROP_PCT")
+    # --- Лестница выходов (опционально; пусто/False = старое поведение один TP) ---
+    paper_exit_ladder: str = Field(default="", alias="PAPER_EXIT_LADDER")
+    paper_exit_ladder_enabled: bool = Field(default=False, alias="PAPER_EXIT_LADDER_ENABLED")
+    # --- Smart-money (анализ ончейн-сделок; НЕ торговля) ---
+    smartmoney_enabled: bool = Field(default=False, alias="SMARTMONEY_ENABLED")
+    smartmoney_max_tokens_per_cycle: int = Field(default=20, alias="SMARTMONEY_MAX_TOKENS_PER_CYCLE")
+    smartmoney_early_trades: int = Field(default=10, alias="SMARTMONEY_EARLY_TRADES")
+    smartmoney_min_pass_for_notable: int = Field(default=2, alias="SMARTMONEY_MIN_PASS_FOR_NOTABLE")
+    smartmoney_concurrency: int = Field(default=3, alias="SMARTMONEY_CONCURRENCY")
+    smartmoney_recheck_seconds: int = Field(default=3600, alias="SMARTMONEY_RECHECK_SECONDS")
     # Ускоренный опрос цены/ликвидности для ОТКРЫТЫХ позиций (вместо paper_interval).
     paper_open_poll_seconds: int = Field(default=5, alias="PAPER_OPEN_POLL_SECONDS")
     # Рост налога на продажу (абсолютные проценты) считается критическим изменением.
