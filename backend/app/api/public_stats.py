@@ -128,7 +128,10 @@ async def public_verified(
 
     # Санитарный потолок ликвидности: источники иногда отдают мусорные значения
     # (FDV/резерв как $1B+). Для честной витрины «проверенных» отсекаем абсурд.
+    # Для трендовых токенов (source содержит "trending") потолок выше — это
+    # качественные активно торгуемые монеты, которым позволяем до 50M.
     max_liq = settings.verified_max_liquidity_usd
+    fetch_ceiling = max(max_liq, 50_000_000)
     # Берём с запасом — ниже дедуплицируем по символу/адресу и обрезаем до limit.
     rows = (
         await session.execute(
@@ -138,7 +141,7 @@ async def public_verified(
                 SafetyReport.verdict == "PASS",
                 Token.liquidity_usd.is_not(None),
                 Token.liquidity_usd > 0,
-                Token.liquidity_usd <= max_liq,
+                Token.liquidity_usd <= fetch_ceiling,
                 Token.created_at.is_not(None),
                 Token.created_at <= age_cutoff,
             )
@@ -150,12 +153,16 @@ async def public_verified(
     tokens: list[dict] = []
     seen: set[str] = set()
     for token, report in rows:
-        if len(tokens) >= limit:
-            break
         # Дедуп: один токен на символ (или адрес, если символа нет) — убираем
         # повторы одного и того же проекта из разных пулов/источников.
         key = (token.symbol or token.address or "").strip().lower()
         if key in seen:
+            continue
+        liq = float(token.liquidity_usd)
+        trending = "trending" in ((token.source or "").lower())
+        # Не-трендовый мусор капаем на обычном потолке; трендовые качественные
+        # токены пропускаем до 50M.
+        if not trending and liq > max_liq:
             continue
         seen.add(key)
         created = token.created_at
@@ -164,7 +171,6 @@ async def public_verified(
         if created.tzinfo is None:
             created = created.replace(tzinfo=timezone.utc)
         age_hours = round((now - created).total_seconds() / 3600.0, 1)
-        liq = float(token.liquidity_usd)
         tokens.append(
             {
                 "symbol": token.symbol,
@@ -175,8 +181,13 @@ async def public_verified(
                 "risk_score": report.risk_score,
                 "verdict": "PASS",
                 "low_liquidity": liq < settings.radar_low_liquidity_usd,
+                "trending": trending,
             }
         )
+
+    # Приоритет: сначала трендовые, затем по ликвидности убыв. Обрезаем до limit.
+    tokens.sort(key=lambda t: (not t["trending"], -t["liquidity_usd"]))
+    tokens = tokens[:limit]
 
     return {
         "low_liq_threshold": settings.radar_low_liquidity_usd,

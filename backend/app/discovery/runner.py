@@ -87,6 +87,9 @@ async def collect_once(
         geckoterminal.fetch_new_pools(
             http, settings.gecko_base_url, settings.gecko_network_list
         ),
+        geckoterminal.fetch_trending_pools(
+            http, settings.gecko_base_url, settings.gecko_network_list
+        ),
         rugcheck.fetch_new_tokens(http, settings.rugcheck_base_url),
         dexscreener.fetch_latest_profiles(http, settings.dexscreener_base_url),
     ]

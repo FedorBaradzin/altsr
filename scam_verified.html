@@ -18,6 +18,7 @@
 #altsr-verified-section .avf-age,#altsr-verified-section .avf-risk{font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--muted)}
 #altsr-verified-section .avf-pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:6px;letter-spacing:.04em;display:inline-block;background:var(--em-dim);color:var(--emerald);border:1px solid #34d39933}
 #altsr-verified-section .avf-lowliq{font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;letter-spacing:.02em;display:inline-block;margin-left:8px;background:var(--dn-dim);color:var(--danger);border:1px solid #f8717133;white-space:nowrap}
+#altsr-verified-section .avf-trend{font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;letter-spacing:.02em;display:inline-block;margin-left:8px;background:var(--warn-dim,#f59e0b1f);color:var(--warn,#f59e0b);border:1px solid #f59e0b33;white-space:nowrap}
 #altsr-verified-section .avf-empty{padding:34px 10px;text-align:center;color:var(--muted);font-size:14px}
 @media(max-width:640px){#altsr-verified-section .avf-tbl th.avf-hide-sm,#altsr-verified-section .avf-tbl td.avf-hide-sm{display:none}}
 </style>
@@ -84,9 +85,10 @@
       var initials=label.replace(/[^A-Za-zА-Яа-я0-9]/g,'').slice(0,2).toUpperCase()||'?';
       var liqCell=fmtUsd(t.liquidity_usd);
       if(t.low_liquidity){liqCell+=' <span class="avf-lowliq">🔴 Низкая ликвидность</span>';}
+      var trendBadge=t.trending?'<span class="avf-trend">🔥 В тренде</span>':'';
       rows+=''+
         '<tr>'+
-          '<td><div class="avf-tkn"><div class="avf-ic">'+esc(initials)+'</div><div class="avf-nm">'+esc(label)+'</div></div></td>'+
+          '<td><div class="avf-tkn"><div class="avf-ic">'+esc(initials)+'</div><div class="avf-nm">'+esc(label)+'</div>'+trendBadge+'</div></td>'+
           '<td><span class="avf-net">'+esc(String(t.chain||'—').toUpperCase())+'</span></td>'+
           '<td><span class="avf-liq">'+liqCell+'</span></td>'+
           '<td class="avf-r avf-hide-sm"><span class="avf-age">'+esc(fmtAge(t.age_hours))+'</span></td>'+

@@ -95,6 +95,31 @@ async def fetch_new_pools(
     return results
 
 
+async def fetch_trending_pools(
+    http: HttpClient, base_url: str, networks: list[str]
+) -> list[NormalizedToken]:
+    """Trending-пулы (активно торгуемые качественные токены) по сетям.
+
+    Зеркалит fetch_new_pools, но бьёт в GET {base}/networks/{network}/trending_pools.
+    Тот же JSON:API-парсинг (_index_included + normalize_pool). Токены помечаются
+    source="geckoterminal_trending", чтобы downstream мог отличить их от new_pools.
+    """
+    results: list[NormalizedToken] = []
+    for network in networks:
+        url = f"{base_url}/networks/{network}/trending_pools"
+        payload = await http.get_json(url, params={"include": "base_token,dex"})
+        if not isinstance(payload, dict):
+            continue
+        included = _index_included(payload)
+        for pool in payload.get("data", []) or []:
+            tok = normalize_pool(pool, included, network)
+            if tok and tok.is_valid:
+                tok.source = "geckoterminal_trending"
+                results.append(tok)
+    logger.info("GeckoTerminal trending: %d токенов из %d сетей", len(results), len(networks))
+    return results
+
+
 # --------------------------------------------------------------------------- #
 # OHLCV: подтверждение тренда (T10)                                            #
 # --------------------------------------------------------------------------- #
