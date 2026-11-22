@@ -208,3 +208,72 @@ async def public_verified(
         "count": len(tokens),
         "tokens": tokens,
     }
+
+
+@router.get("/fresh")
+async def public_fresh(
+    limit: int = Query(default=12, ge=1, le=50),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Растущие находки радара: PASS-токены с реальным ростом за 24ч.
+
+    Показываем ×N за 24ч = (1 + price_change_h24/100). Это РЕАЛЬНОЕ движение
+    цены самого токена из ончейн-данных (GeckoTerminal), а не прибыль
+    пользователя и не обещание доходности. Сортировка по росту убыв.
+    """
+    from datetime import datetime, timezone
+
+    from ..models import SafetyReport, Token
+
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    fetch_ceiling = max(settings.verified_max_liquidity_usd, 50_000_000)
+
+    rows = (
+        await session.execute(
+            select(Token, SafetyReport)
+            .join(SafetyReport, SafetyReport.token_id == Token.id)
+            .where(
+                SafetyReport.verdict == "PASS",
+                Token.price_change_h24.is_not(None),
+                Token.price_change_h24 > 0,
+                Token.price_change_h24 <= 100_000,  # отсекаем абсурдные значения источника
+                Token.liquidity_usd.is_not(None),
+                Token.liquidity_usd > 0,
+                Token.liquidity_usd <= fetch_ceiling,
+                Token.created_at.is_not(None),
+            )
+            .order_by(Token.price_change_h24.desc())
+            .limit(min(limit * 6, 300))
+        )
+    ).all()
+
+    tokens: list[dict] = []
+    seen: set[str] = set()
+    for token, report in rows:
+        key = (token.symbol or token.address or "").strip().lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        created = token.created_at
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        age_hours = round((now - created).total_seconds() / 3600.0, 1)
+        ch24 = round(float(token.price_change_h24), 1)
+        tokens.append(
+            {
+                "symbol": token.symbol,
+                "chain": token.chain,
+                "address": token.address,
+                "liquidity_usd": round(float(token.liquidity_usd), 0),
+                "age_hours": age_hours,
+                "risk_score": report.risk_score,
+                "verdict": "PASS",
+                "change_24h": ch24,
+                "multiple_24h": round(1.0 + ch24 / 100.0, 2),
+            }
+        )
+        if len(tokens) >= limit:
+            break
+
+    return {"count": len(tokens), "tokens": tokens}

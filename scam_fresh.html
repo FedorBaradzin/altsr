@@ -1,0 +1,95 @@
+<!-- altsr-fresh-v1 -->
+<style>/*altsr-fresh-v1*/
+#altsr-fresh-section .afr-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+#altsr-fresh-section .afr-card{background:var(--surface);border:1px solid var(--line-soft);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:13px;transition:border-color .15s,transform .15s}
+#altsr-fresh-section .afr-card:hover{border-color:#34d39940;transform:translateY(-2px)}
+#altsr-fresh-section .afr-top{display:flex;align-items:center;gap:11px}
+#altsr-fresh-section .afr-ic{width:36px;height:36px;border-radius:10px;flex:none;display:grid;place-items:center;font-family:'Manrope',sans-serif;font-weight:700;font-size:12px;color:#06101a;background:linear-gradient(135deg,var(--emerald),var(--cyan))}
+#altsr-fresh-section .afr-nm{font-family:'Manrope',sans-serif;font-weight:700;font-size:15px;line-height:1.1}
+#altsr-fresh-section .afr-net{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin-top:3px}
+#altsr-fresh-section .afr-x{font-family:'Manrope',sans-serif;font-weight:800;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--emerald);font-size:clamp(26px,3vw,34px)}
+#altsr-fresh-section .afr-xlab{font-size:11px;color:var(--faint);margin-top:5px}
+#altsr-fresh-section .afr-meta{display:flex;align-items:center;gap:10px;margin-top:auto;padding-top:4px;flex-wrap:wrap}
+#altsr-fresh-section .afr-chip{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)}
+#altsr-fresh-section .afr-pill{font-size:9px;font-weight:700;padding:3px 8px;border-radius:5px;letter-spacing:.04em;background:var(--em-dim);color:var(--emerald);border:1px solid #34d39933;margin-left:auto}
+#altsr-fresh-section .afr-empty{padding:34px 10px;text-align:center;color:var(--muted);font-size:14px;grid-column:1/-1}
+#altsr-fresh-section .afr-note{margin-top:16px;font-size:11.5px;color:var(--faint);max-width:620px;line-height:1.45}
+@media(max-width:1000px){#altsr-fresh-section .afr-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){#altsr-fresh-section .afr-grid{grid-template-columns:1fr}}
+</style>
+<script>/*altsr-fresh-v1*/
+(function(){
+  if(document.getElementById('altsr-fresh-section'))return;
+
+  function curLang(){return document.documentElement.lang==='en'?'en':'ru';}
+  var L=curLang();
+  function t(ru,en){return L==='en'?en:ru;}
+
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function shortAddr(a){a=String(a||'');return a.length>12?a.slice(0,6)+'…'+a.slice(-4):a;}
+  function fmtUsd(n){if(n==null||isNaN(n))return '—';var v=Number(n);if(v>=1e6)return '$'+(v/1e6).toFixed(1)+'M';if(v>=1e3)return '$'+Math.round(v/1e3)+'K';return '$'+Math.round(v);}
+  function fmtAge(h){if(h==null||isNaN(h))return '—';h=Number(h);if(h>24)return Math.round(h/24)+t('д','d');return Math.round(h)+t('ч','h');}
+  function growth(mult,ch){
+    if(mult!=null&&!isNaN(mult)&&Number(mult)>=2)return '×'+Number(mult).toFixed(Number(mult)>=10?0:1);
+    if(ch!=null&&!isNaN(ch))return '+'+Number(ch).toFixed(1)+'%';
+    return '—';
+  }
+
+  var sec=document.createElement('section');
+  sec.id='altsr-fresh-section';
+  sec.className='sec';
+  var items=[];
+
+  function render(){
+    var en=L==='en';
+    var body;
+    if(!items.length){
+      body='<div class="afr-empty">'+t('Пока нет растущих находок — радар собирает данные.','No rising finds yet — the radar is gathering data.')+'</div>';
+    }else{
+      var cards='';
+      for(var i=0;i<items.length;i++){
+        var tk=items[i]||{};
+        var label=tk.symbol?String(tk.symbol):shortAddr(tk.address);
+        var initials=label.replace(/[^A-Za-zА-Яа-я0-9]/g,'').slice(0,2).toUpperCase()||'?';
+        cards+=''+
+          '<div class="afr-card">'+
+            '<div class="afr-top"><div class="afr-ic">'+esc(initials)+'</div><div><div class="afr-nm">'+esc(label)+'</div><div class="afr-net">'+esc(String(tk.chain||'—').toUpperCase())+'</div></div></div>'+
+            '<div><div class="afr-x">'+growth(tk.multiple_24h,tk.change_24h)+'</div><div class="afr-xlab">'+t('за 24 часа','over 24h')+'</div></div>'+
+            '<div class="afr-meta"><span class="afr-chip">'+t('Ликв.','Liq.')+' '+fmtUsd(tk.liquidity_usd)+'</span><span class="afr-chip">'+fmtAge(tk.age_hours)+'</span><span class="afr-pill">PASS</span></div>'+
+          '</div>';
+      }
+      body='<div class="afr-grid">'+cards+'</div>';
+    }
+    sec.innerHTML=''+
+      '<div class="wrap">'+
+        '<div class="sec-head">'+
+          '<div class="eyebrow">'+t('Растущие находки','Rising finds')+'</div>'+
+          '<h2>'+t('Чистые токены, которые растут','Clean tokens on the move')+'</h2>'+
+          '<p>'+t('Токены с вердиктом PASS и реальным ростом цены за 24 часа. Это движение самого токена в сети, а не прибыль пользователя.','Tokens with a PASS verdict and real 24-hour price growth. This is the token\'s own on-chain move, not a user\'s profit.')+'</p>'+
+        '</div>'+
+        body+
+        '<div class="afr-note">'+t('Данные обновляются каждые 30 секунд из ончейн-источников. Рост в прошлом не гарантирует рост в будущем — крипто-торговля несёт высокий риск.','Data refreshes every 30 seconds from on-chain sources. Past growth does not guarantee future growth — crypto trading is high-risk.')+'</div>'+
+      '</div>';
+  }
+
+  function load(){
+    fetch('/api/public/fresh?limit=8',{cache:'no-store'})
+      .then(function(r){return r.json();})
+      .then(function(j){items=(j&&j.tokens)?j.tokens:[];render();})
+      .catch(function(){});
+  }
+
+  render();
+  load();
+  setInterval(load,30000);
+
+  var foot=document.querySelector('footer.foot');
+  if(foot&&foot.parentNode){foot.parentNode.insertBefore(sec,foot);}
+  else{document.body.appendChild(sec);}
+
+  new MutationObserver(function(){
+    var nl=curLang();
+    if(nl!==L){L=nl;render();}
+  }).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
+})();
+</script>
