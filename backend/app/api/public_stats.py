@@ -7,7 +7,7 @@
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -104,4 +104,68 @@ async def public_radar(session: AsyncSession = Depends(get_session)) -> dict:
         "scams_blocked": scams_blocked,
         "clean_pass": clean_pass,
         "active_signals": active_signals,
+    }
+
+
+@router.get("/verified")
+async def public_verified(
+    limit: int = Query(default=30, ge=1, le=100),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Публичная таблица "Проверенные / держатся" для лендинга.
+
+    Токены, прошедшие анти-скам (verdict=PASS) и "выжившие" — т.е. с известным
+    возрастом не меньше порога. Это честный список переживших выход, а не
+    обещание прибыли. Сортировка по ликвидности. Без демо-данных.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from ..models import SafetyReport, Token
+
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    age_cutoff = now - timedelta(hours=settings.verified_min_age_hours)
+
+    rows = (
+        await session.execute(
+            select(Token, SafetyReport)
+            .join(SafetyReport, SafetyReport.token_id == Token.id)
+            .where(
+                SafetyReport.verdict == "PASS",
+                Token.liquidity_usd.is_not(None),
+                Token.liquidity_usd > 0,
+                Token.created_at.is_not(None),
+                Token.created_at <= age_cutoff,
+            )
+            .order_by(Token.liquidity_usd.desc())
+            .limit(limit)
+        )
+    ).all()
+
+    tokens: list[dict] = []
+    for token, report in rows:
+        created = token.created_at
+        # created_at может прийти naive (без tz) из БД — приводим к UTC, чтобы
+        # вычитание не падало.
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        age_hours = round((now - created).total_seconds() / 3600.0, 1)
+        liq = float(token.liquidity_usd)
+        tokens.append(
+            {
+                "symbol": token.symbol,
+                "chain": token.chain,
+                "address": token.address,
+                "liquidity_usd": round(liq, 0),
+                "age_hours": age_hours,
+                "risk_score": report.risk_score,
+                "verdict": "PASS",
+                "low_liquidity": liq < settings.radar_low_liquidity_usd,
+            }
+        )
+
+    return {
+        "low_liq_threshold": settings.radar_low_liquidity_usd,
+        "count": len(tokens),
+        "tokens": tokens,
     }

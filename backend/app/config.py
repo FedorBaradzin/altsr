@@ -111,6 +111,10 @@ class Settings(BaseSettings):
     signal_min_holders: int = Field(default=0, alias="SIGNAL_MIN_HOLDERS")
     signal_require_pass: bool = Field(default=True, alias="SIGNAL_REQUIRE_PASS")
     signal_max_risk: int = Field(default=15, alias="SIGNAL_MAX_RISK")
+    # Порог "низкой ликвидности" для радара/лендинга и минимальный возраст
+    # токена, после которого он считается "выжившим" (проверенным).
+    radar_low_liquidity_usd: float = Field(default=15000.0, alias="RADAR_LOW_LIQUIDITY_USD")
+    verified_min_age_hours: float = Field(default=6.0, alias="VERIFIED_MIN_AGE_HOURS")
     # Минимальная уверенность сигнала для входа (0..1). Выше порог → меньше,
     # но качественнее входов, меньше просадок.
     signal_min_confidence: float = Field(default=0.88, alias="SIGNAL_MIN_CONFIDENCE")

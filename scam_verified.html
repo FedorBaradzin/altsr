@@ -1,0 +1,125 @@
+<!-- altsr-verified-v1 -->
+<style>/*altsr-verified-v1*/
+#altsr-verified-section .avf-card{background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--r);padding:18px}
+#altsr-verified-section .avf-card-h{display:flex;align-items:center;gap:11px;margin-bottom:16px}
+#altsr-verified-section .avf-ct{font-family:'Manrope',sans-serif;font-size:16px;font-weight:600;display:flex;align-items:center;gap:9px}
+#altsr-verified-section .avf-badge{margin-left:auto;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:7px}
+#altsr-verified-section .avf-badge .avf-dot{width:6px;height:6px;border-radius:50%;background:var(--emerald);box-shadow:0 0 8px var(--emerald)}
+#altsr-verified-section .avf-tbl{width:100%;border-collapse:collapse}
+#altsr-verified-section .avf-tbl th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--faint);font-weight:600;padding:0 10px 11px}
+#altsr-verified-section .avf-tbl th.avf-r,#altsr-verified-section .avf-tbl td.avf-r{text-align:right}
+#altsr-verified-section .avf-tbl td{padding:12px 10px;border-top:1px solid var(--line-soft);font-size:13px;vertical-align:middle}
+#altsr-verified-section .avf-tbl tr:hover td{background:#ffffff06}
+#altsr-verified-section .avf-tkn{display:flex;align-items:center;gap:10px}
+#altsr-verified-section .avf-ic{width:30px;height:30px;border-radius:9px;flex:none;display:grid;place-items:center;font-family:'Manrope',sans-serif;font-weight:700;font-size:11px;color:#06101a;background:linear-gradient(135deg,var(--emerald),var(--cyan))}
+#altsr-verified-section .avf-nm{font-weight:600;font-size:13.5px}
+#altsr-verified-section .avf-net{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--muted);padding:3px 8px;border:1px solid var(--line);border-radius:6px;background:#0c1320;display:inline-block}
+#altsr-verified-section .avf-liq{font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:500;font-variant-numeric:tabular-nums}
+#altsr-verified-section .avf-age,#altsr-verified-section .avf-risk{font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--muted)}
+#altsr-verified-section .avf-pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:6px;letter-spacing:.04em;display:inline-block;background:var(--em-dim);color:var(--emerald);border:1px solid #34d39933}
+#altsr-verified-section .avf-lowliq{font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;letter-spacing:.02em;display:inline-block;margin-left:8px;background:var(--dn-dim);color:var(--danger);border:1px solid #f8717133;white-space:nowrap}
+#altsr-verified-section .avf-empty{padding:34px 10px;text-align:center;color:var(--muted);font-size:14px}
+@media(max-width:640px){#altsr-verified-section .avf-tbl th.avf-hide-sm,#altsr-verified-section .avf-tbl td.avf-hide-sm{display:none}}
+</style>
+<script>/*altsr-verified-v1*/
+(function(){
+  if(document.getElementById('altsr-verified-section'))return;
+
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function shortAddr(a){a=String(a||'');return a.length>12?a.slice(0,6)+'…'+a.slice(-4):a;}
+  function fmtUsd(n){
+    if(n==null||isNaN(n))return '—';
+    return '$'+Math.round(Number(n)).toLocaleString('en-US');
+  }
+  function fmtAge(h){
+    if(h==null||isNaN(h))return '—';
+    h=Number(h);
+    if(h>24)return Math.round(h/24).toLocaleString('en-US')+'д';
+    return Math.round(h).toLocaleString('en-US')+'ч';
+  }
+  function fmtRisk(r){
+    if(r==null||isNaN(r))return '—';
+    return Number(r).toLocaleString('en-US');
+  }
+
+  // Build the section shell, placed right before <footer class="foot">.
+  var sec=document.createElement('section');
+  sec.id='altsr-verified-section';
+  sec.className='sec';
+  sec.innerHTML=''+
+    '<div class="wrap">'+
+      '<div class="sec-head">'+
+        '<div class="eyebrow">Verified Tokens</div>'+
+        '<h2>Проверенные / держатся</h2>'+
+        '<p>Токены, прошедшие анти-скам и выжившие — не однодневки.</p>'+
+      '</div>'+
+      '<div class="avf-card">'+
+        '<div class="avf-card-h">'+
+          '<span class="avf-ct">'+
+            '<svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M10 2l6.5 2.6v4c0 4-2.7 6.5-6.5 7.8-3.8-1.3-6.5-3.8-6.5-7.8v-4z" stroke="var(--emerald)" stroke-width="1.3"/><path d="M7 10l2 2 4-4" stroke="var(--emerald)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'+
+            'Проверенные токены'+
+          '</span>'+
+          '<span class="avf-badge"><span class="avf-dot"></span>Обновляется каждые 30с</span>'+
+        '</div>'+
+        '<div id="avf-body"></div>'+
+      '</div>'+
+    '</div>';
+
+  var foot=document.querySelector('footer.foot');
+  if(foot&&foot.parentNode){foot.parentNode.insertBefore(sec,foot);}
+  else{document.body.appendChild(sec);}
+
+  var body=sec.querySelector('#avf-body');
+
+  function renderEmpty(){
+    body.innerHTML='<div class="avf-empty">Пока нет проверенных токенов — радар наполняется.</div>';
+  }
+
+  function renderTable(tokens){
+    if(!tokens||!tokens.length){renderEmpty();return;}
+    var rows='';
+    for(var i=0;i<tokens.length;i++){
+      var t=tokens[i]||{};
+      var label=t.symbol?String(t.symbol):shortAddr(t.address);
+      var initials=label.replace(/[^A-Za-zА-Яа-я0-9]/g,'').slice(0,2).toUpperCase()||'?';
+      var liqCell=fmtUsd(t.liquidity_usd);
+      if(t.low_liquidity){liqCell+=' <span class="avf-lowliq">🔴 Низкая ликвидность</span>';}
+      rows+=''+
+        '<tr>'+
+          '<td><div class="avf-tkn"><div class="avf-ic">'+esc(initials)+'</div><div class="avf-nm">'+esc(label)+'</div></div></td>'+
+          '<td><span class="avf-net">'+esc(String(t.chain||'—').toUpperCase())+'</span></td>'+
+          '<td><span class="avf-liq">'+liqCell+'</span></td>'+
+          '<td class="avf-r avf-hide-sm"><span class="avf-age">'+esc(fmtAge(t.age_hours))+'</span></td>'+
+          '<td class="avf-r avf-hide-sm"><span class="avf-risk">'+esc(fmtRisk(t.risk_score))+'</span></td>'+
+          '<td class="avf-r"><span class="avf-pill">PASS</span></td>'+
+        '</tr>';
+    }
+    body.innerHTML=''+
+      '<table class="avf-tbl">'+
+        '<thead><tr>'+
+          '<th>Токен</th>'+
+          '<th>Сеть</th>'+
+          '<th>Ликвидность</th>'+
+          '<th class="avf-r avf-hide-sm">Возраст</th>'+
+          '<th class="avf-r avf-hide-sm">Риск</th>'+
+          '<th class="avf-r">Вердикт</th>'+
+        '</tr></thead>'+
+        '<tbody>'+rows+'</tbody>'+
+      '</table>';
+  }
+
+  function load(){
+    fetch('/api/public/verified?limit=30',{cache:'no-store'})
+      .then(function(r){return r.json();})
+      .then(function(j){
+        if(!j||!j.count||!j.tokens||!j.tokens.length){renderEmpty();return;}
+        renderTable(j.tokens);
+      })
+      .catch(function(){renderEmpty();});
+  }
+
+  renderEmpty();
+  load();
+  setInterval(load,30000);
+})();
+</script>
