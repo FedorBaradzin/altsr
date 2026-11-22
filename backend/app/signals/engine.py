@@ -26,6 +26,8 @@ class SignalInput:
     holder_count: int | None = None
     verdict: str | None = None
     risk_score: int | None = None
+    # Smart-money: число заметных ранних кошельков, купивших токен (0 = нет/не считано).
+    smart_wallets: int | None = None
     # Моментум (DexScreener) — вход только в растущие.
     price_change_m5: float | None = None
     price_change_h1: float | None = None
@@ -156,6 +158,17 @@ def evaluate_entry(
                 )
             reasons.append(f"всплеск объёма {vs:.1f}×")
 
+    # 6c. Smart-money — необязательные ворота (по умолчанию ВЫКЛ). Требуем участия
+    # заметных ранних кошельков (повторяющихся ранних покупателей PASS-токенов).
+    # Не блокирует при 0, если гейт выключен — тогда это только бонус к уверенности.
+    if s.signal_require_smart_money and s.signal_min_smart_wallets > 0:
+        sw = inp.smart_wallets or 0
+        if sw < s.signal_min_smart_wallets:
+            return SignalDecision(
+                False, rejected=f"smart-money {sw} < {s.signal_min_smart_wallets}"
+            )
+        reasons.append(f"smart-money {sw} кошельк.")
+
     # 7. Технические индикаторы (T1) — ROC/объём/давление/Aroon/ATR, гейт AND.
     if s.indicators_enabled:
         rejected = _indicator_checks(inp, s, reasons)
@@ -281,6 +294,12 @@ def _heuristic_confidence(inp: SignalInput, s: Settings) -> float:
     # Достаточно холдеров.
     if inp.holder_count is not None and inp.holder_count >= 100:
         c += 0.10
+    # Smart-money: участие заметных ранних кошельков повышает уверенность (бонус,
+    # не гарантия — это поведенческий прокси, не расчёт прибыли).
+    if inp.smart_wallets and s.signal_conf_smart_scale > 0:
+        c += s.signal_conf_w_smart * min(
+            1.0, inp.smart_wallets / s.signal_conf_smart_scale
+        )
     # Рыночная динамика: рост m5/h1, давление покупок, оборот к ликвидности.
     c += _momentum_confidence(inp, s)
     return round(min(1.0, max(0.0, c)), 3)

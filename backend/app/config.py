@@ -111,6 +111,11 @@ class Settings(BaseSettings):
     signal_min_holders: int = Field(default=0, alias="SIGNAL_MIN_HOLDERS")
     signal_require_pass: bool = Field(default=True, alias="SIGNAL_REQUIRE_PASS")
     signal_max_risk: int = Field(default=15, alias="SIGNAL_MAX_RISK")
+    # Smart-money на входе: опциональный гейт (выкл) + вклад в уверенность.
+    signal_require_smart_money: bool = Field(default=False, alias="SIGNAL_REQUIRE_SMART_MONEY")
+    signal_min_smart_wallets: int = Field(default=2, alias="SIGNAL_MIN_SMART_WALLETS")
+    signal_conf_w_smart: float = Field(default=0.15, alias="SIGNAL_CONF_W_SMART")
+    signal_conf_smart_scale: float = Field(default=3.0, alias="SIGNAL_CONF_SMART_SCALE")
     # Порог "низкой ликвидности" для радара/лендинга и минимальный возраст
     # токена, после которого он считается "выжившим" (проверенным).
     radar_low_liquidity_usd: float = Field(default=15000.0, alias="RADAR_LOW_LIQUIDITY_USD")

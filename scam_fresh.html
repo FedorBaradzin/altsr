@@ -12,6 +12,7 @@
 #altsr-fresh-section .afr-meta{display:flex;align-items:center;gap:10px;margin-top:auto;padding-top:4px;flex-wrap:wrap}
 #altsr-fresh-section .afr-chip{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)}
 #altsr-fresh-section .afr-pill{font-size:9px;font-weight:700;padding:3px 8px;border-radius:5px;letter-spacing:.04em;background:var(--em-dim);color:var(--emerald);border:1px solid #34d39933;margin-left:auto}
+#altsr-fresh-section .afr-smart{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;background:var(--sig-dim,#8c7cff1f);color:var(--signal,#b3a9ff);border:1px solid #8c7cff33}
 #altsr-fresh-section .afr-empty{padding:34px 10px;text-align:center;color:var(--muted);font-size:14px;grid-column:1/-1}
 #altsr-fresh-section .afr-note{margin-top:16px;font-size:11.5px;color:var(--faint);max-width:620px;line-height:1.45}
 @media(max-width:1000px){#altsr-fresh-section .afr-grid{grid-template-columns:repeat(2,1fr)}}
@@ -55,7 +56,7 @@
           '<div class="afr-card">'+
             '<div class="afr-top"><div class="afr-ic">'+esc(initials)+'</div><div><div class="afr-nm">'+esc(label)+'</div><div class="afr-net">'+esc(String(tk.chain||'—').toUpperCase())+'</div></div></div>'+
             '<div><div class="afr-x">'+growth(tk.multiple_24h,tk.change_24h)+'</div><div class="afr-xlab">'+t('за 24 часа','over 24h')+'</div></div>'+
-            '<div class="afr-meta"><span class="afr-chip">'+t('Ликв.','Liq.')+' '+fmtUsd(tk.liquidity_usd)+'</span><span class="afr-chip">'+fmtAge(tk.age_hours)+'</span><span class="afr-pill">PASS</span></div>'+
+            '<div class="afr-meta"><span class="afr-chip">'+t('Ликв.','Liq.')+' '+fmtUsd(tk.liquidity_usd)+'</span><span class="afr-chip">'+fmtAge(tk.age_hours)+'</span>'+((tk.smart_wallets&&tk.smart_wallets>0)?'<span class="afr-smart" title="'+t('Заметные ранние кошельки','Notable early wallets')+'">🧠 '+tk.smart_wallets+'</span>':'')+'<span class="afr-pill">PASS</span></div>'+
           '</div>';
       }
       body='<div class="afr-grid">'+cards+'</div>';
