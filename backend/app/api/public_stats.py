@@ -238,7 +238,9 @@ async def public_fresh(
                 SafetyReport.verdict == "PASS",
                 Token.price_change_h24.is_not(None),
                 Token.price_change_h24 > 0,
-                Token.price_change_h24 <= 100_000,  # отсекаем абсурдные значения источника
+                # Отсекаем абсурдные значения источника (микрокап-артефакты у цены
+                # около нуля). Оставляем правдоподобные иксы — для доверия блока.
+                Token.price_change_h24 <= settings.fresh_max_change_pct,
                 Token.liquidity_usd.is_not(None),
                 Token.liquidity_usd > 0,
                 Token.liquidity_usd <= fetch_ceiling,

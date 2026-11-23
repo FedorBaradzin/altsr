@@ -121,6 +121,9 @@ class Settings(BaseSettings):
     radar_low_liquidity_usd: float = Field(default=15000.0, alias="RADAR_LOW_LIQUIDITY_USD")
     verified_min_age_hours: float = Field(default=6.0, alias="VERIFIED_MIN_AGE_HOURS")
     verified_max_liquidity_usd: float = Field(default=5_000_000.0, alias="VERIFIED_MAX_LIQUIDITY_USD")
+    # Потолок роста за 24ч для блока «Растущие» (%). Выше — считаем артефактом
+    # данных (цена у нуля) и не показываем: 900% = ×10, правдоподобный максимум.
+    fresh_max_change_pct: float = Field(default=900.0, alias="FRESH_MAX_CHANGE_PCT")
     # Минимальная уверенность сигнала для входа (0..1). Выше порог → меньше,
     # но качественнее входов, меньше просадок.
     signal_min_confidence: float = Field(default=0.88, alias="SIGNAL_MIN_CONFIDENCE")
