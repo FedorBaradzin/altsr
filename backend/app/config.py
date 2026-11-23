@@ -386,6 +386,21 @@ class Settings(BaseSettings):
         """Birdeye включается явным флагом ИЛИ самим наличием ключа (удобнее в настройке)."""
         return self.birdeye_enabled or bool(self.birdeye_api_key)
 
+    # --- Coinglass: МАКРО-режим рынка (деривативы BTC/ETH + весь рынок) ---
+    # Это НЕ детектор микрокап-токенов, а опциональный «market regime»-фильтр
+    # (funding / open interest / ликвидации / long-short). По умолчанию ВЫКЛ и
+    # НИКОГДА не является жёстким гейтом торговли. Ключ — только из env/.env.
+    coinglass_api_key: str = Field(default="", alias="COINGLASS_API_KEY")
+    coinglass_base_url: str = Field(
+        default="https://open-api-v4.coinglass.com", alias="COINGLASS_BASE_URL"
+    )
+    coinglass_enabled: bool = Field(default=False, alias="COINGLASS_ENABLED")
+    # TTL in-memory кэша ответов Coinglass (сек) — бережём лимит тарифа ($35).
+    coinglass_cache_seconds: int = Field(default=120, alias="COINGLASS_CACHE_SECONDS")
+    # Интервал истории. Тариф HOBBYIST допускает только {4h,6h,8h,12h,1d} —
+    # 1h/ниже отдают 403 «not available for your plan». Дефолт 4h (подтверждён живьём).
+    coinglass_interval: str = Field(default="4h", alias="COINGLASS_INTERVAL")
+
     # CORS для фронтенда.
     cors_origins: str = Field(default="http://localhost:3000", alias="CORS_ORIGINS")
 

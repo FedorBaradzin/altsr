@@ -68,6 +68,12 @@ def evaluate_entry(
 ) -> SignalDecision:
     reasons: list[str] = []
 
+    # NOTE (Coinglass макро-режим): опциональный мягкий вход доступен в
+    # app.coinglass.regime.market_regime_ok(settings) → True/False/None. Сейчас НЕ
+    # подключён к входу намеренно (выкл по умолчанию, не жёсткий гейт). Если захотим
+    # учитывать режим рынка, его следует добавить как ВКЛАД в уверенность, а не как
+    # блокирующее ворото здесь.
+
     # 0. Hard-rules R1–R5 (T4): fail-fast, rule_id в причине отказа (для алертов).
     if s.hard_rules_enabled and hr is not None:
         hres = check_hard_rules(hr, hard_config_from_settings(s))

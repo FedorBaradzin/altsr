@@ -15,6 +15,7 @@ from .api.articles import router as articles_router
 from .api.assistant import router as assistant_router
 from .api.auth import router as auth_router
 from .api.billing import router as billing_router
+from .api.coinglass import router as coinglass_router
 from .api.news import router as news_router
 from .api.autotrade import router as autotrade_router
 from .api.investors import admin_router as investors_admin_router
@@ -103,6 +104,7 @@ app.include_router(auth_router)
 app.include_router(billing_router)
 app.include_router(assistant_router)
 app.include_router(referral_router)
+app.include_router(coinglass_router)
 app.include_router(admin_router)
 
 
