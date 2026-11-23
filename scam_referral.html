@@ -33,7 +33,7 @@
   function curLang(){return document.documentElement.lang==='en'?'en':'ru';}
   var L=curLang();
   function t(ru,en){return L==='en'?en:ru;}
-  var state={refs:10, avg:49};
+  var state={refs:1000, avg:79};
 
   // [ru,en, countRu,countEn, rate, auto]
   var TIERS=[
@@ -86,7 +86,7 @@
           '<div class="arf-card">'+
             '<div class="arf-ct">'+t('Калькулятор дохода','Earnings calculator')+'</div>'+
             '<div class="arf-field"><label>'+t('Активных рефералов','Active referrals')+'</label>'+
-              '<input id="arf-refs" type="number" min="0" max="999" value="'+state.refs+'"></div>'+
+              '<input id="arf-refs" type="number" min="0" max="100000" value="'+state.refs+'"></div>'+
             '<div class="arf-field"><label>'+t('Средний платёж реферала, $/мес','Avg referral payment, $/mo')+'</label>'+
               '<input id="arf-avg" type="number" min="0" max="100000" value="'+state.avg+'"></div>'+
             '<div class="arf-out">'+
