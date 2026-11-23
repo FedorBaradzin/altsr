@@ -84,13 +84,27 @@ _ENSURE_PG_COLUMNS: list[tuple[str, str, str]] = [
 async def create_all() -> None:
     """Создать таблицы (для тестов и локального старта без Alembic)."""
     from . import models  # noqa: F401  регистрирует модели в метаданных
+    from sqlalchemy.exc import ProgrammingError
 
     engine = get_engine()
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-        if engine.dialect.name == "postgresql":
-            from sqlalchemy import text
+    # Несколько сервисов (backend/worker/paper/signals/ai) выполняют create_all
+    # одновременно на старте. Даже с checkfirst две параллельные попытки могут
+    # столкнуться на CREATE TABLE ("relation ... already exists") и уронить
+    # startup. Таблицы при этом уже созданы — глотаем именно эту гонку.
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    except ProgrammingError as exc:  # pragma: no cover - зависит от гонки на старте
+        if "already exists" not in str(exc).lower():
+            raise
 
+    if engine.dialect.name == "postgresql":
+        from sqlalchemy import text
+
+        # Идемпотентное добавление новых колонок в существующие таблицы
+        # (create_all создаёт только новые ТАБЛИЦЫ, но не колонки). Отдельная
+        # транзакция, чтобы не зависеть от исхода блока выше.
+        async with engine.begin() as conn:
             for table, col, typ in _ENSURE_PG_COLUMNS:
                 await conn.execute(
                     text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {typ}")
