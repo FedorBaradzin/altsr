@@ -282,7 +282,19 @@ async def update_smart_money(
     await session.flush()
     await _recompute_wallets(session, settings, touched_wallets, now)
     await session.flush()
-    await _recompute_token_smart_wallets(session, processed_ids)
+    # Пересчитываем smart_wallets не только у обработанных в этом цикле токенов,
+    # но и у ВСЕХ токенов, купленных затронутыми кошельками в прошлых циклах:
+    # кошелёк мог стать notable только сейчас, а токены он покупал раньше —
+    # без этого их счётчик навсегда остаётся 0 (баг эвентуальной консистентности).
+    affected_ids: set[int] = set(processed_ids)
+    if touched_wallets:
+        rows = await session.execute(
+            select(TokenBuyer.token_id)
+            .where(TokenBuyer.wallet_address.in_(list(touched_wallets)))
+            .distinct()
+        )
+        affected_ids.update(int(r[0]) for r in rows.all())
+    await _recompute_token_smart_wallets(session, list(affected_ids))
     await session.commit()
 
     logger.info(
