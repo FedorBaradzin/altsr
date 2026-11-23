@@ -116,6 +116,13 @@ class Settings(BaseSettings):
     signal_min_smart_wallets: int = Field(default=2, alias="SIGNAL_MIN_SMART_WALLETS")
     signal_conf_w_smart: float = Field(default=0.15, alias="SIGNAL_CONF_W_SMART")
     signal_conf_smart_scale: float = Field(default=3.0, alias="SIGNAL_CONF_SMART_SCALE")
+    # Мягкое условие входа (НЕ жёсткий гейт): среди прошедших моментум берём только
+    # те, где ЕСТЬ smart-money ИЛИ реально свежий сильный рост m5. Отсекает "доехавшие"
+    # пампы (чуть плюсовой h1, но плоский m5, без smart-денег). Полностью env-настраиваемо;
+    # выключается SIGNAL_SOFT_SMART_ENABLED=false. Активно только когда жёсткий гейт выключен.
+    signal_soft_smart_enabled: bool = Field(default=False, alias="SIGNAL_SOFT_SMART_ENABLED")
+    signal_soft_min_smart_wallets: int = Field(default=1, alias="SIGNAL_SOFT_MIN_SMART_WALLETS")
+    signal_soft_strong_m5: float = Field(default=3.0, alias="SIGNAL_SOFT_STRONG_M5")
     # Порог "низкой ликвидности" для радара/лендинга и минимальный возраст
     # токена, после которого он считается "выжившим" (проверенным).
     radar_low_liquidity_usd: float = Field(default=15000.0, alias="RADAR_LOW_LIQUIDITY_USD")

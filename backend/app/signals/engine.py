@@ -168,6 +168,25 @@ def evaluate_entry(
                 False, rejected=f"smart-money {sw} < {s.signal_min_smart_wallets}"
             )
         reasons.append(f"smart-money {sw} кошельк.")
+    elif s.signal_soft_smart_enabled:
+        # Мягкое условие (не жёсткий гейт): берём вход, только если есть smart-money
+        # ИЛИ свежий сильный моментум m5. Иначе это "доехавший"/слабый памп — пропускаем.
+        sw = inp.smart_wallets or 0
+        has_smart = sw >= s.signal_soft_min_smart_wallets
+        m5 = inp.price_change_m5
+        strong_mom = m5 is not None and m5 >= s.signal_soft_strong_m5
+        if not (has_smart or strong_mom):
+            return SignalDecision(
+                False,
+                rejected=(
+                    f"нет smart-money ({sw}) и слабый m5 "
+                    f"({(m5 if m5 is not None else 0.0):+.1f}% < {s.signal_soft_strong_m5:+.1f}%)"
+                ),
+            )
+        if has_smart:
+            reasons.append(f"smart-money {sw} кошельк.")
+        else:
+            reasons.append(f"сильный моментум m5 {m5:+.1f}%")
 
     # 7. Технические индикаторы (T1) — ROC/объём/давление/Aroon/ATR, гейт AND.
     if s.indicators_enabled:
