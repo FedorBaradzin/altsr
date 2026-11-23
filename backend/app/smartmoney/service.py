@@ -76,23 +76,50 @@ async def _pick_candidates(
     smartmoney_max_tokens_per_cycle.
     """
     max_tokens = max(1, settings.smartmoney_max_tokens_per_cycle)
-    networks = CHAIN_TO_NETWORK.keys()
-    rows = (
+    networks = list(CHAIN_TO_NETWORK.keys())
+    fetch = max_tokens * 3
+
+    base = (
+        select(Token)
+        .join(SafetyReport, SafetyReport.token_id == Token.id)
+        .where(
+            SafetyReport.verdict == "PASS",
+            Token.pair_address.is_not(None),
+            Token.chain.in_(networks),
+        )
+    )
+    # Три корзины, чтобы покрыть и вход автотрейда, и обе витрины:
+    # новейшие (свежий поток), топ-гейнеры 24ч («Растущие»), трендовые («Проверенные»).
+    newest = (
+        await session.execute(base.order_by(Token.discovered_at.desc()).limit(fetch))
+    ).scalars().all()
+    gainers = (
         await session.execute(
-            select(Token)
-            .join(SafetyReport, SafetyReport.token_id == Token.id)
-            .where(
-                SafetyReport.verdict == "PASS",
-                Token.pair_address.is_not(None),
-                Token.chain.in_(networks),
-            )
-            .order_by(Token.discovered_at.desc())
-            .limit(max_tokens * 4)
+            base.where(Token.price_change_h24.is_not(None), Token.price_change_h24 > 0)
+            .order_by(Token.price_change_h24.desc())
+            .limit(fetch)
+        )
+    ).scalars().all()
+    trending = (
+        await session.execute(
+            base.where(Token.source.ilike("%trending%"))
+            .order_by(Token.last_seen_at.desc())
+            .limit(fetch)
         )
     ).scalars().all()
 
+    # Чередуем корзины по кругу и дедупим — равномерное покрытие всех трёх сортов.
+    merged: list[Token] = []
+    seen: set[int] = set()
+    buckets = [newest, gainers, trending]
+    for i in range(max((len(b) for b in buckets), default=0)):
+        for b in buckets:
+            if i < len(b) and b[i].id not in seen:
+                seen.add(b[i].id)
+                merged.append(b[i])
+
     picked: list[Token] = []
-    for tok in rows:
+    for tok in merged:
         if not tok.pair_address:
             continue
         if await _redis_should_check(
