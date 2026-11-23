@@ -1,0 +1,127 @@
+<!-- altsr-referral-v1 -->
+<style>/*altsr-referral-v1*/
+#altsr-ref-section .arf-wrap{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+#altsr-ref-section .arf-card{background:var(--surface);border:1px solid var(--line-soft);border-radius:16px;padding:22px}
+#altsr-ref-section .arf-ct{font-family:'Manrope',sans-serif;font-size:15px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:9px}
+#altsr-ref-section .arf-tbl{width:100%;border-collapse:collapse}
+#altsr-ref-section .arf-tbl th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--faint);font-weight:600;padding:0 10px 10px}
+#altsr-ref-section .arf-tbl td{padding:11px 10px;border-top:1px solid var(--line-soft);font-size:13.5px;vertical-align:middle}
+#altsr-ref-section .arf-tbl tr:hover td{background:#ffffff06}
+#altsr-ref-section .arf-lvl{font-family:'Manrope',sans-serif;font-weight:700}
+#altsr-ref-section .arf-cnt{font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--muted)}
+#altsr-ref-section .arf-rate{font-family:'Manrope',sans-serif;font-weight:700;color:var(--emerald);text-align:right}
+#altsr-ref-section tr.arf-ind td{background:#8c7cff0f}
+#altsr-ref-section tr.arf-ind .arf-rate{color:var(--signal,#8C7CFF)}
+#altsr-ref-section .arf-field{margin-bottom:16px}
+#altsr-ref-section .arf-field label{display:block;font-size:12px;color:var(--muted);margin-bottom:7px}
+#altsr-ref-section .arf-field input{width:100%;box-sizing:border-box;background:#0c1320;border:1px solid var(--line);border-radius:10px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:15px;padding:11px 13px;outline:none}
+#altsr-ref-section .arf-field input:focus{border-color:var(--emerald)}
+#altsr-ref-section .arf-out{margin-top:4px;padding-top:16px;border-top:1px solid var(--line-soft)}
+#altsr-ref-section .arf-out-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+#altsr-ref-section .arf-out-k{font-size:12.5px;color:var(--muted)}
+#altsr-ref-section .arf-badge{font-family:'Manrope',sans-serif;font-weight:700;font-size:13px;padding:3px 11px;border-radius:7px;background:var(--em-dim,#34d3991f);color:var(--emerald);border:1px solid #34d39933}
+#altsr-ref-section .arf-earn{font-family:'Manrope',sans-serif;font-weight:800;font-size:clamp(26px,3.2vw,36px);line-height:1;color:var(--emerald);font-variant-numeric:tabular-nums}
+#altsr-ref-section .arf-earn-lab{font-size:12px;color:var(--faint);margin-top:6px}
+#altsr-ref-section .arf-note{font-size:11px;color:var(--faint);margin-top:14px;line-height:1.45}
+#altsr-ref-section .arf-cta{display:inline-block;margin-top:16px;font-family:'Manrope',sans-serif;font-size:13.5px;font-weight:600;padding:11px 20px;border-radius:10px;text-decoration:none;background:linear-gradient(135deg,var(--emerald),var(--cyan));color:#06101a;transition:transform .13s,box-shadow .13s}
+#altsr-ref-section .arf-cta:hover{transform:translateY(-1px);box-shadow:0 10px 26px -12px var(--emerald)}
+@media(max-width:800px){#altsr-ref-section .arf-wrap{grid-template-columns:1fr}}
+</style>
+<script>/*altsr-referral-v1*/
+(function(){
+  if(document.getElementById('altsr-ref-section'))return;
+  function curLang(){return document.documentElement.lang==='en'?'en':'ru';}
+  var L=curLang();
+  function t(ru,en){return L==='en'?en:ru;}
+  var state={refs:10, avg:49};
+
+  // [ru,en, countRu,countEn, rate, auto]
+  var TIERS=[
+    ['Starter','Starter','1–4','1–4',0.10,true],
+    ['Bronze','Bronze','5–9','5–9',0.15,true],
+    ['Silver','Silver','10–24','10–24',0.20,true],
+    ['Gold','Gold','25+','25+',0.30,true],
+    ['Individual','Individual','по запросу','on request',null,false]
+  ];
+  function tierFor(n){
+    if(n>=25)return['Gold',0.30];
+    if(n>=10)return['Silver',0.20];
+    if(n>=5)return['Bronze',0.15];
+    if(n>=1)return['Starter',0.10];
+    return['—',0];
+  }
+  function money(x){return '$'+Math.round(x).toLocaleString('en-US');}
+
+  var sec=document.createElement('section');
+  sec.id='altsr-ref-section';
+  sec.className='sec';
+
+  function render(){
+    var en=L==='en';
+    var rows='';
+    for(var i=0;i<TIERS.length;i++){
+      var r=TIERS[i];
+      var rateTxt = r[4]==null ? '30–50%' : (Math.round(r[4]*100)+'%'+(r[0]==='Gold'?(' '+t('(потолок авто)','(auto cap)')):''));
+      rows+='<tr class="'+(r[5]?'':'arf-ind')+'">'+
+        '<td><span class="arf-lvl">'+(en?r[1]:r[0])+'</span></td>'+
+        '<td><span class="arf-cnt">'+(en?r[3]:r[2])+'</span></td>'+
+        '<td><span class="arf-rate">'+rateTxt+'</span></td>'+
+      '</tr>';
+    }
+    sec.innerHTML=''+
+      '<div class="wrap">'+
+        '<div class="sec-head">'+
+          '<div class="eyebrow">'+t('Партнёрам','For partners')+'</div>'+
+          '<h2>'+t('Приводи и зарабатывай до 30%','Refer and earn up to 30%')+'</h2>'+
+          '<p>'+t('Авто-ставки до 30% по числу активных рефералов. Выше — индивидуально для топ-трафовых и медийных партнёров.','Auto rates up to 30% by number of active referrals. Higher — individual for top-traffic and media partners.')+'</p>'+
+        '</div>'+
+        '<div class="arf-wrap">'+
+          '<div class="arf-card">'+
+            '<div class="arf-ct">'+t('Уровни и ставки','Tiers & rates')+'</div>'+
+            '<table class="arf-tbl"><thead><tr>'+
+              '<th>'+t('Уровень','Tier')+'</th><th>'+t('Рефералов','Referrals')+'</th>'+
+              '<th style="text-align:right">'+t('Ставка','Rate')+'</th>'+
+            '</tr></thead><tbody>'+rows+'</tbody></table>'+
+          '</div>'+
+          '<div class="arf-card">'+
+            '<div class="arf-ct">'+t('Калькулятор дохода','Earnings calculator')+'</div>'+
+            '<div class="arf-field"><label>'+t('Активных рефералов','Active referrals')+'</label>'+
+              '<input id="arf-refs" type="number" min="0" max="999" value="'+state.refs+'"></div>'+
+            '<div class="arf-field"><label>'+t('Средний платёж реферала, $/мес','Avg referral payment, $/mo')+'</label>'+
+              '<input id="arf-avg" type="number" min="0" max="100000" value="'+state.avg+'"></div>'+
+            '<div class="arf-out">'+
+              '<div class="arf-out-row"><span class="arf-out-k">'+t('Твой уровень','Your tier')+'</span><span class="arf-badge" id="arf-tier">—</span></div>'+
+              '<div class="arf-out-row"><span class="arf-out-k">'+t('Твоя ставка','Your rate')+'</span><span class="arf-badge" id="arf-rate">—</span></div>'+
+              '<div class="arf-earn" id="arf-earn">$0</div>'+
+              '<div class="arf-earn-lab">'+t('Доход в месяц (примерно)','Monthly earnings (estimate)')+'</div>'+
+            '</div>'+
+            '<div class="arf-note">'+t('Примерный расчёт по авто-ставкам. Не гарантия дохода — зависит от активности и платежей рефералов. Individual (30–50%) — по запросу для топ-партнёров.','Estimate at auto rates. Not a guarantee of income — depends on referral activity and payments. Individual (30–50%) is by request for top partners.')+'</div>'+
+            '<a class="arf-cta" href="#pricing">'+t('Стать партнёром','Become a partner')+'</a>'+
+          '</div>'+
+        '</div>'+
+      '</div>';
+    // wire inputs
+    var ri=sec.querySelector('#arf-refs'), ai=sec.querySelector('#arf-avg');
+    function onin(){state.refs=Math.max(0,parseInt(ri.value||'0',10)||0);state.avg=Math.max(0,parseFloat(ai.value||'0')||0);recalc();}
+    ri.addEventListener('input',onin);ai.addEventListener('input',onin);
+    recalc();
+  }
+
+  function recalc(){
+    var tr=tierFor(state.refs), name=tr[0], rate=tr[1];
+    var earn=state.refs*state.avg*rate;
+    var tierEl=sec.querySelector('#arf-tier'), rateEl=sec.querySelector('#arf-rate'), earnEl=sec.querySelector('#arf-earn');
+    if(tierEl)tierEl.textContent=name;
+    if(rateEl)rateEl.textContent=Math.round(rate*100)+'%';
+    if(earnEl)earnEl.textContent=money(earn);
+  }
+
+  render();
+
+  var foot=document.querySelector('footer.foot');
+  if(foot&&foot.parentNode){foot.parentNode.insertBefore(sec,foot);}
+  else{document.body.appendChild(sec);}
+
+  new MutationObserver(function(){var nl=curLang();if(nl!==L){L=nl;render();}}).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
+})();
+</script>
