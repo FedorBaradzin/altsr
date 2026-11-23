@@ -74,6 +74,10 @@ _ENSURE_PG_COLUMNS: list[tuple[str, str, str]] = [
     ("tokens", "price_change_h24", "DOUBLE PRECISION"),
     ("tokens", "smart_wallets", "INTEGER NOT NULL DEFAULT 0"),
     ("paper_positions", "tp_tiers_hit", "INTEGER NOT NULL DEFAULT 0"),
+    # Реферальная программа: новые колонки существующей таблицы users.
+    ("users", "referral_code", "VARCHAR(16)"),
+    ("users", "referred_by_id", "INTEGER"),
+    ("users", "referral_rate_override", "DOUBLE PRECISION"),
 ]
 
 

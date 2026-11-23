@@ -16,10 +16,13 @@ from ..models import (
     PaperAccount,
     PaperPosition,
     Payment,
+    ReferralPayout,
     Signal,
     Token,
     User,
 )
+from ..referral import service as referral_service
+from ..referral.rate import OVERRIDE_MAX_RATE, OVERRIDE_MIN_RATE
 
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 
@@ -94,6 +97,100 @@ async def list_payments(
         "amount_usd": p.amount_usd, "invoice_id": p.invoice_id,
         "created_at": p.created_at.isoformat(),
     } for p in rows]
+
+
+@router.get("/referrals")
+async def list_referrals(
+    session: AsyncSession = Depends(get_session), limit: int = Query(200, ge=1, le=1000),
+) -> list[dict]:
+    """Рефереры (пользователи с ≥1 приглашённым) + активные, заработок, баланс."""
+    referrer_ids = (
+        await session.execute(
+            select(User.referred_by_id)
+            .where(User.referred_by_id.is_not(None))
+            .distinct()
+        )
+    ).scalars().all()
+    if not referrer_ids:
+        return []
+    rows = (
+        await session.execute(
+            select(User).where(User.id.in_(referrer_ids)).limit(limit)
+        )
+    ).scalars().all()
+    out: list[dict] = []
+    for u in rows:
+        active = await referral_service.active_referrals(session, u.id)
+        out.append({
+            "user_id": u.id,
+            "display_name": u.display_name,
+            "email": u.email,
+            "referral_code": u.referral_code,
+            "active_referrals": active,
+            "earned_total": round(await referral_service.earned_total(session, u.id), 2),
+            "balance": await referral_service.balance(session, u.id),
+            "rate_override": u.referral_rate_override,
+        })
+    out.sort(key=lambda r: r["earned_total"], reverse=True)
+    return out
+
+
+@router.post("/referrals/{user_id}/rate")
+async def set_referral_rate(
+    user_id: int, rate: float | None = Body(default=None, embed=True),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Задать индивидуальную ставку (0.30–0.50) или null, чтобы сбросить к авто-ставке."""
+    if rate is not None and not (OVERRIDE_MIN_RATE <= rate <= OVERRIDE_MAX_RATE):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Ставка должна быть в диапазоне {OVERRIDE_MIN_RATE}–{OVERRIDE_MAX_RATE} или null",
+        )
+    user = (await session.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    user.referral_rate_override = rate
+    await session.commit()
+    return {"ok": True, "user_id": user_id, "rate_override": rate}
+
+
+@router.get("/referral-payouts")
+async def list_referral_payouts(
+    session: AsyncSession = Depends(get_session),
+    status: str | None = Query(default=None),
+    limit: int = Query(200, ge=1, le=1000),
+) -> list[dict]:
+    stmt = select(ReferralPayout).order_by(ReferralPayout.created_at.desc()).limit(limit)
+    if status:
+        stmt = stmt.where(ReferralPayout.status == status)
+    rows = (await session.execute(stmt)).scalars().all()
+    return [{
+        "id": p.id, "referrer_id": p.referrer_id, "amount_usd": p.amount_usd,
+        "status": p.status, "address": p.address, "note": p.note,
+        "created_at": p.created_at.isoformat(),
+        "paid_at": p.paid_at.isoformat() if p.paid_at else None,
+    } for p in rows]
+
+
+@router.post("/referral-payouts/{payout_id}/status")
+async def set_referral_payout_status(
+    payout_id: int, status: str = Body(...), note: str | None = Body(default=None),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Отметить выплату как paid или rejected (при paid проставляется paid_at)."""
+    if status not in ("pending", "paid", "rejected"):
+        raise HTTPException(status_code=400, detail="Статус: pending|paid|rejected")
+    payout = (
+        await session.execute(select(ReferralPayout).where(ReferralPayout.id == payout_id))
+    ).scalar_one_or_none()
+    if payout is None:
+        raise HTTPException(status_code=404, detail="Выплата не найдена")
+    payout.status = status
+    if note is not None:
+        payout.note = note
+    payout.paid_at = datetime.now(timezone.utc) if status == "paid" else None
+    await session.commit()
+    return {"ok": True, "id": payout_id, "status": status}
 
 
 @router.get("/flags")

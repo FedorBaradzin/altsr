@@ -36,3 +36,32 @@ export const adminPayments = () => req("/payments") as Promise<AdminPayment[]>;
 export const adminFlags = () => req("/flags") as Promise<Record<string, unknown>>;
 export const adminSetTier = (id: number, tier: string, days = 30) =>
   req(`/users/${id}/tier`, { method: "POST", body: JSON.stringify({ tier, days }) });
+
+// --- Referral program ---
+export type AdminReferral = {
+  user_id: number;
+  display: string;
+  referrals_active: number;
+  earned_total_usd: number;
+  balance_usd: number;
+  rate_override: number | null; // доля (0.30–0.50) или null
+};
+export type AdminReferralPayout = {
+  id: number;
+  referrer_display: string;
+  amount_usd: number;
+  status: string;
+  address: string | null;
+  created_at: string;
+};
+
+export const adminReferrals = () => req("/referrals") as Promise<AdminReferral[]>;
+export const adminSetReferralRate = (userId: number, rate: number | null) =>
+  req(`/referrals/${userId}/rate`, { method: "POST", body: JSON.stringify({ rate }) });
+export const adminReferralPayouts = (status = "pending") =>
+  req(`/referral-payouts?status=${status}`) as Promise<AdminReferralPayout[]>;
+export const adminSetReferralPayoutStatus = (
+  id: number,
+  status: "paid" | "rejected",
+  note?: string,
+) => req(`/referral-payouts/${id}/status`, { method: "POST", body: JSON.stringify({ status, note }) });

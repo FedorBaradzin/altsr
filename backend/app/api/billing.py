@@ -100,5 +100,12 @@ async def ipn(
                 base = base.replace(tzinfo=timezone.utc)
             user.tier_expires_at = base + timedelta(days=30)
             logger.info("Оплата подтверждена: user=%s tier=%s", user.id, payment.tier)
+            # Реферальное начисление (идемпотентно по payment_id). Ошибка здесь НЕ
+            # должна мешать выдаче тарифа — изолируем в try/except с логом.
+            try:
+                from ..referral.service import credit_referral
+                await credit_referral(session, user, payment)
+            except Exception:  # noqa: BLE001
+                logger.exception("referral credit failed: payment=%s", payment.id)
     await session.commit()
     return {"ok": True}

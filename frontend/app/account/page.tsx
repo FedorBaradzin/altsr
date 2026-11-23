@@ -115,6 +115,16 @@ export default function AccountPage() {
               </dl>
             </section>
 
+            {/* Referral program */}
+            <Link href="/account/referral" className="glass flex items-center justify-between gap-4 p-6 hover:text-ink">
+              <div>
+                <div className="mb-1 text-xs uppercase tracking-wider text-dim">{t("nav.referral")}</div>
+                <div className="font-sg text-lg font-bold">{t("account.referral")}</div>
+                <div className="mt-0.5 text-sm text-muted">{t("ref.sub")}</div>
+              </div>
+              <span className="shrink-0 text-xl text-muted">→</span>
+            </Link>
+
             {/* Logout */}
             <button onClick={logout}
               className="glass rounded-xl px-5 py-3 text-sm font-semibold text-block hover:text-ink">

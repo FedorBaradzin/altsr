@@ -42,6 +42,7 @@ def take_nonce(address: str) -> str | None:
 async def get_or_create_user(
     session: AsyncSession, auth_method: str, subject: str,
     *, email: str | None = None, display_name: str | None = None,
+    ref_code: str | None = None,
 ) -> User:
     user = (
         await session.execute(
@@ -53,6 +54,11 @@ async def get_or_create_user(
         user = User(auth_method=auth_method, subject=subject, email=email,
                     display_name=display_name, tier="free", created_at=now, last_login_at=now)
         session.add(user)
+        await session.flush()
+        # Новый пользователь: выдать свой код приглашения и привязать пригласившего.
+        from ..referral import service as referral_service
+        await referral_service.ensure_code(session, user)
+        await referral_service.attach_referrer(session, user, ref_code)
     else:
         user.last_login_at = now
         if email and not user.email:

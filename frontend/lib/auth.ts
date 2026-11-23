@@ -1,5 +1,7 @@
 "use client";
 
+import { getRef, clearRef } from "./ref";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 const KEY = "altsr_token";
 
@@ -39,13 +41,15 @@ async function signInWithProvider(provider: any, address: string): Promise<Me | 
   });
   const { message } = await nr.json();
   const signature = await provider.request({ method: "personal_sign", params: [message, address] });
+  const ref_code = getRef() || undefined;
   const vr = await fetch(`${API_BASE}/api/auth/wallet/verify`, {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ address, signature }),
+    body: JSON.stringify({ address, signature, ref_code }),
   });
   if (!vr.ok) throw new Error("sig_rejected");
   const data = await vr.json();
   setToken(data.token);
+  clearRef();
   return data.user as Me;
 }
 
@@ -81,18 +85,23 @@ export async function loginWalletConnect(): Promise<Me | null> {
 }
 
 export function googleLoginUrl(): string {
-  return `${API_BASE}/api/auth/google/login`;
+  // Google-вход — это redirect, поэтому реферальный код передаём в query.
+  const ref = getRef();
+  const base = `${API_BASE}/api/auth/google/login`;
+  return ref ? `${base}?ref_code=${encodeURIComponent(ref)}` : base;
 }
 
 // Telegram Login Widget вызывает этот колбэк с данными пользователя.
 export async function telegramVerify(data: Record<string, unknown>): Promise<Me | null> {
+  const ref_code = getRef() || undefined;
   const res = await fetch(`${API_BASE}/api/auth/telegram/verify`, {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, ref_code }),
   });
   if (!res.ok) return null;
   const d = await res.json();
   setToken(d.token);
+  clearRef();
   return d.user as Me;
 }
 

@@ -309,6 +309,16 @@ class User(Base):
     # Привязанный Telegram-чат пользователя (для личных алертов). NULL = не привязан.
     tg_chat_id: Mapped[str | None] = mapped_column(String(32))
 
+    # --- Реферальная программа ---
+    # Личный код приглашения (ссылка /?ref=CODE). Генерируется лениво.
+    referral_code: Mapped[str | None] = mapped_column(String(16))
+    # Кто пригласил этого пользователя (ставится один раз при регистрации).
+    referred_by_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    # Админский override ставки реферала (доля 0.30–0.50). NULL → авто-ставка по тиру.
+    referral_rate_override: Mapped[float | None] = mapped_column(Float)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, nullable=False
     )
@@ -319,6 +329,8 @@ class User(Base):
     __table_args__ = (
         UniqueConstraint("auth_method", "subject", name="uq_user_identity"),
         Index("ix_users_auth_subject", "auth_method", "subject"),
+        Index("ix_users_referral_code", "referral_code", unique=True),
+        Index("ix_users_referred_by_id", "referred_by_id"),
     )
 
 
@@ -401,6 +413,71 @@ class Payment(Base):
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Payment {self.tier} {self.status}>"
+
+
+class ReferralEarning(Base):
+    """Начисление реферального вознаграждения за оплаченный платёж приглашённого.
+
+    Идемпотентность: одна запись на payment_id (повторный IPN не дублирует).
+    amount_usd = tier_price(payment.tier) * rate; rate фиксируется на момент оплаты.
+    """
+
+    __tablename__ = "referral_earnings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    referrer_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    referred_user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    payment_id: Mapped[int | None] = mapped_column(
+        ForeignKey("payments.id", ondelete="SET NULL")
+    )
+    amount_usd: Mapped[float] = mapped_column(Float, nullable=False)
+    rate: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+
+    __table_args__ = (
+        # Один платёж → не более одного начисления (анти-двойное-начисление).
+        UniqueConstraint("payment_id", name="uq_referral_earning_payment"),
+        Index("ix_referral_earnings_referrer", "referrer_id"),
+        Index("ix_referral_earnings_referred", "referred_user_id"),
+    )
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<ReferralEarning r={self.referrer_id} ${self.amount_usd}>"
+
+
+class ReferralPayout(Base):
+    """Запрос на выплату реферального баланса. Это ЗАПИСЬ для ручной обработки
+    админом (статус-флаг), а не автоматический перевод крипты."""
+
+    __tablename__ = "referral_payouts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    referrer_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    amount_usd: Mapped[float] = mapped_column(Float, nullable=False)
+    # pending | paid | rejected
+    status: Mapped[str] = mapped_column(String(16), default="pending", nullable=False)
+    address: Mapped[str | None] = mapped_column(String(256))
+    note: Mapped[str | None] = mapped_column(String(256))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        Index("ix_referral_payouts_referrer", "referrer_id"),
+        Index("ix_referral_payouts_status", "status"),
+    )
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<ReferralPayout r={self.referrer_id} ${self.amount_usd} {self.status}>"
 
 
 class SignalOutcome(Base):
