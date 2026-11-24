@@ -141,5 +141,16 @@
     ov.classList.add('open');
     load();
   };
+
+  // Делегированный клик: любой элемент с [data-chart] (карточки /fresh,/verified)
+  // открывает график по data-chain + data-pool. Без pool — молча игнорируем.
+  document.addEventListener('click',function(e){
+    var el=e.target&&e.target.closest?e.target.closest('[data-chart]'):null;
+    if(!el)return;
+    var pool=el.getAttribute('data-pool'),chain=el.getAttribute('data-chain'),sym=el.getAttribute('data-sym');
+    if(!pool)return;
+    e.preventDefault();
+    window.altsrOpenChart(chain,pool,sym);
+  });
 })();
 </script>
