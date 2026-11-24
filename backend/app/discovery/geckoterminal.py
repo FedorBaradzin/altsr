@@ -29,6 +29,24 @@ NETWORK_TO_CHAIN = {
     "solana": "solana",
 }
 
+# Обратное отображение: наш канонический chain → имя сети в GeckoTerminal.
+# Нужно для OHLCV/графиков, где путь строится по сети Gecko (eth/base/bsc/...).
+CHAIN_TO_NETWORK = {
+    "ethereum": "eth",
+    "eth": "eth",
+    "base": "base",
+    "bsc": "bsc",
+    "polygon": "polygon_pos",
+    "polygon_pos": "polygon_pos",
+    "arbitrum": "arbitrum",
+    "solana": "solana",
+}
+
+
+def chain_to_network(chain: str | None) -> str | None:
+    """Канонический chain → имя сети GeckoTerminal, либо None если не поддержано."""
+    return CHAIN_TO_NETWORK.get((chain or "").strip().lower())
+
 
 def _index_included(payload: dict) -> dict[str, dict]:
     """included[] → {id: attributes} для резолва base_token."""
@@ -229,6 +247,45 @@ async def fetch_ohlcv(
         url, params={"aggregate": aggregate, "limit": limit, "currency": currency}
     )
     return parse_ohlcv(payload)
+
+
+async def fetch_categories(
+    http: HttpClient, base_url: str, *, limit: int = 20
+) -> list[dict]:
+    """GeckoTerminal он-чейн категории (нарративы: AI, memes, …) — item 5.
+
+    GET {base}/categories (JSON:API). Отдаёт список {id, name, market_cap_usd,
+    volume_24h_usd, top pools...}. Keyless-поддержка не гарантирована: при любом
+    сбое/гейтинге → [] (graceful, вызывающий сам решает показывать ли блок).
+    """
+    url = f"{base_url}/categories"
+    payload = await http.get_json(url, params={"page": 1})
+    if not isinstance(payload, dict):
+        return []
+    out: list[dict] = []
+    for item in payload.get("data", []) or []:
+        attrs = item.get("attributes", {}) or {}
+        name = attrs.get("name")
+        if not name:
+            continue
+        out.append(
+            {
+                "id": item.get("id"),
+                "name": name,
+                "market_cap_usd": to_float(attrs.get("market_cap_usd")),
+                "volume_24h_usd": to_float(
+                    attrs.get("h24_volume_usd") or attrs.get("volume_usd")
+                ),
+                "change_24h": to_float(
+                    (attrs.get("market_cap_change_percentage") or {}).get("h24")
+                    if isinstance(attrs.get("market_cap_change_percentage"), dict)
+                    else attrs.get("fdv_change_percentage_h24")
+                ),
+            }
+        )
+        if len(out) >= limit:
+            break
+    return out
 
 
 async def confirm_pool_trend(

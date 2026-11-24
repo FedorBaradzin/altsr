@@ -28,6 +28,8 @@ class SignalInput:
     risk_score: int | None = None
     # Smart-money: число заметных ранних кошельков, купивших токен (0 = нет/не считано).
     smart_wallets: int | None = None
+    # T10/item 4: токен замечен в trending-ленте GeckoTerminal (реальная активность).
+    is_trending: bool | None = None
     # Моментум (DexScreener) — вход только в растущие.
     price_change_m5: float | None = None
     price_change_h1: float | None = None
@@ -194,6 +196,26 @@ def evaluate_entry(
         else:
             reasons.append(f"сильный моментум m5 {m5:+.1f}%")
 
+    # 6d. Трендовость (item 4) — мягкий гейт, по умолчанию ВЫКЛ. Не входим в
+    # НЕ-трендовый токен, если у него нет smart-money и нет сильного m5. Прямо бьёт
+    # по застою −1%: мёртвый плоский мусор не попадает в trending GeckoTerminal.
+    if s.signal_soft_trending_enabled:
+        trending = bool(inp.is_trending)
+        sw = inp.smart_wallets or 0
+        has_smart = sw >= s.signal_soft_min_smart_wallets
+        m5 = inp.price_change_m5
+        strong_mom = m5 is not None and m5 >= s.signal_soft_strong_m5
+        if not (trending or has_smart or strong_mom):
+            return SignalDecision(
+                False,
+                rejected=(
+                    "не в trending и нет подтверждения "
+                    f"(smart {sw}, m5 {(m5 if m5 is not None else 0.0):+.1f}%)"
+                ),
+            )
+        if trending:
+            reasons.append("в trending GeckoTerminal")
+
     # 7. Технические индикаторы (T1) — ROC/объём/давление/Aroon/ATR, гейт AND.
     if s.indicators_enabled:
         rejected = _indicator_checks(inp, s, reasons)
@@ -325,6 +347,10 @@ def _heuristic_confidence(inp: SignalInput, s: Settings) -> float:
         c += s.signal_conf_w_smart * min(
             1.0, inp.smart_wallets / s.signal_conf_smart_scale
         )
+    # Трендовость (item 4): токен в trending-ленте GeckoTerminal → бонус к уверенности.
+    # Честный поведенческий прокси реальной активности, не гарантия прибыли.
+    if inp.is_trending and s.signal_conf_w_trending > 0:
+        c += s.signal_conf_w_trending
     # Рыночная динамика: рост m5/h1, давление покупок, оборот к ликвидности.
     c += _momentum_confidence(inp, s)
     return round(min(1.0, max(0.0, c)), 3)

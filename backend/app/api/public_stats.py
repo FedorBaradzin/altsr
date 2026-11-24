@@ -7,16 +7,32 @@
 """
 from __future__ import annotations
 
+import time
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import get_settings
 from ..db import get_session
+from ..discovery import geckoterminal as gt
+from ..discovery.base import HttpClient
 from ..models import User, UserPaperAccount
 from .user_paper import _assemble
 
 router = APIRouter(prefix="/api/public", tags=["public"])
+
+# --- OHLCV-кэш для графиков (item 1). ---
+# GeckoTerminal keyless ~5 req/min, а график на лендинге дёргают много посетителей,
+# поэтому кэшируем по (network,pool,timeframe,limit) на короткий TTL. Кэш — на процесс
+# (у бэкенда может быть несколько воркеров), этого достаточно: данные свечей обновляются
+# не чаще раза в ~30-60с, а лимит провайдера бережём жёстко.
+_OHLCV_CACHE: dict[str, tuple[float, dict]] = {}
+_OHLCV_TTL = 60.0
+
+# Категории меняются медленно — кэшируем дольше (item 5).
+_CATEGORIES_CACHE: dict[str, tuple[float, dict]] = {}
+_CATEGORIES_TTL = 300.0
 
 
 async def _owner_account(session: AsyncSession) -> UserPaperAccount | None:
@@ -188,6 +204,7 @@ async def public_verified(
                 "symbol": token.symbol,
                 "chain": token.chain,
                 "address": token.address,
+                "pair_address": token.pair_address,
                 "liquidity_usd": round(liq, 0),
                 "age_hours": age_hours,
                 "risk_score": report.risk_score,
@@ -268,6 +285,7 @@ async def public_fresh(
                 "symbol": token.symbol,
                 "chain": token.chain,
                 "address": token.address,
+                "pair_address": token.pair_address,
                 "liquidity_usd": round(float(token.liquidity_usd), 0),
                 "age_hours": age_hours,
                 "risk_score": report.risk_score,
@@ -281,3 +299,98 @@ async def public_fresh(
             break
 
     return {"count": len(tokens), "tokens": tokens}
+
+
+@router.get("/ohlcv")
+async def public_ohlcv(
+    chain: str | None = Query(default=None, description="сеть токена (bsc/base/eth/solana)"),
+    pool: str | None = Query(default=None, description="адрес пула (pair_address)"),
+    token_id: int | None = Query(default=None, description="или id токена из /tokens"),
+    timeframe: str = Query(default="hour", description="day|hour|minute"),
+    aggregate: int = Query(default=1, ge=1, le=60),
+    limit: int = Query(default=100, ge=1, le=300),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Реальные OHLCV-свечи пула из GeckoTerminal — для свечных графиков (item 1).
+
+    Можно передать (chain + pool) напрямую ИЛИ token_id (тогда chain/pool берём из БД).
+    Публичный, graceful: при любой проблеме → {"count": 0, "candles": []}, без 5xx.
+    Это РЕАЛЬНЫЕ ончейн-данные цены, не прибыль пользователя и не обещание доходности.
+    """
+    empty = {"count": 0, "timeframe": timeframe, "candles": []}
+    if timeframe not in gt.OHLCV_TIMEFRAMES:
+        return {**empty, "error": "bad_timeframe"}
+
+    # Резолв chain/pool по token_id, если переданы не напрямую.
+    if token_id is not None and (not chain or not pool):
+        from ..models import Token
+
+        tok = (
+            await session.execute(select(Token).where(Token.id == token_id))
+        ).scalar_one_or_none()
+        if tok is not None:
+            chain = chain or tok.chain
+            pool = pool or tok.pair_address
+
+    network = gt.chain_to_network(chain)
+    if not network or not pool:
+        return empty
+
+    key = f"{network}:{pool}:{timeframe}:{aggregate}:{limit}"
+    now = time.monotonic()
+    hit = _OHLCV_CACHE.get(key)
+    if hit is not None and hit[0] > now:
+        return hit[1]
+
+    settings = get_settings()
+    candles: list[gt.Candle] = []
+    try:
+        async with HttpClient(timeout=settings.http_timeout_seconds, max_retries=2) as http:
+            candles = await gt.fetch_ohlcv(
+                http, settings.gecko_base_url, network, pool,
+                timeframe=timeframe, aggregate=aggregate, limit=limit,
+            )
+    except Exception:  # noqa: BLE001 — график не должен ронять ответ
+        candles = []
+
+    out = {
+        "count": len(candles),
+        "timeframe": timeframe,
+        "network": network,
+        "pool": pool,
+        # Компактный формат свечей: [t, o, h, l, c, v] — t в unix-секундах.
+        "candles": [[c.ts, c.open, c.high, c.low, c.close, c.volume] for c in candles],
+    }
+    # Кэшируем только непустой результат (пустой мог быть из-за моргнувшего лимита).
+    if candles:
+        _OHLCV_CACHE[key] = (now + _OHLCV_TTL, out)
+    return out
+
+
+@router.get("/categories")
+async def public_categories(
+    limit: int = Query(default=20, ge=1, le=50),
+) -> dict:
+    """Он-чейн категории/нарративы из GeckoTerminal (item 5) — что сейчас качает.
+
+    Публичный, graceful: при недоступности keyless-эндпоинта → {"count": 0,
+    "categories": []}. Кэш на 5 минут (категории меняются медленно).
+    """
+    key = f"cat:{limit}"
+    now = time.monotonic()
+    hit = _CATEGORIES_CACHE.get(key)
+    if hit is not None and hit[0] > now:
+        return hit[1]
+
+    settings = get_settings()
+    cats: list[dict] = []
+    try:
+        async with HttpClient(timeout=settings.http_timeout_seconds, max_retries=2) as http:
+            cats = await gt.fetch_categories(http, settings.gecko_base_url, limit=limit)
+    except Exception:  # noqa: BLE001
+        cats = []
+
+    out = {"count": len(cats), "categories": cats}
+    if cats:
+        _CATEGORIES_CACHE[key] = (now + _CATEGORIES_TTL, out)
+    return out

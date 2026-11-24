@@ -123,6 +123,16 @@ class Settings(BaseSettings):
     signal_soft_smart_enabled: bool = Field(default=False, alias="SIGNAL_SOFT_SMART_ENABLED")
     signal_soft_min_smart_wallets: int = Field(default=1, alias="SIGNAL_SOFT_MIN_SMART_WALLETS")
     signal_soft_strong_m5: float = Field(default=3.0, alias="SIGNAL_SOFT_STRONG_M5")
+    # T10/item 4: «трендовость» как мягкий сигнал. is_trending = токен виден в
+    # trending-ленте GeckoTerminal (веб-визиты + ончейн-активность) — честный признак
+    # РЕАЛЬНОГО движения, которого нет у мёртвого плоского мусора (см. диагноз
+    # застоя −1% от 2026-11-23). Бонус к уверенности действует всегда (ранжирование).
+    # Мягкий гейт (по умолчанию ВЫКЛ): если включён — не входим в НЕ-трендовый токен,
+    # если у него нет smart-money и нет сильного m5. Env: SIGNAL_SOFT_TRENDING_ENABLED.
+    signal_soft_trending_enabled: bool = Field(
+        default=False, alias="SIGNAL_SOFT_TRENDING_ENABLED"
+    )
+    signal_conf_w_trending: float = Field(default=0.10, alias="SIGNAL_CONF_W_TRENDING")
     # Порог "низкой ликвидности" для радара/лендинга и минимальный возраст
     # токена, после которого он считается "выжившим" (проверенным).
     radar_low_liquidity_usd: float = Field(default=15000.0, alias="RADAR_LOW_LIQUIDITY_USD")

@@ -178,6 +178,7 @@ async def _emit_signals(
             verdict=report.verdict,
             risk_score=report.risk_score,
             smart_wallets=getattr(token, "smart_wallets", None),
+            is_trending="trending" in ((token.source or "").lower()),
             price_change_m5=getattr(mom, "price_change_m5", None),
             price_change_h1=getattr(mom, "price_change_h1", None),
             vol_h1=getattr(mom, "vol_h1", None),
