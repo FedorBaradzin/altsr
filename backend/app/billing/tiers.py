@@ -26,3 +26,12 @@ PAID_TIERS = [t for t in TIERS if TIERS[t]["price_usd"] > 0]
 def tier_price(tier: str) -> float | None:
     t = TIERS.get(tier)
     return float(t["price_usd"]) if t else None
+
+
+def apply_discount(price: float, discount_pct: float) -> float:
+    """Цена со скидкой (−discount_pct). Клампим долю в [0,1]; округляем до цента.
+
+    Используется для скидки приглашённому по реф-ссылке. Чистая функция — юнит-тест.
+    """
+    pct = max(0.0, min(1.0, float(discount_pct or 0.0)))
+    return round(float(price) * (1.0 - pct), 2)

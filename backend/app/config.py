@@ -292,6 +292,13 @@ class Settings(BaseSettings):
     nowpayments_base_url: str = Field(
         default="https://api.nowpayments.io/v1", alias="NOWPAYMENTS_BASE_URL"
     )
+    # Скидка приглашённому по реф-ссылке: тот, у кого referred_by_id задан, платит на
+    # столько меньше при оплате тарифа (доля 0..1). 0.05 = −5%. Это РЕАЛЬНАЯ скидка на
+    # покупку, а не бонус-обещание; реферальная комиссия считается от фактически
+    # уплаченной (уже сниженной) суммы. Выключить → 0.0.
+    referral_referred_discount_pct: float = Field(
+        default=0.05, alias="REFERRAL_REFERRED_DISCOUNT_PCT"
+    )
 
     # --- ИИ-слой новостей (Фаза 4) ---
     ai_enabled: bool = Field(default=False, alias="AI_ENABLED")  # без ключа → фолбэк по правилам

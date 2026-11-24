@@ -234,12 +234,20 @@ class TierInfo(BaseModel):
     name: str
     price_usd: float
     features: list[str]
+    # Скидка приглашённому по реф-ссылке (доля 0..1) и итоговая цена для ЭТОГО
+    # пользователя. Для гостя/непривлечённого discount_pct=0 и your_price_usd==price_usd.
+    discount_pct: float = 0.0
+    your_price_usd: float | None = None
 
 
 class CheckoutOut(BaseModel):
     invoice_url: str | None
     payment_id: int
     tier: str
+    # Прозрачность цены: базовая цена тарифа, применённая скидка и фактический счёт.
+    base_price_usd: float | None = None
+    discount_pct: float = 0.0
+    amount_usd: float | None = None
 
 
 class SafetyOut(BaseModel):

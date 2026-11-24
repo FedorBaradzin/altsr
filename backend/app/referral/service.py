@@ -122,8 +122,10 @@ async def credit_referral(
     # active включает этого плательщика: его платёж уже помечен оплаченным.
     active = await active_referrals(session, referrer.id)
     rate = effective_rate(referrer.referral_rate_override, active)
-    base = tier_price(payment.tier) or 0.0
-    amount = round(base * rate, 2)
+    # База комиссии = ФАКТИЧЕСКИ уплаченная сумма (payment.amount_usd уже со скидкой
+    # приглашённого −5%). Фолбэк на цену тарифа, если сумма не записана (старые платежи).
+    base = payment.amount_usd if payment.amount_usd is not None else (tier_price(payment.tier) or 0.0)
+    amount = round(float(base) * rate, 2)
 
     earning = ReferralEarning(
         referrer_id=referrer.id,
