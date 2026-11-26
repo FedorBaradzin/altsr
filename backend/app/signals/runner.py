@@ -41,12 +41,32 @@ def _age_minutes(token: Token, now: datetime) -> float | None:
 
 
 async def _candidates(session: AsyncSession, s: Settings) -> list[tuple[Token, SafetyReport]]:
+    from datetime import timedelta
+    from sqlalchemy import or_
+
+    now = datetime.now(timezone.utc)
     stmt = (
         select(Token, SafetyReport)
         .join(SafetyReport, SafetyReport.token_id == Token.id)
         .outerjoin(Signal, Signal.token_id == Token.id)
         .where(Signal.id.is_(None))
     )
+    # ПРЕД-ФИЛЬТР батча по жёстким гейтам (ликвидность/возраст/риск): иначе 30 слотов
+    # забиваются заведомо непригодными (старые/мелкие/рисковые) новейшими токенами и
+    # пригодные ранние кандидаты (в т.ч. Solana) не доходят до оценки. Живые гейты
+    # (моментум, buy-pressure, объём) остаются в evaluate_entry.
+    if s.signal_min_liquidity_usd > 0:
+        stmt = stmt.where(
+            Token.liquidity_usd.is_not(None),
+            Token.liquidity_usd >= s.signal_min_liquidity_usd,
+        )
+    if s.signal_max_age_minutes > 0:
+        cutoff = now - timedelta(minutes=s.signal_max_age_minutes)
+        stmt = stmt.where(or_(Token.created_at.is_(None), Token.created_at >= cutoff))
+    if s.signal_max_risk is not None:
+        stmt = stmt.where(
+            or_(SafetyReport.risk_score.is_(None), SafetyReport.risk_score <= s.signal_max_risk)
+        )
     if s.autotrade_prefer_quality_sources:
         # Топ/трендовые источники — вперёд, иначе их топит поток свежих пулов и они не
         # попадают в batch (= не торгуются). Внутри группы — свежайшие первыми.

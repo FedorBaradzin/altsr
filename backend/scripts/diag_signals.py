@@ -6,7 +6,9 @@ import asyncio
 import collections
 from datetime import datetime, timezone
 
-from sqlalchemy import case, func, select
+from datetime import timedelta
+
+from sqlalchemy import case, func, or_, select
 
 from app.config import get_settings
 from app.db import get_sessionmaker
@@ -35,6 +37,12 @@ async def main() -> None:
         )
         if s.signal_require_pass:
             stmt = stmt.where(SafetyReport.verdict == "PASS")
+        if s.signal_min_liquidity_usd > 0:
+            stmt = stmt.where(Token.liquidity_usd.is_not(None), Token.liquidity_usd >= s.signal_min_liquidity_usd)
+        if s.signal_max_age_minutes > 0:
+            stmt = stmt.where(or_(Token.created_at.is_(None), Token.created_at >= now - timedelta(minutes=s.signal_max_age_minutes)))
+        if s.signal_max_risk is not None:
+            stmt = stmt.where(or_(SafetyReport.risk_score.is_(None), SafetyReport.risk_score <= s.signal_max_risk))
         stmt = stmt.order_by(priority, Token.discovered_at.desc()).limit(s.signal_batch_size)
         rows = (await session.execute(stmt)).all()
         print("BATCH size", len(rows), "chains", dict(collections.Counter(t.chain for t, _ in rows)))
