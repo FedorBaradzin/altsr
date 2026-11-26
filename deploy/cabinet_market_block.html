@@ -113,10 +113,25 @@
   function startTimer(){stopTimer();timer=setInterval(function(){document.querySelector('.amk-wrap')?load():stopTimer();},30000);}
   function stopTimer(){if(timer){clearInterval(timer);timer=null;}}
 
+  // Market рендерим в ОТДЕЛЬНЫЙ контейнер #amkView, а родной .content просто прячем —
+  // чтобы не разрушать структуру, в которую рендерит родной route() кабинета.
+  function getView(){
+    var main=document.querySelector('.main')||document.querySelector('main'); if(!main)return null;
+    var v=document.getElementById('amkView');
+    if(!v){v=document.createElement('div');v.id='amkView';v.style.display='none';main.appendChild(v);}
+    return v;
+  }
+  function showCabinet(){
+    var c=document.querySelector('.content'); if(c)c.style.display='';
+    var v=document.getElementById('amkView'); if(v)v.style.display='none';
+    stopTimer();
+    var m=document.querySelector('[data-k="market"]'); if(m)m.classList.remove('on');
+  }
   function renderMarket(){
-    var c=document.querySelector('.content'); if(!c)return;
-    c.innerHTML=shell();
-    var pt=document.getElementById('pageTitle'); if(pt)pt.textContent=tr('Рынок','Market');
+    var c=document.querySelector('.content'); var v=getView(); if(!v)return;
+    if(c)c.style.display='none';
+    v.style.display='block';
+    v.innerHTML=shell();
     load(); startTimer();
   }
 
@@ -153,6 +168,10 @@
 
   document.addEventListener('click',function(e){
     if(!e.target.closest)return;
+    // Клик по любому родному пункту меню (не «Рынок») → вернуть .content и дать
+    // отработать родному route() кабинета (его onclick сработает сам).
+    var navA=e.target.closest('#nav a');
+    if(navA && navA.getAttribute('data-k')!=='market'){ showCabinet(); return; }
     var tb=e.target.closest('.amk-tab'); if(tb){state.tab=tb.getAttribute('data-tab');renderMarket();return;}
     var ch=e.target.closest('.amk-chain'); if(ch){state.chain=ch.getAttribute('data-chain');renderMarket();return;}
     var row=e.target.closest('.amk-tr'); if(row&&document.querySelector('.amk-wrap')){var a=row.getAttribute('data-chain'),p=row.getAttribute('data-pool'),s=row.getAttribute('data-sym');if(a&&p){if(typeof window.altsrOpenChart==='function')window.altsrOpenChart(a,p,s);else openChart(a,p,s);}}
