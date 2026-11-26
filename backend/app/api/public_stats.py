@@ -416,8 +416,10 @@ def _market_row(token, report, now) -> dict:
         if created.tzinfo is None:
             created = created.replace(tzinfo=timezone.utc)
         age_hours = round((now - created).total_seconds() / 3600.0, 1)
+    cap = get_settings().fresh_max_change_pct
     ch = token.price_change_h24
-    ch = round(float(ch), 1) if ch is not None else None
+    # Обрезаем артефактные иксы источника (микрокап с ценой ≈0 → +миллионы %).
+    ch = round(float(ch), 1) if (ch is not None and abs(float(ch)) <= cap) else None
     return {
         "symbol": token.symbol,
         "name": token.name,
@@ -481,6 +483,7 @@ async def public_market(
                 Token.liquidity_usd > 0,
                 Token.created_at.is_not(None),
                 not_block,
+                or_(Token.price_change_h24.is_(None), func.abs(Token.price_change_h24) <= cap),
             )
             .order_by(Token.created_at.desc())
             .limit(min(limit * 5, 400))
@@ -525,6 +528,7 @@ async def public_market(
                 Token.liquidity_usd.is_not(None),
                 Token.liquidity_usd >= 1000.0,
                 not_block,
+                or_(Token.price_change_h24.is_(None), func.abs(Token.price_change_h24) <= cap),
             )
             .order_by(quality, nullslast(Token.price_change_h24.desc()))
             .limit(min(limit * 5, 400))
@@ -576,8 +580,11 @@ async def public_market_categories(
 
     from ..models import SafetyReport, Token
 
+    import re
+
     now = datetime.now(timezone.utc)
     recent = now - timedelta(days=7)
+    cap = get_settings().fresh_max_change_pct  # тот же потолок, что в /fresh и /market
     rows = (
         await session.execute(
             select(Token, SafetyReport)
@@ -593,19 +600,31 @@ async def public_market_categories(
         )
     ).all()
 
+    # Темы с заранее скомпилированными паттернами по границе слова, чтобы "ai" не
+    # ловил "chain", "cat" — "category" и т.п.
+    compiled = [
+        (k, title, [re.compile(r"\b" + re.escape(kw.strip()) + r"\b") for kw in kws])
+        for k, title, kws in _MARKET_THEMES
+    ]
     buckets = {
         k: {"key": k, "title": title, "count": 0, "liq": 0.0, "samples": []}
         for k, title, _ in _MARKET_THEMES
     }
+    sample_seen: dict[str, set[str]] = {k: set() for k, _t, _ in _MARKET_THEMES}
     for token, _report in rows:
         text = ((token.symbol or "") + " " + (token.name or "")).lower()
-        for k, _title, kws in _MARKET_THEMES:
-            if any(kw.strip() in text for kw in kws):
+        for k, _title, pats in compiled:
+            if any(p.search(text) for p in pats):
                 b = buckets[k]
                 b["count"] += 1
                 b["liq"] += float(token.liquidity_usd or 0.0)
-                if len(b["samples"]) < 8:
+                sym_key = (token.symbol or token.address or "").strip().lower()
+                if len(b["samples"]) < 8 and sym_key not in sample_seen[k]:
+                    sample_seen[k].add(sym_key)
                     ch = token.price_change_h24
+                    # Обрезаем артефактные иксы источника (цена ≈0 у микрокапов даёт
+                    # +миллионы %) — показываем только правдоподобный ход, иначе «—».
+                    ch_val = round(float(ch), 1) if (ch is not None and abs(float(ch)) <= cap) else None
                     b["samples"].append(
                         {
                             "symbol": token.symbol,
@@ -613,7 +632,7 @@ async def public_market_categories(
                             "address": token.address,
                             "pair_address": token.pair_address,
                             "liquidity_usd": round(float(token.liquidity_usd or 0), 0),
-                            "change_24h": round(float(ch), 1) if ch is not None else None,
+                            "change_24h": ch_val,
                         }
                     )
                 break
