@@ -429,6 +429,7 @@ def _market_row(token, report, now) -> dict:
     return {
         "symbol": token.symbol,
         "name": token.name,
+        "image_url": token.image_url,
         "chain": token.chain,
         "address": token.address,
         "pair_address": token.pair_address,
@@ -526,6 +527,26 @@ async def public_market(
                 Token.liquidity_usd >= 3000.0,
             )
             .order_by(Token.price_change_h24.desc())
+            .limit(min(limit * 5, 400))
+        )
+    elif tab == "stock":
+        # Акции-токены: пары, завязанные на токенизированные акции/ETF. Честно —
+        # НИКАКОГО выдуманного APR (мы его не считаем), только реальные цена/ликв/объём.
+        _kw = ["stock", "nvda", "tsla", "aapl", "spx", "msft", "amzn", "googl",
+               "meta", "etf", "gold", "oil", "xau", "coin", "mstr", "nasdaq"]
+        name_l = func.lower(func.coalesce(Token.name, ""))
+        sym_l = func.lower(func.coalesce(Token.symbol, ""))
+        stock_match = or_(*[name_l.like(f"%{k}%") for k in _kw],
+                          *[sym_l.like(f"%{k}%") for k in _kw])
+        stmt = (
+            base.where(
+                stock_match,
+                Token.liquidity_usd.is_not(None),
+                Token.liquidity_usd > 0,
+                not_block,
+                or_(Token.price_change_h24.is_(None), func.abs(Token.price_change_h24) <= cap),
+            )
+            .order_by(nullslast(Token.liquidity_usd.desc()))
             .limit(min(limit * 5, 400))
         )
     else:
@@ -639,6 +660,7 @@ async def public_market_categories(
                     b["samples"].append(
                         {
                             "symbol": token.symbol,
+                            "image_url": token.image_url,
                             "chain": token.chain,
                             "address": token.address,
                             "pair_address": token.pair_address,

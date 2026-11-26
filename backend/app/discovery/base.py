@@ -24,6 +24,8 @@ class NormalizedToken:
     source: str
     symbol: str | None = None
     name: str | None = None
+    # URL логотипа токена (из CoinGecko/GeckoTerminal image_url). None если нет.
+    image_url: str | None = None
     created_at: datetime | None = None
     liquidity_usd: float | None = None
     fdv: float | None = None

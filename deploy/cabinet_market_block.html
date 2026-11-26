@@ -19,6 +19,10 @@
 .amk-r{text-align:right}
 .amk-sym{font-weight:600;color:#EAF0FF;display:flex;align-items:center;gap:6px}
 .amk-ch{font-size:11px;color:#66708C;text-transform:uppercase}
+.amk-tokcell{display:flex;align-items:center;gap:10px}
+.amk-av{width:30px;height:30px;border-radius:50%;object-fit:cover;flex:0 0 30px;background:rgba(130,150,210,.12);border:1px solid rgba(130,150,210,.16)}
+.amk-av-fb{display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#9AA6C4;text-transform:uppercase}
+.amk-cat-av{width:20px;height:20px;border-radius:50%;object-fit:cover;flex:0 0 20px;background:rgba(130,150,210,.12);vertical-align:middle;margin-right:6px}
 .amk-mut{color:#9AA6C4}
 .amk-vd{border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600}
 .amk-bk{border-radius:4px;padding:1px 6px;font-size:10px}
@@ -58,7 +62,7 @@
   var pc=function(v){return v==null?'—':(v>0?'+':'')+v+'%';};
 
   var state={tab:'trending',chain:''},timer=null;
-  var TABS=[['trending','Тренды','Trending'],['new','Новые пулы','New Pools'],['gainers','Растущие','Top Gainers'],['revival','Возрождение','Revival'],['categories','Категории','Categories']];
+  var TABS=[['trending','Тренды','Trending'],['new','Новые пулы','New Pools'],['stock','Акции','Stocks'],['gainers','Растущие','Top Gainers'],['revival','Возрождение','Revival'],['categories','Категории','Categories']];
   var CHAINS=[['','Все','All'],['solana','Solana','Solana'],['bsc','BNB','BNB'],['base','Base','Base'],['eth','Ethereum','Ethereum']];
 
   function shell(){
@@ -72,6 +76,13 @@
       +'<div id="amkBody" class="amk-body"></div></div>';
   }
 
+  function av(r){
+    var L=esc(((r.symbol||'?').slice(0,1)));
+    if(r.image_url){
+      return '<img class="amk-av" src="'+esc(r.image_url)+'" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'"><span class="amk-av amk-av-fb" style="display:none">'+L+'</span>';
+    }
+    return '<span class="amk-av amk-av-fb">'+L+'</span>';
+  }
   function table(rows){
     if(!rows||!rows.length)return '<div class="amk-empty">'+tr('Пока нет данных для раздела — радар пополняет базу, зайдите чуть позже.','No data for this section yet — the radar is filling the base.')+'</div>';
     var h='<tr><th>#</th><th>'+tr('Токен','Token')+'</th><th>'+tr('Возраст','Age')+'</th><th class="amk-hide">'+tr('Ликвидн.','Liq')+'</th><th class="amk-hide amk-r">'+tr('Объём 24ч','Vol 24h')+'</th><th class="amk-r">1ч</th><th class="amk-r amk-hide">6ч</th><th class="amk-r">24ч</th><th>'+tr('Вердикт','Verdict')+'</th><th class="amk-hide">Smart</th><th></th></tr>';
@@ -79,7 +90,7 @@
       var bk=r.bucket?'<span class="amk-bk amk-bk-'+r.bucket+'">'+(r.bucket==='revived'?tr('возродился','revived'):tr('возрождается','reviving'))+'</span>':'';
       return '<tr class="amk-tr" data-chain="'+esc(r.chain)+'" data-pool="'+esc(r.pair_address||r.address)+'" data-sym="'+esc(r.symbol||'')+'">'
         +'<td class="amk-mut">'+(i+1)+'</td>'
-        +'<td><div class="amk-sym">'+esc(r.symbol||'—')+bk+'</div><div class="amk-ch">'+esc(r.chain)+'</div></td>'
+        +'<td><div class="amk-tokcell">'+av(r)+'<div><div class="amk-sym">'+esc(r.symbol||'—')+bk+'</div><div class="amk-ch">'+esc(r.chain)+'</div></div></div></td>'
         +'<td class="amk-mut">'+age(r.age_hours)+'</td>'
         +'<td class="amk-hide amk-mut">'+fmt(r.liquidity_usd)+'</td>'
         +'<td class="amk-hide amk-r amk-mut">'+fmt(r.volume_h24)+'</td>'
@@ -96,7 +107,7 @@
   function cats(list){
     if(!list||!list.length)return '<div class="amk-empty">'+tr('Категории пока пустые.','No categories yet.')+'</div>';
     return '<div class="amk-cats">'+list.map(function(c){
-      var s=c.samples.map(function(x){return '<button class="amk-cat-tok amk-tr" data-chain="'+esc(x.chain)+'" data-pool="'+esc(x.pair_address||x.address)+'" data-sym="'+esc(x.symbol||'')+'"><span>'+esc(x.symbol||'—')+'<i>'+esc(x.chain)+'</i></span><b style="color:'+cc(x.change_24h)+'">'+pc(x.change_24h)+'</b></button>';}).join('');
+      var s=c.samples.map(function(x){return '<button class="amk-cat-tok amk-tr" data-chain="'+esc(x.chain)+'" data-pool="'+esc(x.pair_address||x.address)+'" data-sym="'+esc(x.symbol||'')+'"><span>'+(x.image_url?'<img class="amk-cat-av" src="'+esc(x.image_url)+'" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">':'')+esc(x.symbol||'—')+'<i>'+esc(x.chain)+'</i></span><b style="color:'+cc(x.change_24h)+'">'+pc(x.change_24h)+'</b></button>';}).join('');
       return '<div class="amk-cat"><div class="amk-cat-h"><b>'+esc(c.title)+'</b><span class="amk-mut" style="font-size:11px">'+c.count+' · '+fmt(c.liq)+'</span></div>'+s+'</div>';
     }).join('')+'</div>';
   }

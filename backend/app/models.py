@@ -42,6 +42,8 @@ class Token(Base):
     address: Mapped[str] = mapped_column(String(128), nullable=False)
     symbol: Mapped[str | None] = mapped_column(String(64))
     name: Mapped[str | None] = mapped_column(String(256))
+    # URL логотипа токена (CoinGecko/GeckoTerminal image_url); обновляется каждый цикл.
+    image_url: Mapped[str | None] = mapped_column(String(512))
 
     # Время создания токена/пары в сети (из источника).
     created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

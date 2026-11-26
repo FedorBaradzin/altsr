@@ -79,6 +79,12 @@ def normalize_pool(pool: dict, included: dict[str, dict], network: str) -> Norma
         if val:
             socials[key] = val
 
+    # Логотип токена: image_url из атрибутов base_token (включён через include=base_token).
+    # CoinGecko отдаёт "missing.png"/пусто когда картинки нет — такое отбрасываем.
+    image_url = base_attrs.get("image_url")
+    if not image_url or "missing" in str(image_url).lower():
+        image_url = None
+
     chain = NETWORK_TO_CHAIN.get(network, network)
     # Изменение цены по окнам (%) — из price_change_percentage (строки). Всё из того
     # же keyless-ответа, без доп. запросов и без платного ключа.
@@ -105,6 +111,7 @@ def normalize_pool(pool: dict, included: dict[str, dict], network: str) -> Norma
         source="geckoterminal",
         symbol=base_attrs.get("symbol") or (attrs.get("name") or "").split(" / ")[0] or None,
         name=base_attrs.get("name") or attrs.get("name"),
+        image_url=image_url,
         created_at=parse_ts(attrs.get("pool_created_at")),
         liquidity_usd=to_float(attrs.get("reserve_in_usd")),
         fdv=to_float(attrs.get("fdv_usd")),

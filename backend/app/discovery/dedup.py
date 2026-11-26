@@ -88,6 +88,9 @@ async def upsert_tokens(
                 existing.liquidity_usd = tok.liquidity_usd
             if existing.symbol is None and tok.symbol:
                 existing.symbol = tok.symbol
+            # Логотип: ставим как только появился (gecko отдаёт его только в part сетях/ответах).
+            if tok.image_url and not existing.image_url:
+                existing.image_url = tok.image_url
             # Цена: текущую и 24ч-изменение обновляем всегда (свежие данные);
             # базовую (first_price_usd) ставим один раз — она нужна для «иксов».
             if tok.price_usd is not None:
@@ -119,6 +122,7 @@ async def upsert_tokens(
             address=tok.address,
             symbol=tok.symbol,
             name=tok.name,
+            image_url=tok.image_url,
             created_at=tok.created_at,
             liquidity_usd=tok.liquidity_usd,
             fdv=tok.fdv,
