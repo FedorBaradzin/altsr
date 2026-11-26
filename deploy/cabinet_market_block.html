@@ -163,7 +163,7 @@
     var nav=document.getElementById('nav'); if(!nav)return;
     if(nav.querySelector('[data-k="market"]'))return;
     var radar=nav.querySelector('[data-k="radar"]'); if(!radar)return;
-    var a=document.createElement('a'); a.setAttribute('data-k','market'); a.setAttribute('onclick',"route('market')"); a.className=document.querySelector('.amk-wrap')?'on ':' ';
+    var a=document.createElement('a'); a.setAttribute('data-k','market'); a.setAttribute('onclick','altsrShowMarket()'); a.className=document.querySelector('.amk-wrap')?'on ':' ';
     a.innerHTML='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V11M9 20V4M14 20v-6M19 20V8"/></svg> '+tr('Рынок','Market');
     radar.parentNode.insertBefore(a,radar.nextSibling);
   }
@@ -172,27 +172,21 @@
     try{var mo=new MutationObserver(function(){ensureNav();});mo.observe(nav,{childList:true});}catch(e){}
   }
 
-  function wrapRoute(){
-    var orig=window.route;
-    window.route=function(k){
-      var m=document.querySelector('[data-k="market"]');
-      if(k==='market'){
-        [].forEach.call(document.querySelectorAll('#nav a'),function(a){a.classList.remove('on');});
-        if(m)m.classList.add('on');
-        if(location.hash!=='#market'){try{history.replaceState(null,'','#market');}catch(e){}}
-        renderMarket(); return;
-      }
-      stopTimer(); if(m)m.classList.remove('on');
-      if(typeof orig==='function')return orig.apply(this,arguments);
-    };
-    window.__altsrRouteWrapped=true;
-  }
+  // НЕ трогаем route() кабинета — свои разделы должны работать как прежде. «Рынок»
+  // открываем своей функцией. При клике на другой раздел кабинет сам перерисует
+  // .content (наш market-вид исчезнет), а таймер сам остановится (см. startTimer).
+  window.altsrShowMarket=function(){
+    [].forEach.call(document.querySelectorAll('#nav a'),function(a){a.classList.remove('on');});
+    var m=document.querySelector('[data-k="market"]'); if(m)m.classList.add('on');
+    if(location.hash!=='#market'){try{history.replaceState(null,'','#market');}catch(e){}}
+    renderMarket();
+  };
 
   function init(){
-    ensureNav(); watchNav(); wrapRoute();
+    ensureNav(); watchNav();
     // повторная вставка после возможной перерисовки меню кабинетом
     [150,500,1200,2500].forEach(function(ms){setTimeout(ensureNav,ms);});
-    if(location.hash==='#market'){setTimeout(function(){try{window.route('market');}catch(e){}},300);}
+    if(location.hash==='#market'){setTimeout(function(){try{window.altsrShowMarket();}catch(e){}},300);}
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init); else init();
   window.addEventListener('load',function(){ensureNav();});
