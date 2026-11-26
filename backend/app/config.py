@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     gecko_base_url: str = Field(
         default="https://api.geckoterminal.com/api/v2", alias="GECKO_BASE_URL"
     )
+    # Платный ключ CoinGecko (onchain-DEX = бывший GeckoTerminal API влит в CoinGecko).
+    # Когда задан — onchain-вызовы идут на pro-api.coingecko.com с заголовком
+    # x-cg-pro-api-key (снимает keyless-лимит ~10/мин, открывает trades/holders/megafilter).
+    # ТОЛЬКО из серверного env, в репозиторий НИКОГДА.
+    coingecko_api_key: str = Field(default="", alias="COINGECKO_API_KEY")
     dexscreener_base_url: str = Field(
         default="https://api.dexscreener.com", alias="DEXSCREENER_BASE_URL"
     )
@@ -437,6 +442,26 @@ class Settings(BaseSettings):
     @property
     def gecko_network_list(self) -> list[str]:
         return [n.strip() for n in self.gecko_networks.split(",") if n.strip()]
+
+    @property
+    def gecko_key_active(self) -> bool:
+        return bool((self.coingecko_api_key or "").strip())
+
+    @property
+    def onchain_base_url(self) -> str:
+        """База для onchain-DEX вызовов: pro-api при наличии ключа, иначе keyless.
+        Относительные пути (/networks/...) совпадают у обоих."""
+        if self.gecko_key_active:
+            return "https://pro-api.coingecko.com/api/v3/onchain"
+        return self.gecko_base_url
+
+    @property
+    def onchain_headers(self) -> dict[str, str]:
+        """Заголовок ключа ТОЛЬКО для gecko-вызовов (не вешаем на общий http —
+        иначе ключ утечёт в dexscreener/rugcheck)."""
+        if self.gecko_key_active:
+            return {"x-cg-pro-api-key": (self.coingecko_api_key or "").strip()}
+        return {}
 
     @property
     def paper_deny_chain_list(self) -> list[str]:

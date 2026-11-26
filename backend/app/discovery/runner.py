@@ -84,12 +84,14 @@ async def collect_once(
     http: HttpClient, settings: Settings, *, alerter: SystemAlerter | None = None, redis=None
 ) -> list:
     """Один проход по всем источникам. Возвращает список NormalizedToken."""
+    gb = settings.onchain_base_url
+    gh = settings.onchain_headers
     coros = [
         geckoterminal.fetch_new_pools(
-            http, settings.gecko_base_url, settings.gecko_network_list
+            http, gb, settings.gecko_network_list, headers=gh
         ),
         geckoterminal.fetch_trending_pools(
-            http, settings.gecko_base_url, settings.gecko_network_list
+            http, gb, settings.gecko_network_list, headers=gh
         ),
         rugcheck.fetch_new_tokens(http, settings.rugcheck_base_url),
         dexscreener.fetch_latest_profiles(http, settings.dexscreener_base_url),
@@ -97,8 +99,8 @@ async def collect_once(
     if settings.gecko_top_enabled:
         coros.append(
             geckoterminal.fetch_top_pools(
-                http, settings.gecko_base_url, settings.gecko_network_list,
-                pages=settings.gecko_top_pages,
+                http, gb, settings.gecko_network_list,
+                pages=settings.gecko_top_pages, headers=gh,
             )
         )
     if settings.birdeye_active:

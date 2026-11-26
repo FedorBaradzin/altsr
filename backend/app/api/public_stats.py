@@ -347,8 +347,9 @@ async def public_ohlcv(
     try:
         async with HttpClient(timeout=settings.http_timeout_seconds, max_retries=2) as http:
             candles = await gt.fetch_ohlcv(
-                http, settings.gecko_base_url, network, pool,
+                http, settings.onchain_base_url, network, pool,
                 timeframe=timeframe, aggregate=aggregate, limit=limit,
+                headers=settings.onchain_headers,
             )
     except Exception:  # noqa: BLE001 — график не должен ронять ответ
         candles = []
@@ -386,7 +387,9 @@ async def public_categories(
     cats: list[dict] = []
     try:
         async with HttpClient(timeout=settings.http_timeout_seconds, max_retries=2) as http:
-            cats = await gt.fetch_categories(http, settings.gecko_base_url, limit=limit)
+            cats = await gt.fetch_categories(
+                http, settings.onchain_base_url, limit=limit, headers=settings.onchain_headers
+            )
     except Exception:  # noqa: BLE001
         cats = []
 
