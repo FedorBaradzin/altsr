@@ -54,6 +54,8 @@ class Token(Base):
     price_usd: Mapped[float | None] = mapped_column(Float)
     # Цена при ПЕРВОМ обнаружении (базовая для «иксов»); ставится один раз.
     first_price_usd: Mapped[float | None] = mapped_column(Float)
+    # Ликвидность при ПЕРВОМ обнаружении (база для «растущей ликвидности»); один раз.
+    first_liquidity_usd: Mapped[float | None] = mapped_column(Float)
     # Изменение цены за 24ч (%) из источника; обновляется каждый цикл.
     price_change_h24: Mapped[float | None] = mapped_column(Float)
     price_change_h1: Mapped[float | None] = mapped_column(Float)

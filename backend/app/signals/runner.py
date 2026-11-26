@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..config import Settings, get_settings
 from ..db import get_sessionmaker
 from ..discovery.base import HttpClient
+from ..discovery.geckoterminal import chain_to_network, fetch_pool_trades
 from ..models import SafetyReport, Signal, Token
 from ..notify.alerts import format_blocked_scam_alert
 from ..notify.format import format_buy_alert
@@ -85,7 +86,11 @@ async def run_batch(
         # Один HttpClient на батч — для моментума (DexScreener) и свежей
         # перепроверки безопасности перед отправкой. Открываем, только если
         # что-то из этого включено; иначе работаем без сети.
-        need_http = settings.momentum_enabled or settings.signal_recheck_safety_before_send
+        need_http = (
+            settings.momentum_enabled
+            or settings.signal_recheck_safety_before_send
+            or settings.signal_gecko_trades_enabled
+        )
         if not need_http:
             created = await _emit_signals(
                 settings, session, rows, {}, now, notifier, redis, None, screen_fn
@@ -180,6 +185,7 @@ async def _emit_signals(
     screen_fn,
 ) -> int:
     created = 0
+    trades_calls = 0  # лимит платных trades-вызовов за тик (защита квоты API)
     for token, report in rows:
         mom = moms.get(token.id)
         inp = SignalInput(
@@ -215,6 +221,55 @@ async def _emit_signals(
         if not decision.passed:
             logger.debug("skip %s:%s — %s", token.chain, token.address, decision.rejected)
             continue
+
+        # Ранний вход по РЕАЛЬНЫМ сделкам (Gecko trades, платный ключ). ЭКОНОМНО:
+        # дёргаем trades ТОЛЬКО на кандидатах, уже прошедших дешёвые гейты (единицы
+        # за тик) — перевес покупок (buy-pressure) + рост уникальных покупателей.
+        if (
+            settings.signal_gecko_trades_enabled and http is not None
+            and trades_calls < settings.signal_gecko_trades_max_per_tick
+        ):
+            net = chain_to_network(token.chain)
+            pool = token.pair_address or token.address
+            if net and pool:
+                trades_calls += 1
+                try:
+                    agg = await fetch_pool_trades(
+                        http, settings.onchain_base_url, net, pool,
+                        window_minutes=settings.signal_gecko_trades_window_min,
+                        headers=settings.onchain_headers,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("trades %s не получены: %s", token.address, exc)
+                    agg = None
+                # buy_pressure=None при <5 сделок → ранний токен не блокируем.
+                bp = agg.buy_pressure if agg is not None else None
+                if bp is not None:
+                    if bp < settings.signal_min_buy_pressure:
+                        logger.debug("skip %s — buy-pressure %.2f < %.2f",
+                                     token.address, bp, settings.signal_min_buy_pressure)
+                        continue
+                    if agg.buyers < settings.signal_min_trade_buyers:
+                        logger.debug("skip %s — покупателей %d < %d",
+                                     token.address, agg.buyers, settings.signal_min_trade_buyers)
+                        continue
+                    decision.reasons.append(f"перевес покупок {bp:+.2f} ({agg.buyers} покуп.)")
+                    decision.confidence = min(
+                        1.0,
+                        decision.confidence + settings.signal_conf_w_trade_bp * min(1.0, bp),
+                    )
+
+        # Растущая ликвидность → вклад в уверенность (без API, по first_liquidity_usd).
+        if (
+            settings.signal_conf_w_liq_growth > 0
+            and token.first_liquidity_usd and token.liquidity_usd
+            and token.liquidity_usd > token.first_liquidity_usd
+        ):
+            growth = (token.liquidity_usd - token.first_liquidity_usd) / token.first_liquidity_usd
+            decision.reasons.append(f"ликвидность растёт +{growth*100:.0f}%")
+            decision.confidence = min(
+                1.0, decision.confidence + settings.signal_conf_w_liq_growth * min(1.0, growth)
+            )
 
         # Свежая перепроверка безопасности перед самой отправкой (анти-скам).
         blocked, fresh = await _recheck_blocks(settings, session, http, token, screen_fn)

@@ -83,8 +83,14 @@ async def upsert_tokens(
         if existing is not None:
             existing.last_seen_at = now
             existing.seen_count += 1
-            # Обогащаем пустые поля данными из нового источника.
-            if existing.liquidity_usd is None and tok.liquidity_usd is not None:
+            # Ликвидность: фиксируем первую (база для «растущей ликвидности»), затем
+            # освежаем текущую каждый цикл — показываем живую ликвидность пула.
+            if tok.liquidity_usd is not None:
+                if existing.first_liquidity_usd is None:
+                    existing.first_liquidity_usd = (
+                        existing.liquidity_usd if existing.liquidity_usd is not None
+                        else tok.liquidity_usd
+                    )
                 existing.liquidity_usd = tok.liquidity_usd
             if existing.symbol is None and tok.symbol:
                 existing.symbol = tok.symbol
@@ -128,6 +134,7 @@ async def upsert_tokens(
             fdv=tok.fdv,
             price_usd=tok.price_usd,
             first_price_usd=tok.price_usd,
+            first_liquidity_usd=tok.liquidity_usd,
             price_change_h24=tok.price_change_h24,
             price_change_h1=tok.price_change_h1,
             price_change_h6=tok.price_change_h6,

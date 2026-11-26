@@ -125,6 +125,22 @@ class Settings(BaseSettings):
     signal_min_holders: int = Field(default=0, alias="SIGNAL_MIN_HOLDERS")
     signal_require_pass: bool = Field(default=True, alias="SIGNAL_REQUIRE_PASS")
     signal_max_risk: int = Field(default=15, alias="SIGNAL_MAX_RISK")
+    # --- Ранний вход по реальным сделкам (Gecko trades, платный onchain-ключ) ---
+    # Подтверждаем buy-pressure (перевес покупок) + рост уникальных покупателей
+    # ТОЛЬКО на кандидатах, уже прошедших дешёвые гейты — экономно по квоте API.
+    signal_gecko_trades_enabled: bool = Field(default=False, alias="SIGNAL_GECKO_TRADES_ENABLED")
+    signal_gecko_trades_window_min: int = Field(default=60, alias="SIGNAL_GECKO_TRADES_WINDOW_MIN")
+    # Защита квоты API: максимум подтверждений сделками за один тик.
+    signal_gecko_trades_max_per_tick: int = Field(default=20, alias="SIGNAL_GECKO_TRADES_MAX_PER_TICK")
+    # Порог перевеса покупок: net (buys−sells)/(buys+sells) ∈ [−1,1]. 0.10 = +10% перевес.
+    signal_min_buy_pressure: float = Field(default=0.10, alias="SIGNAL_MIN_BUY_PRESSURE")
+    # Минимум уникальных покупателей в окне (рост покупателей).
+    signal_min_trade_buyers: int = Field(default=4, alias="SIGNAL_MIN_TRADE_BUYERS")
+    # Вклад сильного buy-pressure в уверенность.
+    signal_conf_w_trade_bp: float = Field(default=0.12, alias="SIGNAL_CONF_W_TRADE_BP")
+    # Вклад растущей ликвидности (current > first_liquidity) в уверенность.
+    signal_conf_w_liq_growth: float = Field(default=0.08, alias="SIGNAL_CONF_W_LIQ_GROWTH")
+
     # Smart-money на входе: опциональный гейт (выкл) + вклад в уверенность.
     signal_require_smart_money: bool = Field(default=False, alias="SIGNAL_REQUIRE_SMART_MONEY")
     signal_min_smart_wallets: int = Field(default=2, alias="SIGNAL_MIN_SMART_WALLETS")
