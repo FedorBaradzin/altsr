@@ -675,3 +675,131 @@ async def public_market_categories(
     for b in cats:
         b["liq"] = round(b["liq"], 0)
     return {"count": len(cats), "categories": cats}
+
+
+@router.get("/signals-breakdown")
+async def public_signals_breakdown(
+    limit: int = Query(default=20, ge=1, le=60),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """«Разбивка сигналов»: весь недавний универс монет → воронка гейтов входа
+    (safety → риск → ликвидность → возраст → моментум) + распределение по сетям +
+    топ ранних кандидатов по честному early-score.
+
+    Зеркалит ПОРЯДОК гейтов боевого движка (signals/engine.evaluate_entry) на
+    хранимых ончейн-полях — приближённо: живые m5 buys/sells и smart-money здесь не
+    считаются (это делает боевой тик). Score = рост h1 × оборот (vol/liq) × активность
+    (txns) — реальные величины, НЕ прогноз прибыли и НЕ обещание роста."""
+    from datetime import datetime, timedelta, timezone
+
+    from ..models import SafetyReport, Token
+
+    s = get_settings()
+    now = datetime.now(timezone.utc)
+    recent = now - timedelta(hours=48)
+    min_liq = float(s.signal_min_liquidity_usd)
+    max_risk = int(s.signal_max_risk)
+    min_age_min = int(s.signal_min_age_minutes)
+    max_age_min = int(s.signal_max_age_minutes)
+    cap = float(s.fresh_max_change_pct)
+
+    rows = (
+        await session.execute(
+            select(Token, SafetyReport)
+            .join(SafetyReport, SafetyReport.token_id == Token.id, isouter=True)
+            .where(
+                Token.last_seen_at >= recent,
+                Token.liquidity_usd.is_not(None),
+                Token.liquidity_usd > 0,
+            )
+            .order_by(Token.last_seen_at.desc())
+            .limit(4000)
+        )
+    ).all()
+
+    scanned = len(rows)
+    by_chain: dict[str, int] = {}
+    f_pass = f_risk = f_liq = f_age = f_mom = 0
+    cands: list[dict] = []
+    for token, rep in rows:
+        ch = token.chain or "?"
+        by_chain[ch] = by_chain.get(ch, 0) + 1
+        verdict = rep.verdict if rep is not None else None
+        if verdict != "PASS":
+            continue
+        f_pass += 1
+        rscore = rep.risk_score if rep is not None else None
+        if rscore is not None and rscore > max_risk:
+            continue
+        f_risk += 1
+        liq = float(token.liquidity_usd or 0.0)
+        if liq < min_liq:
+            continue
+        f_liq += 1
+        created = token.created_at
+        age_min = None
+        if created is not None:
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=timezone.utc)
+            age_min = (now - created).total_seconds() / 60.0
+        if age_min is not None and not (min_age_min <= age_min <= max_age_min):
+            continue
+        f_age += 1
+        ch1 = token.price_change_h1
+        rising = ch1 is not None and ch1 > 0 and abs(ch1) <= cap
+        if not rising:
+            continue
+        f_mom += 1
+        vol = float(token.volume_h24 or 0.0)
+        turnover = (vol / liq) if liq > 0 else 0.0
+        mom = max(0.0, min(float(ch1), cap))
+        score = round(
+            mom * 0.6 + min(turnover, 10.0) * 3.0 + min((token.txns_h24 or 0) / 500.0, 4.0),
+            1,
+        )
+
+        def _cap(v):
+            return round(float(v), 1) if (v is not None and abs(float(v)) <= cap) else None
+
+        cands.append(
+            {
+                "symbol": token.symbol,
+                "image_url": token.image_url,
+                "chain": ch,
+                "address": token.address,
+                "pair_address": token.pair_address,
+                "liquidity_usd": round(liq, 0),
+                "change_h1": round(float(ch1), 1),
+                "change_h6": _cap(token.price_change_h6),
+                "change_24h": _cap(token.price_change_h24),
+                "vol_h24": round(vol, 0),
+                "turnover": round(turnover, 2),
+                "verdict": verdict,
+                "risk_score": rscore,
+                "score": score,
+            }
+        )
+
+    cands.sort(key=lambda c: c["score"], reverse=True)
+    funnel = [
+        {"stage": "Весь универс (48ч)", "kept": scanned, "dropped": 0},
+        {"stage": "Safety PASS", "kept": f_pass, "dropped": scanned - f_pass},
+        {"stage": f"Риск ≤ {max_risk}", "kept": f_risk, "dropped": f_pass - f_risk},
+        {"stage": f"Ликвидн. ≥ ${min_liq:,.0f}", "kept": f_liq, "dropped": f_risk - f_liq},
+        {"stage": f"Возраст {min_age_min/60:.0f}–{max_age_min/60:.0f}ч", "kept": f_age, "dropped": f_liq - f_age},
+        {"stage": "Моментум h1 > 0", "kept": f_mom, "dropped": f_age - f_mom},
+    ]
+    by_chain_sorted = dict(sorted(by_chain.items(), key=lambda kv: kv[1], reverse=True))
+    return {
+        "scanned": scanned,
+        "qualified": f_mom,
+        "gates": {
+            "min_liquidity_usd": min_liq,
+            "max_risk": max_risk,
+            "min_age_h": round(min_age_min / 60, 1),
+            "max_age_h": round(max_age_min / 60, 1),
+        },
+        "by_chain": by_chain_sorted,
+        "funnel": funnel,
+        "candidates": cands[:limit],
+    }

@@ -23,6 +23,18 @@
 .amk-av{width:30px;height:30px;border-radius:50%;object-fit:cover;flex:0 0 30px;background:rgba(130,150,210,.12);border:1px solid rgba(130,150,210,.16)}
 .amk-av-fb{display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#9AA6C4;text-transform:uppercase}
 .amk-cat-av{width:20px;height:20px;border-radius:50%;object-fit:cover;flex:0 0 20px;background:rgba(130,150,210,.12);vertical-align:middle;margin-right:6px}
+.amk-fhead{font-size:14px;color:#EAF0FF;margin:6px 0 2px}
+.amk-fbars{margin:10px 0}
+.amk-frow{display:flex;align-items:center;gap:10px;margin:6px 0}
+.amk-flabel{flex:0 0 170px;font-size:12px;color:#9AA6C4}
+.amk-fbarwrap{flex:1;background:rgba(130,150,210,.08);border-radius:6px;height:22px;overflow:hidden}
+.amk-fbar{height:100%;background:linear-gradient(90deg,rgba(139,92,246,.75),rgba(34,211,238,.55));border-radius:6px;transition:width .4s ease}
+.amk-fkept{flex:0 0 96px;text-align:right;font-size:13px;color:#EAF0FF;font-weight:600}
+.amk-fdrop{color:#F87171;font-size:11px;margin-left:6px}
+.amk-fchains{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.amk-fchain{background:rgba(20,25,44,.55);border:1px solid rgba(130,150,210,.12);border-radius:10px;padding:5px 10px;font-size:12px;color:#9AA6C4;text-transform:capitalize}
+.amk-fcandhead{font-size:13px;font-weight:600;color:#EAF0FF;margin:16px 0 6px}
+@media(max-width:620px){.amk-flabel{flex:0 0 120px}}
 .amk-mut{color:#9AA6C4}
 .amk-vd{border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600}
 .amk-bk{border-radius:4px;padding:1px 6px;font-size:10px}
@@ -62,12 +74,12 @@
   var pc=function(v){return v==null?'—':(v>0?'+':'')+v+'%';};
 
   var state={tab:'trending',chain:''},timer=null;
-  var TABS=[['trending','Тренды','Trending'],['new','Новые пулы','New Pools'],['stock','Акции','Stocks'],['gainers','Растущие','Top Gainers'],['revival','Возрождение','Revival'],['categories','Категории','Categories']];
+  var TABS=[['trending','Тренды','Trending'],['new','Новые пулы','New Pools'],['stock','Акции','Stocks'],['gainers','Растущие','Top Gainers'],['revival','Возрождение','Revival'],['categories','Категории','Categories'],['funnel','Воронка сигналов','Signal funnel']];
   var CHAINS=[['','Все','All'],['solana','Solana','Solana'],['bsc','BNB','BNB'],['base','Base','Base'],['eth','Ethereum','Ethereum']];
 
   function shell(){
     var tabs=TABS.map(function(t){return '<button class="amk-tab'+(t[0]===state.tab?' on':'')+'" data-tab="'+t[0]+'">'+tr(t[1],t[2])+'</button>';}).join('');
-    var chains=state.tab==='categories'?'':'<div class="amk-chains">'+CHAINS.map(function(c){return '<button class="amk-chain'+(c[0]===state.chain?' on':'')+'" data-chain="'+c[0]+'">'+tr(c[1],c[2])+'</button>';}).join('')+'</div>';
+    var chains=(state.tab==='categories'||state.tab==='funnel')?'':'<div class="amk-chains">'+CHAINS.map(function(c){return '<button class="amk-chain'+(c[0]===state.chain?' on':'')+'" data-chain="'+c[0]+'">'+tr(c[1],c[2])+'</button>';}).join('')+'</div>';
     return '<div class="amk-wrap">'
       +'<h2 class="amk-title">'+tr('Рынок','Market')+'<span class="amk-live"><b></b>'+tr('обновляется','live')+'</span></h2>'
       +'<p class="amk-sub">'+tr('Что движется прямо сейчас — на наших ончейн-данных, с анти-скам вердиктом на каждом токене. Клик по строке → реальный график.','What is moving now — our on-chain data, anti-scam verdict on every token. Click a row for a real chart.')+'</p>'
@@ -104,6 +116,36 @@
     return '<table class="amk-table"><thead>'+h+'</thead><tbody>'+b+'</tbody></table>';
   }
 
+  function funnel(d){
+    if(!d||!d.funnel)return '<div class="amk-empty">'+tr('Нет данных.','No data.')+'</div>';
+    var max=d.scanned||1;
+    var bars=d.funnel.map(function(st){
+      var w=Math.max(2,Math.round((st.kept/max)*100));
+      var drop=st.dropped>0?'<span class="amk-fdrop">−'+st.dropped+'</span>':'';
+      return '<div class="amk-frow"><div class="amk-flabel">'+esc(st.stage)+'</div><div class="amk-fbarwrap"><div class="amk-fbar" style="width:'+w+'%"></div></div><div class="amk-fkept">'+st.kept+drop+'</div></div>';
+    }).join('');
+    var chains=Object.keys(d.by_chain||{}).map(function(k){return '<span class="amk-fchain">'+esc(k)+' <b style="color:#EAF0FF">'+d.by_chain[k]+'</b></span>';}).join('');
+    var head='<div class="amk-fhead"><b>'+d.scanned+'</b> '+tr('монет в универсе · ','coins scanned · ')+'<b style="color:#34D399">'+d.qualified+'</b> '+tr('прошли все гейты входа','passed all entry gates')+'</div>';
+    var note='<p class="amk-note">'+tr('Приближённая воронка на наших ончейн-данных. Боевой тик дополнительно считает живые m5 buys/sells и smart-money. Score (рост × оборот × активность) — реальные величины, не прибыль и не обещание.','Approximate funnel on our on-chain data. The live tick also uses m5 buys/sells and smart-money. Score (momentum × turnover × activity) — real values, not profit, not a promise.')+'</p>';
+    var cand;
+    if(d.candidates&&d.candidates.length){
+      var rows=d.candidates.map(function(r,i){
+        return '<tr class="amk-tr" data-chain="'+esc(r.chain)+'" data-pool="'+esc(r.pair_address||r.address)+'" data-sym="'+esc(r.symbol||'')+'">'
+          +'<td class="amk-mut">'+(i+1)+'</td>'
+          +'<td><div class="amk-tokcell">'+av(r)+'<div><div class="amk-sym">'+esc(r.symbol||'—')+'</div><div class="amk-ch">'+esc(r.chain)+'</div></div></div></td>'
+          +'<td class="amk-hide amk-r amk-mut">'+fmt(r.liquidity_usd)+'</td>'
+          +'<td class="amk-r" style="color:'+cc(r.change_h1)+'">'+pc(r.change_h1)+'</td>'
+          +'<td class="amk-r amk-hide" style="color:'+cc(r.change_24h)+'">'+pc(r.change_24h)+'</td>'
+          +'<td class="amk-r amk-mut amk-hide">'+(r.turnover!=null?r.turnover+'×':'—')+'</td>'
+          +'<td class="amk-r"><b style="color:#8B5CF6">'+r.score+'</b></td>'
+          +'<td class="amk-r"><span class="amk-chart">'+tr('График','Chart')+'</span></td></tr>';
+      }).join('');
+      cand='<table class="amk-table"><thead><tr><th>#</th><th>'+tr('Токен','Token')+'</th><th class="amk-hide amk-r">'+tr('Ликв','Liq')+'</th><th class="amk-r">1ч</th><th class="amk-r amk-hide">24ч</th><th class="amk-r amk-hide">'+tr('Оборот','Turn')+'</th><th class="amk-r">Score</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+    }else{
+      cand='<div class="amk-empty">'+tr('Сейчас ни одна монета не проходит все гейты — радар ждёт раннего входа по условиям.','No coin passes all gates right now — radar waits for an early-entry setup.')+'</div>';
+    }
+    return '<div class="amk-funnel">'+head+note+'<div class="amk-fbars">'+bars+'</div><div class="amk-fchains">'+chains+'</div><div class="amk-fcandhead">'+tr('Топ ранних кандидатов','Top early candidates')+'</div>'+cand+'</div>';
+  }
   function cats(list){
     if(!list||!list.length)return '<div class="amk-empty">'+tr('Категории пока пустые.','No categories yet.')+'</div>';
     return '<div class="amk-cats">'+list.map(function(c){
@@ -117,6 +159,8 @@
     if(!body.innerHTML)body.innerHTML='<div class="amk-empty">'+tr('Загрузка…','Loading…')+'</div>';
     if(state.tab==='categories'){
       fetch('/api/public/market-categories').then(function(r){return r.json();}).then(function(d){var el=document.getElementById('amkBody');if(el)el.innerHTML=cats(d.categories);}).catch(function(){});
+    }else if(state.tab==='funnel'){
+      fetch('/api/public/signals-breakdown?limit=25').then(function(r){return r.json();}).then(function(d){var el=document.getElementById('amkBody');if(el)el.innerHTML=funnel(d);}).catch(function(){});
     }else{
       fetch('/api/public/market?tab='+state.tab+'&limit=40'+(state.chain?'&chain='+state.chain:'')).then(function(r){return r.json();}).then(function(d){var el=document.getElementById('amkBody');if(el)el.innerHTML=table(d.tokens);}).catch(function(){});
     }
