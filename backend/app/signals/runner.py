@@ -165,7 +165,11 @@ async def _recheck_blocks(
         await store_result(session, token, fresh)
     except Exception as exc:  # noqa: BLE001
         logger.debug("store_result при пере-скрининге не удался: %s", exc)
-    if fresh.verdict != "PASS" or fresh.is_malicious:
+    # Блокируем ТОЛЬКО явный скам (BLOCK/malicious). REVIEW на ре-скрине — это, как
+    # правило, пробел в данных источников (особенно Solana: RugCheck/GoPlus непостоянны),
+    # а не скам; токен уже прошёл анти-скам при обнаружении (stored PASS). Раньше любой
+    # не-PASS резал сигнал и это глушило Solana полностью.
+    if fresh.verdict == "BLOCK" or fresh.is_malicious:
         logger.info(
             "БЛОК перед Telegram %s:%s — свежий вердикт %s%s",
             token.chain, token.address, fresh.verdict,
