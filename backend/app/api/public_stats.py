@@ -394,3 +394,232 @@ async def public_categories(
     if cats:
         _CATEGORIES_CACHE[key] = (now + _CATEGORIES_TTL, out)
     return out
+
+
+# =====================================================================================
+#  Разделы «Рынок» (как у GeckoTerminal), но на НАШИХ данных и в нашем стиле.
+#  Всё читается из нашей БД токенов (Token + SafetyReport), которую наполняет
+#  discovery-раннер — НИКАКИХ живых запросов к Gecko на заход (бережём лимит 5/мин),
+#  данные уже у нас. Только реальные ончейн-поля: цена/ликвидность/возраст/рост 24ч/
+#  вердикт анти-скама/smart-money. Никаких выдуманных прибылей или обещаний.
+#  Автотрейд торгует этот же универс (geckoterminal_top/trending) — см. signals/runner.
+# =====================================================================================
+
+
+def _market_row(token, report, now) -> dict:
+    """Одна строка рынка из токена БД. Возраст/рост — реальные ончейн-величины."""
+    from datetime import timezone
+
+    created = token.created_at or token.discovered_at
+    age_hours = None
+    if created is not None:
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        age_hours = round((now - created).total_seconds() / 3600.0, 1)
+    ch = token.price_change_h24
+    ch = round(float(ch), 1) if ch is not None else None
+    return {
+        "symbol": token.symbol,
+        "name": token.name,
+        "chain": token.chain,
+        "address": token.address,
+        "pair_address": token.pair_address,
+        "price_usd": token.price_usd,
+        "liquidity_usd": round(float(token.liquidity_usd), 0) if token.liquidity_usd else None,
+        "fdv": round(float(token.fdv), 0) if token.fdv else None,
+        "age_hours": age_hours,
+        "change_24h": ch,
+        "multiple_24h": round(1.0 + ch / 100.0, 2) if ch is not None else None,
+        "verdict": report.verdict if report is not None else None,
+        "risk_score": report.risk_score if report is not None else None,
+        "smart_wallets": token.smart_wallets or 0,
+        "source": token.source,
+    }
+
+
+@router.get("/market")
+async def public_market(
+    tab: str = Query(default="trending", description="trending|new|gainers|revival"),
+    chain: str | None = Query(default=None, description="bsc/base/eth/solana — фильтр по сети"),
+    limit: int = Query(default=30, ge=1, le=100),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Разделы рынка на наших данных. Вкладки:
+
+    - ``trending``  — что сейчас горячее: приоритет качественным источникам
+      (geckoterminal_top/trending), затем по росту 24ч. Скрываем BLOCK.
+    - ``new``       — самые свежие пулы по времени создания (возможен вердикт «—»,
+      если токен ещё не прошёл скрининг).
+    - ``gainers``   — топ-растущие за 24ч среди PASS (реальный ход цены самого токена).
+    - ``revival``   — «камбэк»: токен старше суток, но снова показывает заметный
+      положительный ход (наша эвристика, не алгоритм Gecko). bucket=reviving|revived.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from sqlalchemy import case, nullslast
+
+    from ..models import SafetyReport, Token
+
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    tab = (tab or "trending").strip().lower()
+
+    base = select(Token, SafetyReport).join(
+        SafetyReport, SafetyReport.token_id == Token.id, isouter=True
+    )
+    if chain:
+        base = base.where(func.lower(Token.chain) == chain.strip().lower())
+
+    verdict = SafetyReport.verdict
+    not_block = or_(verdict.is_(None), verdict != "BLOCK")
+    cap = settings.fresh_max_change_pct
+
+    if tab == "new":
+        stmt = (
+            base.where(
+                Token.liquidity_usd.is_not(None),
+                Token.liquidity_usd > 0,
+                Token.created_at.is_not(None),
+                not_block,
+            )
+            .order_by(Token.created_at.desc())
+            .limit(min(limit * 5, 400))
+        )
+    elif tab == "gainers":
+        stmt = (
+            base.where(
+                verdict == "PASS",
+                Token.price_change_h24.is_not(None),
+                Token.price_change_h24 > 0,
+                Token.price_change_h24 <= cap,
+                Token.liquidity_usd.is_not(None),
+                Token.liquidity_usd > 0,
+            )
+            .order_by(Token.price_change_h24.desc())
+            .limit(min(limit * 5, 400))
+        )
+    elif tab == "revival":
+        cutoff = now - timedelta(hours=24)
+        stmt = (
+            base.where(
+                or_(verdict == "PASS", verdict == "REVIEW"),
+                Token.created_at.is_not(None),
+                Token.created_at < cutoff,
+                Token.price_change_h24.is_not(None),
+                Token.price_change_h24 >= 15.0,
+                Token.price_change_h24 <= cap,
+                Token.liquidity_usd.is_not(None),
+                Token.liquidity_usd >= 3000.0,
+            )
+            .order_by(Token.price_change_h24.desc())
+            .limit(min(limit * 5, 400))
+        )
+    else:
+        tab = "trending"
+        recent = now - timedelta(hours=48)
+        src = func.lower(func.coalesce(Token.source, ""))
+        quality = case((src.like("%top%"), 0), (src.like("%trending%"), 0), else_=1)
+        stmt = (
+            base.where(
+                Token.last_seen_at >= recent,
+                Token.liquidity_usd.is_not(None),
+                Token.liquidity_usd >= 1000.0,
+                not_block,
+            )
+            .order_by(quality, nullslast(Token.price_change_h24.desc()))
+            .limit(min(limit * 5, 400))
+        )
+
+    rows = (await session.execute(stmt)).all()
+    out_rows: list[dict] = []
+    seen: set[str] = set()
+    for token, report in rows:
+        key = (token.symbol or token.address or "").strip().lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        r = _market_row(token, report, now)
+        if tab == "revival":
+            c = r["change_24h"] or 0
+            r["bucket"] = "revived" if c >= 80 else "reviving"
+        out_rows.append(r)
+        if len(out_rows) >= limit:
+            break
+
+    return {"tab": tab, "chain": chain, "count": len(out_rows), "tokens": out_rows}
+
+
+# Темы для нашей (keyword) группировки «Категории». Это НЕ алгоритм Gecko —
+# честная группировка по символу/имени токенов, которые мы реально видели.
+_MARKET_THEMES = [
+    ("meme", "Мемы", ["doge", "shib", "pepe", "wojak", "bonk", "wif", "meme", "floki",
+                      "elon", "moon", "chad", "based", "mog", "brett", "popcat"]),
+    ("ai", "AI", ["ai", "gpt", "neural", "agent", "llm", "compute", " ml", "tensor", "deep"]),
+    ("animal", "Животные", ["dog", "cat", "inu", "frog", "bear", "bull", "ape", "monkey",
+                           "shark", "goat", "panda", "pepe", "kitty", "hippo"]),
+    ("gaming", "Гейминг", ["game", "play", "metaverse", "verse", "quest", "rpg", "pixel", "arcade"]),
+    ("defi", "DeFi", ["swap", "dex", "yield", "stake", "vault", "lend", "dao", "perp", "finance"]),
+    ("stock", "Акции-токены", ["stock", "nvda", "tsla", "aapl", "spx", "etf", "gold", "oil", "xau"]),
+    ("culture", "Культура/бренды", ["trump", "biden", "music", "game", "gta", "chan", "cult"]),
+]
+
+
+@router.get("/market-categories")
+async def public_market_categories(
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """«Категории» на наших данных: группировка недавно виденных токенов по теме
+    (по символу/имени). Честно помечается как наша группировка, не алгоритм Gecko.
+    Keyless-категории Gecko нам недоступны без платного ключа — это замена из того,
+    что у нас уже есть. Сортировка тем по суммарной ликвидности убыв."""
+    from datetime import datetime, timedelta, timezone
+
+    from ..models import SafetyReport, Token
+
+    now = datetime.now(timezone.utc)
+    recent = now - timedelta(days=7)
+    rows = (
+        await session.execute(
+            select(Token, SafetyReport)
+            .join(SafetyReport, SafetyReport.token_id == Token.id, isouter=True)
+            .where(
+                Token.last_seen_at >= recent,
+                Token.liquidity_usd.is_not(None),
+                Token.liquidity_usd > 0,
+                or_(SafetyReport.verdict.is_(None), SafetyReport.verdict != "BLOCK"),
+            )
+            .order_by(Token.liquidity_usd.desc())
+            .limit(2500)
+        )
+    ).all()
+
+    buckets = {
+        k: {"key": k, "title": title, "count": 0, "liq": 0.0, "samples": []}
+        for k, title, _ in _MARKET_THEMES
+    }
+    for token, _report in rows:
+        text = ((token.symbol or "") + " " + (token.name or "")).lower()
+        for k, _title, kws in _MARKET_THEMES:
+            if any(kw.strip() in text for kw in kws):
+                b = buckets[k]
+                b["count"] += 1
+                b["liq"] += float(token.liquidity_usd or 0.0)
+                if len(b["samples"]) < 8:
+                    ch = token.price_change_h24
+                    b["samples"].append(
+                        {
+                            "symbol": token.symbol,
+                            "chain": token.chain,
+                            "address": token.address,
+                            "pair_address": token.pair_address,
+                            "liquidity_usd": round(float(token.liquidity_usd or 0), 0),
+                            "change_24h": round(float(ch), 1) if ch is not None else None,
+                        }
+                    )
+                break
+
+    cats = [b for b in buckets.values() if b["count"] > 0]
+    cats.sort(key=lambda b: b["liq"], reverse=True)
+    for b in cats:
+        b["liq"] = round(b["liq"], 0)
+    return {"count": len(cats), "categories": cats}

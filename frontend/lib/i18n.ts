@@ -16,6 +16,7 @@ type Dict = Record<string, string>;
 const ru: Dict = {
   "brand.tagline": "Early Crypto Radar",
   "nav.radar": "Радар",
+  "nav.market": "Рынок",
   "nav.pricing": "Тарифы",
   "nav.blog": "Блог",
   "nav.about": "О системе",
@@ -254,6 +255,7 @@ const ru: Dict = {
 const en: Dict = {
   "brand.tagline": "Early Crypto Radar",
   "nav.radar": "Radar",
+  "nav.market": "Market",
   "nav.pricing": "Pricing",
   "nav.blog": "Blog",
   "nav.about": "How it works",

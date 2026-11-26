@@ -223,3 +223,72 @@ export async function fetchWinningTrades(limit = 50): Promise<JournalTrade[]> {
     .filter((p) => (p.realized_pnl_usd ?? 0) > 0)
     .sort((a, b) => (b.pnl_pct ?? 0) - (a.pnl_pct ?? 0));
 }
+
+// ---- Рынок (разделы как у Gecko, на наших данных) ----
+export type MarketRow = {
+  symbol: string | null;
+  name: string | null;
+  chain: string;
+  address: string;
+  pair_address: string | null;
+  price_usd: number | null;
+  liquidity_usd: number | null;
+  fdv: number | null;
+  age_hours: number | null;
+  change_24h: number | null;
+  multiple_24h: number | null;
+  verdict: "PASS" | "REVIEW" | "BLOCK" | null;
+  risk_score: number | null;
+  smart_wallets: number;
+  source: string;
+  bucket?: "reviving" | "revived";
+};
+
+export type MarketResp = { tab: string; chain: string | null; count: number; tokens: MarketRow[] };
+
+export async function fetchMarket(
+  tab: string,
+  chain?: string | null,
+  limit = 30,
+): Promise<MarketResp> {
+  const q = new URLSearchParams({ tab, limit: String(limit) });
+  if (chain) q.set("chain", chain);
+  const res = await fetch(`${API_BASE}/api/public/market?${q.toString()}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  return res.json();
+}
+
+export type MarketCategory = {
+  key: string;
+  title: string;
+  count: number;
+  liq: number;
+  samples: {
+    symbol: string | null;
+    chain: string;
+    address: string;
+    pair_address: string | null;
+    liquidity_usd: number | null;
+    change_24h: number | null;
+  }[];
+};
+
+export async function fetchMarketCategories(): Promise<{ count: number; categories: MarketCategory[] }> {
+  const res = await fetch(`${API_BASE}/api/public/market-categories`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  return res.json();
+}
+
+export type Candle = [number, number, number, number, number, number]; // t,o,h,l,c,v
+
+export async function fetchOhlcv(
+  chain: string,
+  pool: string,
+  timeframe = "hour",
+  limit = 100,
+): Promise<{ count: number; candles: Candle[] }> {
+  const q = new URLSearchParams({ chain, pool, timeframe, limit: String(limit) });
+  const res = await fetch(`${API_BASE}/api/public/ohlcv?${q.toString()}`, { cache: "no-store" });
+  if (!res.ok) return { count: 0, candles: [] };
+  return res.json();
+}

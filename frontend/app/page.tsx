@@ -39,6 +39,7 @@ export default function Landing() {
           </div>
           <nav className="hidden items-center gap-7 text-sm text-muted md:flex">
             <Link href="/radar" className="hover:text-ink">{t("nav.radar")}</Link>
+            <Link href="/market" className="hover:text-ink">{t("nav.market")}</Link>
             <Link href="/pricing" className="hover:text-ink">{t("nav.pricing")}</Link>
             <Link href="/blog" className="hover:text-ink">{t("nav.blog")}</Link>
             <Link href="/journal" className="hover:text-ink">{t("nav.journal")}</Link>

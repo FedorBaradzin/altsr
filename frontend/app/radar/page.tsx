@@ -66,6 +66,7 @@ export default function Dashboard() {
             <div><div className="font-sg font-bold">ALTSR</div><div className="-mt-0.5 text-[10px] text-muted">{t("brand.tagline")}</div></div>
           </Link>
           <nav data-tour="account" className="flex items-center gap-5 text-sm text-muted">
+            <Link href="/market" className="hidden hover:text-ink sm:inline">{t("nav.market")}</Link>
             <Link href="/pricing" className="hidden hover:text-ink sm:inline">{t("nav.pricing")}</Link>
             <Link href="/blog" className="hidden hover:text-ink sm:inline">{t("nav.blog")}</Link>
             <Link href="/journal" className="hidden hover:text-ink sm:inline">{t("nav.journal")}</Link>
