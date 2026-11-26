@@ -417,9 +417,12 @@ def _market_row(token, report, now) -> dict:
             created = created.replace(tzinfo=timezone.utc)
         age_hours = round((now - created).total_seconds() / 3600.0, 1)
     cap = get_settings().fresh_max_change_pct
-    ch = token.price_change_h24
-    # Обрезаем артефактные иксы источника (микрокап с ценой ≈0 → +миллионы %).
-    ch = round(float(ch), 1) if (ch is not None and abs(float(ch)) <= cap) else None
+
+    def _cap(v) -> float | None:
+        # Обрезаем артефактные иксы источника (микрокап с ценой ≈0 → +миллионы %).
+        return round(float(v), 1) if (v is not None and abs(float(v)) <= cap) else None
+
+    ch = _cap(token.price_change_h24)
     return {
         "symbol": token.symbol,
         "name": token.name,
@@ -429,8 +432,13 @@ def _market_row(token, report, now) -> dict:
         "price_usd": token.price_usd,
         "liquidity_usd": round(float(token.liquidity_usd), 0) if token.liquidity_usd else None,
         "fdv": round(float(token.fdv), 0) if token.fdv else None,
+        "market_cap_usd": round(float(token.market_cap_usd), 0) if token.market_cap_usd else None,
+        "volume_h24": round(float(token.volume_h24), 0) if token.volume_h24 else None,
+        "txns_h24": token.txns_h24,
         "age_hours": age_hours,
         "change_24h": ch,
+        "change_h1": _cap(token.price_change_h1),
+        "change_h6": _cap(token.price_change_h6),
         "multiple_24h": round(1.0 + ch / 100.0, 2) if ch is not None else None,
         "verdict": report.verdict if report is not None else None,
         "risk_score": report.risk_score if report is not None else None,

@@ -29,6 +29,11 @@ class NormalizedToken:
     fdv: float | None = None
     price_usd: float | None = None
     price_change_h24: float | None = None
+    price_change_h1: float | None = None
+    price_change_h6: float | None = None
+    volume_h24: float | None = None
+    txns_h24: int | None = None
+    market_cap_usd: float | None = None
     pair_address: str | None = None
     dex: str | None = None
     socials: dict[str, Any] = field(default_factory=dict)

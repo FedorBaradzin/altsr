@@ -54,6 +54,11 @@ class Token(Base):
     first_price_usd: Mapped[float | None] = mapped_column(Float)
     # Изменение цены за 24ч (%) из источника; обновляется каждый цикл.
     price_change_h24: Mapped[float | None] = mapped_column(Float)
+    price_change_h1: Mapped[float | None] = mapped_column(Float)
+    price_change_h6: Mapped[float | None] = mapped_column(Float)
+    volume_h24: Mapped[float | None] = mapped_column(Float)
+    txns_h24: Mapped[int | None] = mapped_column(Integer)
+    market_cap_usd: Mapped[float | None] = mapped_column(Float)
     pair_address: Mapped[str | None] = mapped_column(String(128))
     dex: Mapped[str | None] = mapped_column(String(64))
     # socials/links как JSON-строка (websites, twitter, telegram, explorer).

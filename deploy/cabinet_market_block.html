@@ -1,0 +1,153 @@
+<!--altsr-market-start-->
+<style id="altsr-market-css">
+.amk-wrap{color:#EAF0FF;font-family:inherit}
+.amk-title{font-size:24px;font-weight:700;margin:0 0 4px}
+.amk-sub{color:#9AA6C4;font-size:14px;margin:0 0 2px;max-width:680px}
+.amk-note{color:#66708C;font-size:12px;margin:0}
+.amk-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 10px}
+.amk-tab{cursor:pointer;border:1px solid rgba(130,150,210,.12);background:rgba(20,25,44,.55);color:#9AA6C4;border-radius:12px;padding:8px 14px;font-size:14px;font-weight:500}
+.amk-tab.on{background:linear-gradient(135deg,rgba(139,92,246,.28),rgba(34,211,238,.18));color:#EAF0FF;border-color:rgba(139,92,246,.45)}
+.amk-chains{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.amk-chain{cursor:pointer;border:1px solid rgba(130,150,210,.12);background:transparent;color:#66708C;border-radius:8px;padding:5px 11px;font-size:12px}
+.amk-chain.on{background:rgba(34,211,238,.16);color:#67E8F9;border-color:rgba(34,211,238,.3)}
+.amk-body{border:1px solid rgba(130,150,210,.12);border-radius:16px;background:rgba(20,25,44,.4);overflow:auto}
+.amk-table{width:100%;border-collapse:collapse;font-size:14px}
+.amk-table th{text-align:left;padding:11px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#66708C;font-weight:600;white-space:nowrap}
+.amk-table td{padding:11px 12px;border-top:1px solid rgba(130,150,210,.08);white-space:nowrap}
+.amk-tr{cursor:pointer}
+.amk-tr:hover{background:rgba(139,92,246,.06)}
+.amk-r{text-align:right}
+.amk-sym{font-weight:600;color:#EAF0FF;display:flex;align-items:center;gap:6px}
+.amk-ch{font-size:11px;color:#66708C;text-transform:uppercase}
+.amk-mut{color:#9AA6C4}
+.amk-vd{border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600}
+.amk-bk{border-radius:4px;padding:1px 6px;font-size:10px}
+.amk-bk-revived{background:rgba(52,211,153,.16);color:#34D399}
+.amk-bk-reviving{background:rgba(251,191,36,.16);color:#FBBF24}
+.amk-chart{border-radius:6px;padding:4px 8px;font-size:11px;background:rgba(34,211,238,.12);color:#67E8F9}
+.amk-empty{padding:40px;text-align:center;color:#9AA6C4}
+.amk-live{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#34D399;margin-left:8px;vertical-align:middle}
+.amk-live b{width:7px;height:7px;border-radius:50%;background:#34D399;display:inline-block;animation:amkpulse 1.6s infinite}
+@keyframes amkpulse{0%,100%{opacity:1}50%{opacity:.25}}
+.amk-cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;padding:14px}
+.amk-cat{border:1px solid rgba(130,150,210,.12);border-radius:16px;background:rgba(20,25,44,.4);padding:14px}
+.amk-cat-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.amk-cat-tok{display:flex;justify-content:space-between;width:100%;background:transparent;border:0;color:#EAF0FF;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:14px}
+.amk-cat-tok:hover{background:rgba(139,92,246,.07)}
+.amk-cat-tok i{font-style:normal;font-size:10px;color:#66708C;text-transform:uppercase;margin-left:4px}
+@media(max-width:820px){.amk-hide{display:none}}
+</style>
+<script id="altsr-market-js">
+(function(){
+  if(window.__altsrMarket)return; window.__altsrMarket=true;
+  var L=function(){return document.documentElement.lang==='en'?'en':'ru';};
+  var tr=function(ru,en){return L()==='en'?en:ru;};
+  var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
+  var fmt=function(n){if(n==null)return'—';n=+n;return n>=1e9?'$'+(n/1e9).toFixed(2)+'B':n>=1e6?'$'+(n/1e6).toFixed(2)+'M':n>=1e3?'$'+(n/1e3).toFixed(1)+'K':'$'+Math.round(n);};
+  var num=function(n){if(n==null)return'—';n=+n;return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(Math.round(n));};
+  var age=function(h){if(h==null)return'—';if(h<1)return Math.max(1,Math.round(h*60))+'m';if(h<48)return Math.round(h)+'h';return Math.round(h/24)+'d';};
+  var vcol=function(v){return v==='PASS'?'#34D399':v==='REVIEW'?'#FBBF24':v==='BLOCK'?'#F87171':'#66708C';};
+  var cc=function(c){return c==null?'#9AA6C4':c>0?'#34D399':c<0?'#F87171':'#9AA6C4';};
+  var pc=function(v){return v==null?'—':(v>0?'+':'')+v+'%';};
+
+  var state={tab:'trending',chain:''},timer=null;
+  var TABS=[['trending','Тренды','Trending'],['new','Новые пулы','New Pools'],['gainers','Растущие','Top Gainers'],['revival','Возрождение','Revival'],['categories','Категории','Categories']];
+  var CHAINS=[['','Все','All'],['solana','Solana','Solana'],['bsc','BNB','BNB'],['base','Base','Base'],['eth','Ethereum','Ethereum']];
+
+  function shell(){
+    var tabs=TABS.map(function(t){return '<button class="amk-tab'+(t[0]===state.tab?' on':'')+'" data-tab="'+t[0]+'">'+tr(t[1],t[2])+'</button>';}).join('');
+    var chains=state.tab==='categories'?'':'<div class="amk-chains">'+CHAINS.map(function(c){return '<button class="amk-chain'+(c[0]===state.chain?' on':'')+'" data-chain="'+c[0]+'">'+tr(c[1],c[2])+'</button>';}).join('')+'</div>';
+    return '<div class="amk-wrap">'
+      +'<h2 class="amk-title">'+tr('Рынок','Market')+'<span class="amk-live"><b></b>'+tr('обновляется','live')+'</span></h2>'
+      +'<p class="amk-sub">'+tr('Что движется прямо сейчас — на наших ончейн-данных, с анти-скам вердиктом на каждом токене. Клик по строке → реальный график.','What is moving now — our on-chain data, anti-scam verdict on every token. Click a row for a real chart.')+'</p>'
+      +'<p class="amk-note">'+tr('Рост — реальное движение цены токена, не прибыль и не обещание. PASS ≠ «вырастет». Данные обновляются каждые 30 секунд.','Change is real token price action, not profit or a promise. PASS ≠ "will rise". Refreshes every 30s.')+'</p>'
+      +'<div class="amk-tabs">'+tabs+'</div>'+chains
+      +'<div id="amkBody" class="amk-body"></div></div>';
+  }
+
+  function table(rows){
+    if(!rows||!rows.length)return '<div class="amk-empty">'+tr('Пока нет данных для раздела — радар пополняет базу, зайдите чуть позже.','No data for this section yet — the radar is filling the base.')+'</div>';
+    var h='<tr><th>#</th><th>'+tr('Токен','Token')+'</th><th>'+tr('Возраст','Age')+'</th><th class="amk-hide">'+tr('Ликвидн.','Liq')+'</th><th class="amk-hide amk-r">'+tr('Объём 24ч','Vol 24h')+'</th><th class="amk-r">1ч</th><th class="amk-r amk-hide">6ч</th><th class="amk-r">24ч</th><th>'+tr('Вердикт','Verdict')+'</th><th class="amk-hide">Smart</th><th></th></tr>';
+    var b=rows.map(function(r,i){
+      var bk=r.bucket?'<span class="amk-bk amk-bk-'+r.bucket+'">'+(r.bucket==='revived'?tr('возродился','revived'):tr('возрождается','reviving'))+'</span>':'';
+      return '<tr class="amk-tr" data-chain="'+esc(r.chain)+'" data-pool="'+esc(r.pair_address||r.address)+'" data-sym="'+esc(r.symbol||'')+'">'
+        +'<td class="amk-mut">'+(i+1)+'</td>'
+        +'<td><div class="amk-sym">'+esc(r.symbol||'—')+bk+'</div><div class="amk-ch">'+esc(r.chain)+'</div></td>'
+        +'<td class="amk-mut">'+age(r.age_hours)+'</td>'
+        +'<td class="amk-hide amk-mut">'+fmt(r.liquidity_usd)+'</td>'
+        +'<td class="amk-hide amk-r amk-mut">'+fmt(r.volume_h24)+'</td>'
+        +'<td class="amk-r" style="color:'+cc(r.change_h1)+'">'+pc(r.change_h1)+'</td>'
+        +'<td class="amk-r amk-hide" style="color:'+cc(r.change_h6)+'">'+pc(r.change_h6)+'</td>'
+        +'<td class="amk-r" style="color:'+cc(r.change_24h)+'">'+pc(r.change_24h)+'</td>'
+        +'<td><span class="amk-vd" style="background:'+vcol(r.verdict)+'1f;color:'+vcol(r.verdict)+'">'+(r.verdict||'—')+(r.risk_score!=null?' · '+r.risk_score:'')+'</span></td>'
+        +'<td class="amk-hide amk-mut">'+(r.smart_wallets>0?'🧠 '+r.smart_wallets:'—')+'</td>'
+        +'<td class="amk-r"><span class="amk-chart">'+tr('График','Chart')+'</span></td></tr>';
+    }).join('');
+    return '<table class="amk-table"><thead>'+h+'</thead><tbody>'+b+'</tbody></table>';
+  }
+
+  function cats(list){
+    if(!list||!list.length)return '<div class="amk-empty">'+tr('Категории пока пустые.','No categories yet.')+'</div>';
+    return '<div class="amk-cats">'+list.map(function(c){
+      var s=c.samples.map(function(x){return '<button class="amk-cat-tok amk-tr" data-chain="'+esc(x.chain)+'" data-pool="'+esc(x.pair_address||x.address)+'" data-sym="'+esc(x.symbol||'')+'"><span>'+esc(x.symbol||'—')+'<i>'+esc(x.chain)+'</i></span><b style="color:'+cc(x.change_24h)+'">'+pc(x.change_24h)+'</b></button>';}).join('');
+      return '<div class="amk-cat"><div class="amk-cat-h"><b>'+esc(c.title)+'</b><span class="amk-mut" style="font-size:11px">'+c.count+' · '+fmt(c.liq)+'</span></div>'+s+'</div>';
+    }).join('')+'</div>';
+  }
+
+  function load(){
+    var body=document.getElementById('amkBody'); if(!body)return;
+    if(!body.innerHTML)body.innerHTML='<div class="amk-empty">'+tr('Загрузка…','Loading…')+'</div>';
+    if(state.tab==='categories'){
+      fetch('/api/public/market-categories').then(function(r){return r.json();}).then(function(d){if(document.getElementById('amkBody'))document.getElementById('amkBody').innerHTML=cats(d.categories);}).catch(function(){});
+    }else{
+      fetch('/api/public/market?tab='+state.tab+'&limit=40'+(state.chain?'&chain='+state.chain:'')).then(function(r){return r.json();}).then(function(d){if(document.getElementById('amkBody'))document.getElementById('amkBody').innerHTML=table(d.tokens);}).catch(function(){});
+    }
+  }
+  function startTimer(){stopTimer();timer=setInterval(function(){document.querySelector('.amk-wrap')?load():stopTimer();},30000);}
+  function stopTimer(){if(timer){clearInterval(timer);timer=null;}}
+
+  function renderMarket(){
+    var c=document.querySelector('.content'); if(!c)return;
+    c.innerHTML=shell();
+    var pt=document.getElementById('pageTitle'); if(pt)pt.textContent=tr('Рынок','Market');
+    load(); startTimer();
+  }
+
+  document.addEventListener('click',function(e){
+    if(!e.target.closest)return;
+    var tb=e.target.closest('.amk-tab'); if(tb){state.tab=tb.getAttribute('data-tab');renderMarket();return;}
+    var ch=e.target.closest('.amk-chain'); if(ch){state.chain=ch.getAttribute('data-chain');renderMarket();return;}
+    var row=e.target.closest('.amk-tr'); if(row&&document.querySelector('.amk-wrap')){var a=row.getAttribute('data-chain'),p=row.getAttribute('data-pool'),s=row.getAttribute('data-sym'); if(a&&p&&typeof window.altsrOpenChart==='function')window.altsrOpenChart(a,p,s);}
+  });
+
+  function addNav(){
+    var nav=document.getElementById('nav'); if(!nav||nav.querySelector('[data-k="market"]'))return;
+    var radar=nav.querySelector('[data-k="radar"]'); if(!radar)return;
+    var a=document.createElement('a'); a.setAttribute('data-k','market'); a.setAttribute('onclick',"route('market')"); a.className=' ';
+    a.innerHTML='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V11M9 20V4M14 20v-6M19 20V8"/></svg> '+tr('Рынок','Market');
+    radar.parentNode.insertBefore(a,radar.nextSibling);
+  }
+
+  function wrapRoute(){
+    if(window.__altsrRouteWrapped)return;
+    var orig=window.route;
+    window.route=function(k){
+      var m=document.querySelector('[data-k="market"]');
+      if(k==='market'){
+        [].forEach.call(document.querySelectorAll('#nav a'),function(a){a.classList.remove('on');});
+        if(m)m.classList.add('on');
+        renderMarket(); return;
+      }
+      stopTimer(); if(m)m.classList.remove('on');
+      if(typeof orig==='function')return orig.apply(this,arguments);
+    };
+    window.__altsrRouteWrapped=true;
+  }
+
+  function init(){ addNav(); wrapRoute();
+    if(location.hash==='#market'){ try{window.route('market');}catch(e){} }
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init); else init();
+})();
+</script>
+<!--altsr-market-end-->

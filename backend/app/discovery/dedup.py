@@ -96,6 +96,17 @@ async def upsert_tokens(
                     existing.first_price_usd = tok.price_usd
             if tok.price_change_h24 is not None:
                 existing.price_change_h24 = tok.price_change_h24
+            # Богатые метрики (1ч/6ч/объём/транзакции/капа) — свежие при каждом показе.
+            if tok.price_change_h1 is not None:
+                existing.price_change_h1 = tok.price_change_h1
+            if tok.price_change_h6 is not None:
+                existing.price_change_h6 = tok.price_change_h6
+            if tok.volume_h24 is not None:
+                existing.volume_h24 = tok.volume_h24
+            if tok.txns_h24 is not None:
+                existing.txns_h24 = tok.txns_h24
+            if tok.market_cap_usd is not None:
+                existing.market_cap_usd = tok.market_cap_usd
             updated += 1
             continue
 
@@ -114,6 +125,11 @@ async def upsert_tokens(
             price_usd=tok.price_usd,
             first_price_usd=tok.price_usd,
             price_change_h24=tok.price_change_h24,
+            price_change_h1=tok.price_change_h1,
+            price_change_h6=tok.price_change_h6,
+            volume_h24=tok.volume_h24,
+            txns_h24=tok.txns_h24,
+            market_cap_usd=tok.market_cap_usd,
             pair_address=tok.pair_address,
             dex=tok.dex,
             socials=tok.socials_json(),

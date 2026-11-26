@@ -80,9 +80,25 @@ def normalize_pool(pool: dict, included: dict[str, dict], network: str) -> Norma
             socials[key] = val
 
     chain = NETWORK_TO_CHAIN.get(network, network)
-    # Изменение цены за 24ч (%) — из price_change_percentage.h24 (строка).
+    # Изменение цены по окнам (%) — из price_change_percentage (строки). Всё из того
+    # же keyless-ответа, без доп. запросов и без платного ключа.
     pcp = attrs.get("price_change_percentage") or {}
-    price_change_h24 = to_float(pcp.get("h24")) if isinstance(pcp, dict) else None
+
+    def _pc(k: str) -> float | None:
+        return to_float(pcp.get(k)) if isinstance(pcp, dict) else None
+
+    vol = attrs.get("volume_usd") or {}
+    volume_h24 = to_float(vol.get("h24")) if isinstance(vol, dict) else None
+
+    txns = attrs.get("transactions") or {}
+    th24 = txns.get("h24") if isinstance(txns, dict) else None
+    txns_h24: int | None = None
+    if isinstance(th24, dict):
+        try:
+            txns_h24 = int(th24.get("buys") or 0) + int(th24.get("sells") or 0)
+        except (TypeError, ValueError):
+            txns_h24 = None
+
     return NormalizedToken(
         chain=chain,
         address=address,
@@ -93,7 +109,12 @@ def normalize_pool(pool: dict, included: dict[str, dict], network: str) -> Norma
         liquidity_usd=to_float(attrs.get("reserve_in_usd")),
         fdv=to_float(attrs.get("fdv_usd")),
         price_usd=to_float(attrs.get("base_token_price_usd")),
-        price_change_h24=price_change_h24,
+        price_change_h24=_pc("h24"),
+        price_change_h1=_pc("h1"),
+        price_change_h6=_pc("h6"),
+        volume_h24=volume_h24,
+        txns_h24=txns_h24,
+        market_cap_usd=to_float(attrs.get("market_cap_usd")),
         pair_address=attrs.get("address"),
         dex=dex_ref,
         socials=socials,
