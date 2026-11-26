@@ -168,10 +168,11 @@
 
   document.addEventListener('click',function(e){
     if(!e.target.closest)return;
-    // Клик по любому родному пункту меню (не «Рынок») → вернуть .content и дать
-    // отработать родному route() кабинета (его onclick сработает сам).
-    var navA=e.target.closest('#nav a');
-    if(navA && navA.getAttribute('data-k')!=='market'){ showCabinet(); return; }
+    // Клик по любой ссылке с onclick="route(...)" (родной раздел кабинета) → вернуть
+    // .content и дать отработать родному route() (его inline-onclick сработает сам).
+    // Не зависим от контейнера #nav — кабинет перерисовывает меню.
+    var navLink=e.target.closest('a[onclick]');
+    if(navLink && /\broute\s*\(/.test(navLink.getAttribute('onclick')||'')){ showCabinet(); return; }
     var tb=e.target.closest('.amk-tab'); if(tb){state.tab=tb.getAttribute('data-tab');renderMarket();return;}
     var ch=e.target.closest('.amk-chain'); if(ch){state.chain=ch.getAttribute('data-chain');renderMarket();return;}
     var row=e.target.closest('.amk-tr'); if(row&&document.querySelector('.amk-wrap')){var a=row.getAttribute('data-chain'),p=row.getAttribute('data-pool'),s=row.getAttribute('data-sym');if(a&&p){if(typeof window.altsrOpenChart==='function')window.altsrOpenChart(a,p,s);else openChart(a,p,s);}}
@@ -209,6 +210,11 @@
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init); else init();
   window.addEventListener('load',function(){ensureNav();});
+  // Навигация по hash (логотип #radar и т.п.): уходим из «Рынка» — возвращаем .content.
+  window.addEventListener('hashchange',function(){
+    if(location.hash==='#market'){window.altsrShowMarket();}
+    else{var v=document.getElementById('amkView');if(v&&v.style.display!=='none')showCabinet();}
+  });
 })();
 </script>
 <!--altsr-market-end-->
