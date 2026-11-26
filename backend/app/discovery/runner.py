@@ -94,6 +94,13 @@ async def collect_once(
         rugcheck.fetch_new_tokens(http, settings.rugcheck_base_url),
         dexscreener.fetch_latest_profiles(http, settings.dexscreener_base_url),
     ]
+    if settings.gecko_top_enabled:
+        coros.append(
+            geckoterminal.fetch_top_pools(
+                http, settings.gecko_base_url, settings.gecko_network_list,
+                pages=settings.gecko_top_pages,
+            )
+        )
     if settings.birdeye_active:
         coros.append(_safe_birdeye(http, settings, alerter, redis))
 

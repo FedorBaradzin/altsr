@@ -6,7 +6,7 @@ import json
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import Settings, get_settings
@@ -45,9 +45,22 @@ async def _candidates(session: AsyncSession, s: Settings) -> list[tuple[Token, S
         .join(SafetyReport, SafetyReport.token_id == Token.id)
         .outerjoin(Signal, Signal.token_id == Token.id)
         .where(Signal.id.is_(None))
-        .order_by(Token.discovered_at.desc())
-        .limit(s.signal_batch_size)
     )
+    if s.autotrade_prefer_quality_sources:
+        # Топ/трендовые источники — вперёд, иначе их топит поток свежих пулов и они не
+        # попадают в batch (= не торгуются). Внутри группы — свежайшие первыми.
+        from sqlalchemy import case
+
+        src = func.lower(func.coalesce(Token.source, ""))
+        priority = case(
+            (src.like("%geckoterminal_top%"), 0),
+            (src.like("%trending%"), 0),
+            else_=1,
+        )
+        stmt = stmt.order_by(priority, Token.discovered_at.desc())
+    else:
+        stmt = stmt.order_by(Token.discovered_at.desc())
+    stmt = stmt.limit(s.signal_batch_size)
     if s.signal_require_pass:
         stmt = stmt.where(SafetyReport.verdict == "PASS")
     return list((await session.execute(stmt)).all())
@@ -178,7 +191,11 @@ async def _emit_signals(
             verdict=report.verdict,
             risk_score=report.risk_score,
             smart_wallets=getattr(token, "smart_wallets", None),
-            is_trending="trending" in ((token.source or "").lower()),
+            # Качественный источник (trending ИЛИ top по объёму) проходит soft-гейт и
+            # получает бонус к уверенности — это устоявшиеся ликвидные монеты, не свежак.
+            is_trending=any(
+                k in (token.source or "").lower() for k in ("trending", "top")
+            ),
             price_change_m5=getattr(mom, "price_change_m5", None),
             price_change_h1=getattr(mom, "price_change_h1", None),
             vol_h1=getattr(mom, "vol_h1", None),

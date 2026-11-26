@@ -143,6 +143,44 @@ async def fetch_trending_pools(
     return results
 
 
+async def fetch_top_pools(
+    http: HttpClient, base_url: str, networks: list[str], *, pages: int = 1
+) -> list[NormalizedToken]:
+    """ТОП-пулы по 24ч-объёму (устоявшиеся ликвидные монеты, что «долго в топе»).
+
+    Бьёт в GET {base}/networks/{network}/pools?sort=h24_volume_usd_desc. Это НАСТОЯЩИЙ
+    топ-универсум (а не трендовый ручеёк): высокообъёмные пулы с реальной ликвидностью.
+    Тот же JSON:API-парсинг. Токены помечаются source="geckoterminal_top", чтобы
+    downstream мог предпочесть их при отборе кандидатов и пройти soft-гейт качества.
+    pages>1 — берём несколько страниц (по ~20 пулов) для более широкого топ-пула.
+    """
+    results: list[NormalizedToken] = []
+    for network in networks:
+        for page in range(1, max(1, pages) + 1):
+            url = f"{base_url}/networks/{network}/pools"
+            payload = await http.get_json(
+                url,
+                params={
+                    "include": "base_token,dex",
+                    "sort": "h24_volume_usd_desc",
+                    "page": page,
+                },
+            )
+            if not isinstance(payload, dict):
+                break
+            data = payload.get("data", []) or []
+            if not data:
+                break
+            included = _index_included(payload)
+            for pool in data:
+                tok = normalize_pool(pool, included, network)
+                if tok and tok.is_valid:
+                    tok.source = "geckoterminal_top"
+                    results.append(tok)
+    logger.info("GeckoTerminal top: %d токенов из %d сетей", len(results), len(networks))
+    return results
+
+
 # --------------------------------------------------------------------------- #
 # OHLCV: подтверждение тренда (T10)                                            #
 # --------------------------------------------------------------------------- #

@@ -29,6 +29,15 @@ class Settings(BaseSettings):
     # --- Discovery: источники ---
     # Какие сети тянуть из GeckoTerminal new_pools (EVM-подобные + solana).
     gecko_networks: str = Field(default="eth,base,bsc,solana", alias="GECKO_NETWORKS")
+    # ТОП-пулы по 24ч-объёму как ОСНОВНОЙ торговый универсум (устоявшиеся ликвидные
+    # монеты). Дискавери тянет их наравне с new/trending; отбор кандидатов их приоритезит.
+    gecko_top_enabled: bool = Field(default=True, alias="GECKO_TOP_ENABLED")
+    gecko_top_pages: int = Field(default=1, alias="GECKO_TOP_PAGES")
+    # При отборе кандидатов сигналов ставить топ/трендовые источники ВПЕРЁД, чтобы их
+    # не топил поток свежих пулов (иначе они не попадают в batch и не торгуются).
+    autotrade_prefer_quality_sources: bool = Field(
+        default=True, alias="AUTOTRADE_PREFER_QUALITY_SOURCES"
+    )
     gecko_base_url: str = Field(
         default="https://api.geckoterminal.com/api/v2", alias="GECKO_BASE_URL"
     )
