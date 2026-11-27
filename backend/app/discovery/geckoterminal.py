@@ -415,6 +415,31 @@ class TradesAgg:
         return (self.buy_vol_usd - self.sell_vol_usd) / t if t > 0 else None
 
 
+async def fetch_token_top_pool(
+    http: HttpClient,
+    base_url: str,
+    network: str,
+    token_address: str,
+    *,
+    headers: dict[str, str] | None = None,
+) -> str | None:
+    """Адрес самого ликвидного пула токена. Нужен, когда у нас есть только адрес
+    минта (напр. Solana pump.fun), а для сделок/OHLCV требуется адрес ПУЛА.
+    GET {base}/networks/{net}/tokens/{addr}/pools → первый (по ликвидности). None на ошибке."""
+    url = f"{base_url}/networks/{network}/tokens/{token_address}/pools"
+    try:
+        payload = await http.get_json(url, headers=headers)
+    except Exception:  # noqa: BLE001
+        return None
+    if not isinstance(payload, dict):
+        return None
+    pools = payload.get("data") or []
+    if not pools:
+        return None
+    attrs = pools[0].get("attributes", {}) or {}
+    return attrs.get("address")
+
+
 async def fetch_pool_trades(
     http: HttpClient,
     base_url: str,
