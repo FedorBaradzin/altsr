@@ -1,0 +1,81 @@
+<!-- altsr-faq-v1 -->
+<style>/*altsr-faq-v1*/
+#altsr-faq-section .afq-list{display:flex;flex-direction:column;gap:12px;max-width:860px}
+#altsr-faq-section .afq-item{background:var(--surface);border:1px solid var(--line-soft);border-radius:14px;overflow:hidden;transition:border-color .15s}
+#altsr-faq-section .afq-item[open]{border-color:#34d39940}
+#altsr-faq-section .afq-item summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:14px;padding:18px 20px;font-family:'Manrope',sans-serif;font-size:15.5px;font-weight:600;color:var(--text)}
+#altsr-faq-section .afq-item summary::-webkit-details-marker{display:none}
+#altsr-faq-section .afq-item summary:hover{background:#ffffff05}
+#altsr-faq-section .afq-chev{margin-left:auto;flex:none;color:var(--muted);transition:transform .2s}
+#altsr-faq-section .afq-item[open] .afq-chev{transform:rotate(180deg);color:var(--emerald)}
+#altsr-faq-section .afq-q-ic{flex:none;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--em-dim);border:1px solid #34d39933;color:var(--emerald);font-family:'Manrope',sans-serif;font-weight:700;font-size:13px}
+#altsr-faq-section .afq-a{padding:0 20px 20px 64px;color:var(--muted);font-size:14px;line-height:1.6}
+@media(max-width:640px){#altsr-faq-section .afq-item summary{padding:15px 16px;font-size:14px;gap:11px}#altsr-faq-section .afq-a{padding:0 16px 16px 16px;font-size:13.5px}}
+</style>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","inLanguage":"ru","mainEntity":[{"@type":"Question","name":"Что такое ALTSR и как он находит токены?","acceptedAnswer":{"@type":"Answer","text":"ALTSR — платформа раннего обнаружения новых крипто-токенов. Она сканирует новые пулы ликвидности на Solana, BNB Chain, Ethereum и Base, прогоняет каждый токен через анти-скам проверки и показывает вердикт PASS / REVIEW / BLOCK вместе с AI-сигналом."}},{"@type":"Question","name":"Как работает анти-скам проверка?","acceptedAnswer":{"@type":"Answer","text":"Каждый токен проверяется на honeypot (можно ли продать), блокировку ликвидности (LP lock), отозван ли mint authority, налоги на покупку и продажу и концентрацию у топ-холдеров. Данные берутся из RugCheck, GoPlus и ончейн-источников. Токены с красными флагами помечаются BLOCK."}},{"@type":"Question","name":"ALTSR гарантирует прибыль?","acceptedAnswer":{"@type":"Answer","text":"Нет. ALTSR снижает риск скама и даёт аналитику, но не гарантирует доход и не исключает убытки. Крипто-торговля несёт высокий риск. Показатели бумажной торговли и бэктестов — это не реальный заработок."}},{"@type":"Question","name":"Автоторговля — это реальные деньги?","acceptedAnswer":{"@type":"Answer","text":"Сейчас автоторговля работает в режиме симуляции (paper), без реальных средств. Живая автоторговля включится только после аудита контрактов, под вашими лимитами капитала и риска, через non-custodial делегирование и с кнопкой экстренной остановки."}},{"@type":"Question","name":"Какие сети поддерживаются?","acceptedAnswer":{"@type":"Answer","text":"Solana, BNB Chain (BSC), Ethereum и Base. Список сетей постепенно расширяется."}},{"@type":"Question","name":"Чем отличаются тарифы Free, Pro и Autonomous?","acceptedAnswer":{"@type":"Answer","text":"Free — радар с задержкой и базовыми проверками. Pro ($49/мес) — real-time лента, AI-сигналы без лимита, Telegram-алерты, бумажная торговля, история и фильтры. Autonomous ($89/мес) — всё из Pro плюс подвязка Telegram, подготовка к автоторговле и поддержка 24/7."}},{"@type":"Question","name":"Как оплатить подписку?","acceptedAnswer":{"@type":"Answer","text":"Оплата производится криптовалютой через NOWPayments. Банковская карта не требуется."}},{"@type":"Question","name":"Мои средства и ключи в безопасности?","acceptedAnswer":{"@type":"Answer","text":"ALTSR не хранит ваши средства. Автоторговля, когда она запустится, работает через non-custodial делегирование с лимитами: вы в любой момент можете отозвать разрешения и остановить торговлю."}}]}</script>
+<script>/*altsr-faq-v1*/
+(function(){
+  if(document.getElementById('altsr-faq-section'))return;
+
+  function curLang(){return document.documentElement.lang==='en'?'en':'ru';}
+  var L=curLang();
+
+  // [qRu, aRu, qEn, aEn]
+  var FAQ=[
+    ['Что такое ALTSR и как он находит токены?','ALTSR — платформа раннего обнаружения новых крипто-токенов. Она сканирует новые пулы ликвидности на Solana, BNB Chain, Ethereum и Base, прогоняет каждый токен через анти-скам проверки и показывает вердикт <b>PASS / REVIEW / BLOCK</b> вместе с AI-сигналом.',
+     'What is ALTSR and how does it find tokens?','ALTSR is an early-detection platform for new crypto tokens. It scans new liquidity pools on Solana, BNB Chain, Ethereum and Base, runs every token through anti-scam checks and shows a <b>PASS / REVIEW / BLOCK</b> verdict together with an AI signal.'],
+    ['Как работает анти-скам проверка?','Каждый токен проверяется на <b>honeypot</b> (можно ли продать), блокировку ликвидности (LP lock), отозван ли mint authority, налоги на покупку и продажу и концентрацию у топ-холдеров. Данные берутся из RugCheck, GoPlus и ончейн-источников. Токены с красными флагами помечаются BLOCK.',
+     'How does the anti-scam check work?','Every token is checked for <b>honeypot</b> (can you sell), liquidity lock (LP lock), whether mint authority is revoked, buy and sell taxes, and top-holder concentration. Data comes from RugCheck, GoPlus and on-chain sources. Tokens with red flags are marked BLOCK.'],
+    ['ALTSR гарантирует прибыль?','Нет. ALTSR снижает риск скама и даёт аналитику, но <b>не гарантирует доход и не исключает убытки</b>. Крипто-торговля несёт высокий риск. Показатели бумажной торговли и бэктестов — это не реальный заработок.',
+     'Does ALTSR guarantee profit?','No. ALTSR lowers scam risk and gives analytics, but <b>does not guarantee returns and does not rule out losses</b>. Crypto trading is high-risk. Paper-trading and backtest figures are not real earned profit.'],
+    ['Автоторговля — это реальные деньги?','Сейчас автоторговля работает в режиме <b>симуляции (paper)</b>, без реальных средств. Живая автоторговля включится только после аудита контрактов, под вашими лимитами капитала и риска, через non-custodial делегирование и с кнопкой экстренной остановки.',
+     'Is auto-trading real money?','Right now auto-trading runs in <b>simulation (paper)</b> mode, with no real funds. Live auto-trading turns on only after a contract audit, under your capital and risk limits, via non-custodial delegation and with an emergency stop.'],
+    ['Какие сети поддерживаются?','Solana, BNB Chain (BSC), Ethereum и Base. Список сетей постепенно расширяется.',
+     'Which networks are supported?','Solana, BNB Chain (BSC), Ethereum and Base. The list keeps expanding.'],
+    ['Чем отличаются тарифы Free, Pro и Autonomous?','<b>Free</b> — радар с задержкой и базовыми проверками. <b>Pro ($49/мес)</b> — real-time лента, AI-сигналы без лимита, Telegram-алерты, бумажная торговля, история и фильтры. <b>Autonomous ($89/мес)</b> — всё из Pro плюс подвязка Telegram, подготовка к автоторговле и поддержка 24/7.',
+     'How do the Free, Pro and Autonomous plans differ?','<b>Free</b> — radar with a delay and basic checks. <b>Pro ($49/mo)</b> — real-time feed, unlimited AI signals, Telegram alerts, paper trading, history and filters. <b>Autonomous ($89/mo)</b> — everything in Pro plus Telegram linking, auto-trading preparation and 24/7 support.'],
+    ['Как оплатить подписку?','Оплата производится криптовалютой через NOWPayments. Банковская карта не требуется.',
+     'How do I pay for a subscription?','Payment is in crypto via NOWPayments. No bank card required.'],
+    ['Мои средства и ключи в безопасности?','ALTSR не хранит ваши средства. Автоторговля, когда она запустится, работает через non-custodial делегирование с лимитами: вы в любой момент можете отозвать разрешения и остановить торговлю.',
+     'Are my funds and keys safe?','ALTSR does not hold your funds. Auto-trading, once it launches, works via non-custodial delegation with limits: you can revoke permissions and stop trading at any time.']
+  ];
+  var chev='<svg class="afq-chev" width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M5 7.5l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  var sec=document.createElement('section');
+  sec.id='altsr-faq-section';
+  sec.className='sec';
+
+  function render(){
+    var en=L==='en';
+    var items='';
+    for(var i=0;i<FAQ.length;i++){
+      var q=en?FAQ[i][2]:FAQ[i][0], a=en?FAQ[i][3]:FAQ[i][1];
+      items+=''+
+        '<details class="afq-item"'+(i===0?' open':'')+'>'+
+          '<summary><span class="afq-q-ic">?</span>'+q+chev+'</summary>'+
+          '<div class="afq-a">'+a+'</div>'+
+        '</details>';
+    }
+    sec.innerHTML=''+
+      '<div class="wrap">'+
+        '<div class="sec-head">'+
+          '<div class="eyebrow">FAQ</div>'+
+          '<h2>'+(en?'Frequently asked questions':'Частые вопросы')+'</h2>'+
+          '<p>'+(en?'A quick rundown of how ALTSR screens tokens, what about safety, and how the plans differ.':'Коротко о том, как ALTSR проверяет токены, что с безопасностью и чем отличаются тарифы.')+'</p>'+
+        '</div>'+
+        '<div class="afq-list">'+items+'</div>'+
+      '</div>';
+  }
+
+  render();
+
+  var foot=document.querySelector('footer.foot');
+  if(foot&&foot.parentNode){foot.parentNode.insertBefore(sec,foot);}
+  else{document.body.appendChild(sec);}
+
+  new MutationObserver(function(){
+    var nl=curLang();
+    if(nl!==L){L=nl;render();}
+  }).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
+})();
+</script>

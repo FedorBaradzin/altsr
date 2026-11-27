@@ -1,0 +1,91 @@
+<!-- altsr-social-v1 -->
+<style>/*altsr-social-v1*/
+#altsr-social-section .asc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+#altsr-social-section .asc-card{background:var(--surface);border:1px solid var(--line-soft);border-radius:16px;padding:22px 20px;position:relative;overflow:hidden}
+#altsr-social-section .asc-card::before{content:'';position:absolute;inset:0 0 auto 0;height:2px;background:linear-gradient(90deg,var(--emerald),var(--cyan));opacity:.6}
+#altsr-social-section .asc-ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--em-dim);border:1px solid #34d39933;color:var(--emerald);margin-bottom:14px}
+#altsr-social-section .asc-v{font-family:'Manrope',sans-serif;font-size:clamp(24px,2.6vw,32px);font-weight:700;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+#altsr-social-section .asc-k{font-size:12.5px;color:var(--muted);margin-top:8px;line-height:1.35}
+#altsr-social-section .asc-foot{margin-top:16px;font-size:12px;color:var(--faint);display:flex;align-items:center;gap:8px}
+#altsr-social-section .asc-dot{width:6px;height:6px;border-radius:50%;background:var(--emerald);box-shadow:0 0 8px var(--emerald)}
+@media(max-width:860px){#altsr-social-section .asc-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:460px){#altsr-social-section .asc-grid{grid-template-columns:1fr}}
+</style>
+<script>/*altsr-social-v1*/
+(function(){
+  if(document.getElementById('altsr-social-section'))return;
+
+  function curLang(){return document.documentElement.lang==='en'?'en':'ru';}
+  var L=curLang();
+  var ICONS={
+    scan:'<svg width="18" height="18" viewBox="0 0 20 20" fill="none"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.4"/><path d="M14 14l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+    shield:'<svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M10 2l6 2.4v4c0 3.7-2.5 6-6 7.2C6.5 14.4 4 12.1 4 8.4v-4z" stroke="currentColor" stroke-width="1.3"/><path d="M7.5 9.5l1.5 1.5 3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    check:'<svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M4 10.5l3.5 3.5L16 5.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    bolt:'<svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M11 2L4 11h5l-1 7 7-9h-5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>'
+  };
+  // key in /api/public/radar → [icon, ruLabel, enLabel]
+  var CARDS=[
+    ['tokens_total','scan','Токенов просканировано','Tokens scanned'],
+    ['scams_blocked','shield','Скамов заблокировано','Scams blocked'],
+    ['clean_pass','check','Прошли проверку (PASS)','Passed screening (PASS)'],
+    ['tokens_24h','bolt','Новых за 24 часа','New in the last 24h']
+  ];
+
+  function fmt(n){if(n==null||isNaN(n))return '—';return Number(n).toLocaleString('en-US');}
+
+  var sec=document.createElement('section');
+  sec.id='altsr-social-section';
+  sec.className='sec';
+  var data={};
+
+  function render(){
+    var en=L==='en';
+    var cards='';
+    for(var i=0;i<CARDS.length;i++){
+      var c=CARDS[i];
+      cards+=''+
+        '<div class="asc-card">'+
+          '<div class="asc-ic">'+ICONS[c[1]]+'</div>'+
+          '<div class="asc-v" data-k="'+c[0]+'">'+fmt(data[c[0]])+'</div>'+
+          '<div class="asc-k">'+(en?c[3]:c[2])+'</div>'+
+        '</div>';
+    }
+    sec.innerHTML=''+
+      '<div class="wrap">'+
+        '<div class="sec-head">'+
+          '<div class="eyebrow">'+(en?'By the numbers':'В цифрах')+'</div>'+
+          '<h2>'+(en?'What the radar has done so far':'Что радар уже сделал')+'</h2>'+
+          '<p>'+(en?'Real counters from the anti-scam pipeline — not marketing figures.':'Реальные счётчики анти-скам пайплайна — не маркетинговые цифры.')+'</p>'+
+        '</div>'+
+        '<div class="asc-grid">'+cards+'</div>'+
+      '</div>';
+  }
+
+  function paintValues(){
+    for(var i=0;i<CARDS.length;i++){
+      var el=sec.querySelector('.asc-v[data-k="'+CARDS[i][0]+'"]');
+      if(el)el.textContent=fmt(data[CARDS[i][0]]);
+    }
+  }
+
+  function load(){
+    fetch('/api/public/radar',{cache:'no-store'})
+      .then(function(r){return r.json();})
+      .then(function(j){if(j&&typeof j==='object'){data=j;paintValues();}})
+      .catch(function(){});
+  }
+
+  render();
+  load();
+  setInterval(load,60000);
+
+  var foot=document.querySelector('footer.foot');
+  if(foot&&foot.parentNode){foot.parentNode.insertBefore(sec,foot);}
+  else{document.body.appendChild(sec);}
+
+  new MutationObserver(function(){
+    var nl=curLang();
+    if(nl!==L){L=nl;render();}
+  }).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
+})();
+</script>

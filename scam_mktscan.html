@@ -1,0 +1,46 @@
+<script>/*altsr-mktscan-v2*/
+(function(){
+  if(window.__altsrMkt)return; window.__altsrMkt=1;
+  // Верхний блок (mk strip) показывает ДЕМО-счёт автоторговли из /api/public/paper.
+  function fmt(n){try{return Math.round(n).toLocaleString('ru-RU').replace(/ /g,' ').replace(/,/g,' ');}catch(e){return String(n);}}
+  var MAP=[
+    {lab:'Пулов за 24ч', relabel:'Бумажный счёт', fn:function(d){return '$'+fmt(d.equity);}},
+    {lab:'Токенов проанализ', relabel:'Win-rate', fn:function(d){return (d.win_rate==null?'–':Math.round(d.win_rate)+'%');}},
+    {lab:'Прошли проверку', relabel:'Доходность', fn:function(d){var r=d.return_pct||0;return (r>=0?'+':'')+r.toFixed(1)+'%';}, pos:function(d){return (d.return_pct||0)>=0;}},
+    {lab:'Активных сигналов', relabel:'Позиции', fn:function(d){return (d.open_positions||0)+' откр.';}},
+    {lab:'Заработок по сигналам', relabel:'Реализ. P&L', fn:function(d){var r=Math.round(d.realized_pnl||0);return (r>=0?'+$':'-$')+fmt(Math.abs(r));}, pos:function(d){return (d.realized_pnl||0)>=0;}}
+  ];
+  var data=null, stats=null;
+  function statFor(labStart){
+    var mks=[].slice.call(document.querySelectorAll('.mk'));
+    for(var i=0;i<mks.length;i++){
+      if(mks[i].textContent.indexOf(labStart)>=0){
+        var stat=mks[i].parentElement;
+        var sp=[].slice.call(mks[i].querySelectorAll('span')).filter(function(s){return !s.classList.contains('delta');});
+        return {num:stat.querySelector('.num'), label:sp[0]||mks[i], delta:mks[i].querySelector('.delta')};
+      }
+    }
+    return null;
+  }
+  function bind(){ var a=[]; for(var i=0;i<MAP.length;i++){var s=statFor(MAP[i].lab); if(!s||!s.num)return null; a.push(s);} return a; }
+  function paint(){
+    if(!data)return;
+    if(stats && (!stats[0].num||!document.contains(stats[0].num))) stats=null;
+    if(!stats)stats=bind();
+    if(!stats)return;
+    for(var i=0;i<MAP.length;i++){
+      var s=stats[i], m=MAP[i], v=m.fn(data);
+      if(s.num&&s.num.textContent!==v)s.num.textContent=v;
+      if(s.delta&&s.delta.textContent)s.delta.textContent='';
+      if(m.relabel&&s.label&&s.label.textContent!==m.relabel)s.label.textContent=m.relabel;
+      if(m.pos&&s.num)s.num.style.setProperty('color', m.pos(data)?'#2ecc87':'#ff5d6c','important');
+    }
+    var h=[].slice.call(document.querySelectorAll('*')).find(function(e){return e.children.length===0&&/Сканирование рынка/.test(e.textContent);});
+    if(h)h.textContent='Демо-счёт автоторговли';
+    var dl=[].slice.call(document.querySelectorAll('*')).find(function(e){return e.children.length===0&&/(в реальном времени|демо-данные)/.test(e.textContent);});
+    if(dl)dl.textContent='бумажный счёт · ДЕМО';
+  }
+  function load(){ fetch('/api/public/paper',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){if(j&&j.opened){data=j;paint();}}).catch(function(){}); }
+  load(); setInterval(load,15000); setInterval(paint,1000);
+})();
+</script>

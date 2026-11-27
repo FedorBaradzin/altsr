@@ -83,11 +83,39 @@ async def upsert_tokens(
         if existing is not None:
             existing.last_seen_at = now
             existing.seen_count += 1
-            # Обогащаем пустые поля данными из нового источника.
-            if existing.liquidity_usd is None and tok.liquidity_usd is not None:
+            # Ликвидность: фиксируем первую (база для «растущей ликвидности»), затем
+            # освежаем текущую каждый цикл — показываем живую ликвидность пула.
+            if tok.liquidity_usd is not None:
+                if existing.first_liquidity_usd is None:
+                    existing.first_liquidity_usd = (
+                        existing.liquidity_usd if existing.liquidity_usd is not None
+                        else tok.liquidity_usd
+                    )
                 existing.liquidity_usd = tok.liquidity_usd
             if existing.symbol is None and tok.symbol:
                 existing.symbol = tok.symbol
+            # Логотип: ставим как только появился (gecko отдаёт его только в part сетях/ответах).
+            if tok.image_url and not existing.image_url:
+                existing.image_url = tok.image_url
+            # Цена: текущую и 24ч-изменение обновляем всегда (свежие данные);
+            # базовую (first_price_usd) ставим один раз — она нужна для «иксов».
+            if tok.price_usd is not None:
+                existing.price_usd = tok.price_usd
+                if existing.first_price_usd is None:
+                    existing.first_price_usd = tok.price_usd
+            if tok.price_change_h24 is not None:
+                existing.price_change_h24 = tok.price_change_h24
+            # Богатые метрики (1ч/6ч/объём/транзакции/капа) — свежие при каждом показе.
+            if tok.price_change_h1 is not None:
+                existing.price_change_h1 = tok.price_change_h1
+            if tok.price_change_h6 is not None:
+                existing.price_change_h6 = tok.price_change_h6
+            if tok.volume_h24 is not None:
+                existing.volume_h24 = tok.volume_h24
+            if tok.txns_h24 is not None:
+                existing.txns_h24 = tok.txns_h24
+            if tok.market_cap_usd is not None:
+                existing.market_cap_usd = tok.market_cap_usd
             updated += 1
             continue
 
@@ -100,9 +128,19 @@ async def upsert_tokens(
             address=tok.address,
             symbol=tok.symbol,
             name=tok.name,
+            image_url=tok.image_url,
             created_at=tok.created_at,
             liquidity_usd=tok.liquidity_usd,
             fdv=tok.fdv,
+            price_usd=tok.price_usd,
+            first_price_usd=tok.price_usd,
+            first_liquidity_usd=tok.liquidity_usd,
+            price_change_h24=tok.price_change_h24,
+            price_change_h1=tok.price_change_h1,
+            price_change_h6=tok.price_change_h6,
+            volume_h24=tok.volume_h24,
+            txns_h24=tok.txns_h24,
+            market_cap_usd=tok.market_cap_usd,
             pair_address=tok.pair_address,
             dex=tok.dex,
             socials=tok.socials_json(),

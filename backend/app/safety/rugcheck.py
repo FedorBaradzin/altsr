@@ -66,6 +66,9 @@ def parse_report(mint: str, data: dict) -> SafetyFindings:
     )
     rugged = data.get("rugged") if isinstance(data.get("rugged"), bool) else None
     holders = data.get("totalHolders")
+    # RugCheck отдаёт totalHolders=0, когда счётчик не посчитан (а не «ноль холдеров»);
+    # трактуем 0 как «нет данных», иначе ложно срабатывает few_holders.
+    holder_count = holders if isinstance(holders, int) and holders > 0 else None
     return SafetyFindings(
         chain="solana",
         address=mint,
@@ -75,7 +78,7 @@ def parse_report(mint: str, data: dict) -> SafetyFindings:
         lp_locked=lp_locked,
         lp_locked_pct=lp_pct,
         top_holder_pct=_top_holder_pct(data),
-        holder_count=holders if isinstance(holders, int) else None,
+        holder_count=holder_count,
         sources=["rugcheck"],
         raw={"rugcheck": _compact(data)},
     )

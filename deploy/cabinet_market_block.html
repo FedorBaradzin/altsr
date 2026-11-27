@@ -1,0 +1,275 @@
+<!--altsr-market-start-->
+<style id="altsr-market-css">
+.amk-wrap{color:#EAF0FF;font-family:inherit}
+.amk-title{font-size:24px;font-weight:700;margin:0 0 4px}
+.amk-sub{color:#9AA6C4;font-size:14px;margin:0 0 2px;max-width:680px}
+.amk-note{color:#66708C;font-size:12px;margin:0}
+.amk-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 10px}
+.amk-tab{cursor:pointer;border:1px solid rgba(130,150,210,.12);background:rgba(20,25,44,.55);color:#9AA6C4;border-radius:12px;padding:8px 14px;font-size:14px;font-weight:500}
+.amk-tab.on{background:linear-gradient(135deg,rgba(139,92,246,.28),rgba(34,211,238,.18));color:#EAF0FF;border-color:rgba(139,92,246,.45)}
+.amk-chains{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.amk-chain{cursor:pointer;border:1px solid rgba(130,150,210,.12);background:transparent;color:#66708C;border-radius:8px;padding:5px 11px;font-size:12px}
+.amk-chain.on{background:rgba(34,211,238,.16);color:#67E8F9;border-color:rgba(34,211,238,.3)}
+.amk-body{border:1px solid rgba(130,150,210,.12);border-radius:16px;background:rgba(20,25,44,.4);overflow:auto}
+.amk-table{width:100%;border-collapse:collapse;font-size:14px}
+.amk-table th{text-align:left;padding:11px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#66708C;font-weight:600;white-space:nowrap}
+.amk-table td{padding:11px 12px;border-top:1px solid rgba(130,150,210,.08);white-space:nowrap}
+.amk-tr{cursor:pointer}
+.amk-tr:hover{background:rgba(139,92,246,.06)}
+.amk-r{text-align:right}
+.amk-sym{font-weight:600;color:#EAF0FF;display:flex;align-items:center;gap:6px}
+.amk-ch{font-size:11px;color:#66708C;text-transform:uppercase}
+.amk-tokcell{display:flex;align-items:center;gap:10px}
+.amk-av{width:30px;height:30px;border-radius:50%;object-fit:cover;flex:0 0 30px;background:rgba(130,150,210,.12);border:1px solid rgba(130,150,210,.16)}
+.amk-av-fb{display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#9AA6C4;text-transform:uppercase}
+.amk-cat-av{width:20px;height:20px;border-radius:50%;object-fit:cover;flex:0 0 20px;background:rgba(130,150,210,.12);vertical-align:middle;margin-right:6px}
+.amk-fhead{font-size:14px;color:#EAF0FF;margin:6px 0 2px}
+.amk-fbars{margin:10px 0}
+.amk-frow{display:flex;align-items:center;gap:10px;margin:6px 0}
+.amk-flabel{flex:0 0 170px;font-size:12px;color:#9AA6C4}
+.amk-fbarwrap{flex:1;background:rgba(130,150,210,.08);border-radius:6px;height:22px;overflow:hidden}
+.amk-fbar{height:100%;background:linear-gradient(90deg,rgba(139,92,246,.75),rgba(34,211,238,.55));border-radius:6px;transition:width .4s ease}
+.amk-fkept{flex:0 0 96px;text-align:right;font-size:13px;color:#EAF0FF;font-weight:600}
+.amk-fdrop{color:#F87171;font-size:11px;margin-left:6px}
+.amk-fchains{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.amk-fchain{background:rgba(20,25,44,.55);border:1px solid rgba(130,150,210,.12);border-radius:10px;padding:5px 10px;font-size:12px;color:#9AA6C4;text-transform:capitalize}
+.amk-fcandhead{font-size:13px;font-weight:600;color:#EAF0FF;margin:16px 0 6px}
+@media(max-width:620px){.amk-flabel{flex:0 0 120px}}
+.amk-mut{color:#9AA6C4}
+.amk-vd{border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600}
+.amk-bk{border-radius:4px;padding:1px 6px;font-size:10px}
+.amk-bk-revived{background:rgba(52,211,153,.16);color:#34D399}
+.amk-bk-reviving{background:rgba(251,191,36,.16);color:#FBBF24}
+.amk-chart{border-radius:6px;padding:4px 8px;font-size:11px;background:rgba(34,211,238,.12);color:#67E8F9}
+.amk-empty{padding:40px;text-align:center;color:#9AA6C4}
+.amk-live{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#34D399;margin-left:8px;vertical-align:middle;font-weight:500}
+.amk-live b{width:7px;height:7px;border-radius:50%;background:#34D399;display:inline-block;animation:amkpulse 1.6s infinite}
+@keyframes amkpulse{0%,100%{opacity:1}50%{opacity:.25}}
+.amk-cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;padding:14px}
+.amk-cat{border:1px solid rgba(130,150,210,.12);border-radius:16px;background:rgba(20,25,44,.4);padding:14px}
+.amk-cat-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.amk-cat-tok{display:flex;justify-content:space-between;width:100%;background:transparent;border:0;color:#EAF0FF;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:14px}
+.amk-cat-tok:hover{background:rgba(139,92,246,.07)}
+.amk-cat-tok i{font-style:normal;font-size:10px;color:#66708C;text-transform:uppercase;margin-left:4px}
+.amkov{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(3,4,10,.72);backdrop-filter:blur(6px)}
+.amkov.on{display:flex}
+.amkov-box{width:100%;max-width:720px;border:1px solid rgba(130,150,210,.16);border-radius:18px;background:rgba(20,25,44,.92);padding:16px}
+.amkov-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.amkov-tf{cursor:pointer;border:0;background:transparent;color:#9AA6C4;border-radius:6px;padding:4px 9px;font-size:11px}
+.amkov-tf.on{background:rgba(139,92,246,.22);color:#C4B5FD}
+.amkov-cv{position:relative;height:300px}
+.amkov-msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9AA6C4;font-size:14px}
+@media(max-width:820px){.amk-hide{display:none}}
+</style>
+<script id="altsr-market-js">
+(function(){
+  if(window.__altsrMarket)return; window.__altsrMarket=true;
+  var L=function(){return document.documentElement.lang==='en'?'en':'ru';};
+  var tr=function(ru,en){return L()==='en'?en:ru;};
+  var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
+  var fmt=function(n){if(n==null)return'—';n=+n;return n>=1e9?'$'+(n/1e9).toFixed(2)+'B':n>=1e6?'$'+(n/1e6).toFixed(2)+'M':n>=1e3?'$'+(n/1e3).toFixed(1)+'K':'$'+Math.round(n);};
+  var age=function(h){if(h==null)return'—';if(h<1)return Math.max(1,Math.round(h*60))+'m';if(h<48)return Math.round(h)+'h';return Math.round(h/24)+'d';};
+  var vcol=function(v){return v==='PASS'?'#34D399':v==='REVIEW'?'#FBBF24':v==='BLOCK'?'#F87171':'#66708C';};
+  var cc=function(c){return c==null?'#9AA6C4':c>0?'#34D399':c<0?'#F87171':'#9AA6C4';};
+  var pc=function(v){return v==null?'—':(v>0?'+':'')+v+'%';};
+
+  var state={tab:'trending',chain:''},timer=null;
+  var TABS=[['trending','Тренды','Trending'],['new','Новые пулы','New Pools'],['stock','Акции','Stocks'],['gainers','Растущие','Top Gainers'],['revival','Возрождение','Revival'],['categories','Категории','Categories'],['funnel','Воронка сигналов','Signal funnel']];
+  var CHAINS=[['','Все','All'],['solana','Solana','Solana'],['bsc','BNB','BNB'],['base','Base','Base'],['eth','Ethereum','Ethereum']];
+
+  function shell(){
+    var tabs=TABS.map(function(t){return '<button class="amk-tab'+(t[0]===state.tab?' on':'')+'" data-tab="'+t[0]+'">'+tr(t[1],t[2])+'</button>';}).join('');
+    var chains=(state.tab==='categories'||state.tab==='funnel')?'':'<div class="amk-chains">'+CHAINS.map(function(c){return '<button class="amk-chain'+(c[0]===state.chain?' on':'')+'" data-chain="'+c[0]+'">'+tr(c[1],c[2])+'</button>';}).join('')+'</div>';
+    return '<div class="amk-wrap">'
+      +'<h2 class="amk-title">'+tr('Рынок','Market')+'<span class="amk-live"><b></b>'+tr('обновляется','live')+'</span></h2>'
+      +'<p class="amk-sub">'+tr('Что движется прямо сейчас — на наших ончейн-данных, с анти-скам вердиктом на каждом токене. Клик по строке → реальный график.','What is moving now — our on-chain data, anti-scam verdict on every token. Click a row for a real chart.')+'</p>'
+      +'<p class="amk-note">'+tr('Рост — реальное движение цены токена, не прибыль и не обещание. PASS ≠ «вырастет». Данные обновляются каждые 30 секунд.','Change is real token price action, not profit or a promise. PASS ≠ "will rise". Refreshes every 30s.')+'</p>'
+      +'<div class="amk-tabs">'+tabs+'</div>'+chains
+      +'<div id="amkBody" class="amk-body"></div></div>';
+  }
+
+  function av(r){
+    var L=esc(((r.symbol||'?').slice(0,1)));
+    if(r.image_url){
+      return '<img class="amk-av" src="'+esc(r.image_url)+'" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'"><span class="amk-av amk-av-fb" style="display:none">'+L+'</span>';
+    }
+    return '<span class="amk-av amk-av-fb">'+L+'</span>';
+  }
+  function table(rows){
+    if(!rows||!rows.length)return '<div class="amk-empty">'+tr('Пока нет данных для раздела — радар пополняет базу, зайдите чуть позже.','No data for this section yet — the radar is filling the base.')+'</div>';
+    var h='<tr><th>#</th><th>'+tr('Токен','Token')+'</th><th>'+tr('Возраст','Age')+'</th><th class="amk-hide">'+tr('Ликвидн.','Liq')+'</th><th class="amk-hide amk-r">'+tr('Объём 24ч','Vol 24h')+'</th><th class="amk-r">1ч</th><th class="amk-r amk-hide">6ч</th><th class="amk-r">24ч</th><th>'+tr('Вердикт','Verdict')+'</th><th class="amk-hide">Smart</th><th></th></tr>';
+    var b=rows.map(function(r,i){
+      var bk=r.bucket?'<span class="amk-bk amk-bk-'+r.bucket+'">'+(r.bucket==='revived'?tr('возродился','revived'):tr('возрождается','reviving'))+'</span>':'';
+      return '<tr class="amk-tr" data-chain="'+esc(r.chain)+'" data-pool="'+esc(r.pair_address||r.address)+'" data-sym="'+esc(r.symbol||'')+'">'
+        +'<td class="amk-mut">'+(i+1)+'</td>'
+        +'<td><div class="amk-tokcell">'+av(r)+'<div><div class="amk-sym">'+esc(r.symbol||'—')+bk+'</div><div class="amk-ch">'+esc(r.chain)+'</div></div></div></td>'
+        +'<td class="amk-mut">'+age(r.age_hours)+'</td>'
+        +'<td class="amk-hide amk-mut">'+fmt(r.liquidity_usd)+'</td>'
+        +'<td class="amk-hide amk-r amk-mut">'+fmt(r.volume_h24)+'</td>'
+        +'<td class="amk-r" style="color:'+cc(r.change_h1)+'">'+pc(r.change_h1)+'</td>'
+        +'<td class="amk-r amk-hide" style="color:'+cc(r.change_h6)+'">'+pc(r.change_h6)+'</td>'
+        +'<td class="amk-r" style="color:'+cc(r.change_24h)+'">'+pc(r.change_24h)+'</td>'
+        +'<td><span class="amk-vd" style="background:'+vcol(r.verdict)+'1f;color:'+vcol(r.verdict)+'">'+(r.verdict||'—')+(r.risk_score!=null?' · '+r.risk_score:'')+'</span></td>'
+        +'<td class="amk-hide amk-mut">'+(r.smart_wallets>0?'🧠 '+r.smart_wallets:'—')+'</td>'
+        +'<td class="amk-r"><span class="amk-chart">'+tr('График','Chart')+'</span></td></tr>';
+    }).join('');
+    return '<table class="amk-table"><thead>'+h+'</thead><tbody>'+b+'</tbody></table>';
+  }
+
+  function funnel(d){
+    if(!d||!d.funnel)return '<div class="amk-empty">'+tr('Нет данных.','No data.')+'</div>';
+    var max=d.scanned||1;
+    var bars=d.funnel.map(function(st){
+      var w=Math.max(2,Math.round((st.kept/max)*100));
+      var drop=st.dropped>0?'<span class="amk-fdrop">−'+st.dropped+'</span>':'';
+      return '<div class="amk-frow"><div class="amk-flabel">'+esc(st.stage)+'</div><div class="amk-fbarwrap"><div class="amk-fbar" style="width:'+w+'%"></div></div><div class="amk-fkept">'+st.kept+drop+'</div></div>';
+    }).join('');
+    var chains=Object.keys(d.by_chain||{}).map(function(k){return '<span class="amk-fchain">'+esc(k)+' <b style="color:#EAF0FF">'+d.by_chain[k]+'</b></span>';}).join('');
+    var head='<div class="amk-fhead"><b>'+d.scanned+'</b> '+tr('монет в универсе · ','coins scanned · ')+'<b style="color:#34D399">'+d.qualified+'</b> '+tr('прошли все гейты входа','passed all entry gates')+'</div>';
+    var note='<p class="amk-note">'+tr('Приближённая воронка на наших ончейн-данных. Боевой тик дополнительно считает живые m5 buys/sells и smart-money. Score (рост × оборот × активность) — реальные величины, не прибыль и не обещание.','Approximate funnel on our on-chain data. The live tick also uses m5 buys/sells and smart-money. Score (momentum × turnover × activity) — real values, not profit, not a promise.')+'</p>';
+    var cand;
+    if(d.candidates&&d.candidates.length){
+      var rows=d.candidates.map(function(r,i){
+        return '<tr class="amk-tr" data-chain="'+esc(r.chain)+'" data-pool="'+esc(r.pair_address||r.address)+'" data-sym="'+esc(r.symbol||'')+'">'
+          +'<td class="amk-mut">'+(i+1)+'</td>'
+          +'<td><div class="amk-tokcell">'+av(r)+'<div><div class="amk-sym">'+esc(r.symbol||'—')+'</div><div class="amk-ch">'+esc(r.chain)+'</div></div></div></td>'
+          +'<td class="amk-hide amk-r amk-mut">'+fmt(r.liquidity_usd)+'</td>'
+          +'<td class="amk-r" style="color:'+cc(r.change_h1)+'">'+pc(r.change_h1)+'</td>'
+          +'<td class="amk-r amk-hide" style="color:'+cc(r.change_24h)+'">'+pc(r.change_24h)+'</td>'
+          +'<td class="amk-r amk-mut amk-hide">'+(r.turnover!=null?r.turnover+'×':'—')+'</td>'
+          +'<td class="amk-r"><b style="color:#8B5CF6">'+r.score+'</b></td>'
+          +'<td class="amk-r"><span class="amk-chart">'+tr('График','Chart')+'</span></td></tr>';
+      }).join('');
+      cand='<table class="amk-table"><thead><tr><th>#</th><th>'+tr('Токен','Token')+'</th><th class="amk-hide amk-r">'+tr('Ликв','Liq')+'</th><th class="amk-r">1ч</th><th class="amk-r amk-hide">24ч</th><th class="amk-r amk-hide">'+tr('Оборот','Turn')+'</th><th class="amk-r">Score</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+    }else{
+      cand='<div class="amk-empty">'+tr('Сейчас ни одна монета не проходит все гейты — радар ждёт раннего входа по условиям.','No coin passes all gates right now — radar waits for an early-entry setup.')+'</div>';
+    }
+    return '<div class="amk-funnel">'+head+note+'<div class="amk-fbars">'+bars+'</div><div class="amk-fchains">'+chains+'</div><div class="amk-fcandhead">'+tr('Топ ранних кандидатов','Top early candidates')+'</div>'+cand+'</div>';
+  }
+  function cats(list){
+    if(!list||!list.length)return '<div class="amk-empty">'+tr('Категории пока пустые.','No categories yet.')+'</div>';
+    return '<div class="amk-cats">'+list.map(function(c){
+      var s=c.samples.map(function(x){return '<button class="amk-cat-tok amk-tr" data-chain="'+esc(x.chain)+'" data-pool="'+esc(x.pair_address||x.address)+'" data-sym="'+esc(x.symbol||'')+'"><span>'+(x.image_url?'<img class="amk-cat-av" src="'+esc(x.image_url)+'" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">':'')+esc(x.symbol||'—')+'<i>'+esc(x.chain)+'</i></span><b style="color:'+cc(x.change_24h)+'">'+pc(x.change_24h)+'</b></button>';}).join('');
+      return '<div class="amk-cat"><div class="amk-cat-h"><b>'+esc(c.title)+'</b><span class="amk-mut" style="font-size:11px">'+c.count+' · '+fmt(c.liq)+'</span></div>'+s+'</div>';
+    }).join('')+'</div>';
+  }
+
+  function load(){
+    var body=document.getElementById('amkBody'); if(!body)return;
+    if(!body.innerHTML)body.innerHTML='<div class="amk-empty">'+tr('Загрузка…','Loading…')+'</div>';
+    if(state.tab==='categories'){
+      fetch('/api/public/market-categories').then(function(r){return r.json();}).then(function(d){var el=document.getElementById('amkBody');if(el)el.innerHTML=cats(d.categories);}).catch(function(){});
+    }else if(state.tab==='funnel'){
+      fetch('/api/public/signals-breakdown?limit=25').then(function(r){return r.json();}).then(function(d){var el=document.getElementById('amkBody');if(el)el.innerHTML=funnel(d);}).catch(function(){});
+    }else{
+      fetch('/api/public/market?tab='+state.tab+'&limit=40'+(state.chain?'&chain='+state.chain:'')).then(function(r){return r.json();}).then(function(d){var el=document.getElementById('amkBody');if(el)el.innerHTML=table(d.tokens);}).catch(function(){});
+    }
+  }
+  function startTimer(){stopTimer();timer=setInterval(function(){document.querySelector('.amk-wrap')?load():stopTimer();},30000);}
+  function stopTimer(){if(timer){clearInterval(timer);timer=null;}}
+
+  // Market рендерим в ОТДЕЛЬНЫЙ контейнер #amkView, а родной .content просто прячем —
+  // чтобы не разрушать структуру, в которую рендерит родной route() кабинета.
+  function getView(){
+    var main=document.querySelector('.main')||document.querySelector('main'); if(!main)return null;
+    var v=document.getElementById('amkView');
+    if(!v){v=document.createElement('div');v.id='amkView';v.style.display='none';main.appendChild(v);}
+    return v;
+  }
+  function showCabinet(){
+    var c=document.querySelector('.content'); if(c)c.style.display='';
+    var v=document.getElementById('amkView'); if(v)v.style.display='none';
+    stopTimer();
+    var m=document.querySelector('[data-k="market"]'); if(m)m.classList.remove('on');
+  }
+  function renderMarket(){
+    var c=document.querySelector('.content'); var v=getView(); if(!v)return;
+    if(c)c.style.display='none';
+    v.style.display='block';
+    v.innerHTML=shell();
+    load(); startTimer();
+  }
+
+  // ---- built-in candlestick modal (cabinet has no altsrOpenChart) ----
+  var ov=null,cur={chain:'',pool:'',sym:'',tf:'hour'};
+  function fmtPrice(p){p=+p;if(!isFinite(p))return'—';if(p>=1)return p.toFixed(p>=100?1:3);if(p>=1e-4)return p.toFixed(6);return p.toExponential(2);}
+  function ensureOverlay(){
+    if(ov)return ov;
+    ov=document.createElement('div'); ov.className='amkov';
+    ov.innerHTML='<div class="amkov-box"><div class="amkov-head"><div id="amkovT" style="font-weight:700"></div><div><button class="amkov-tf" data-tf="minute">'+tr('Минуты','Min')+'</button><button class="amkov-tf on" data-tf="hour">'+tr('Часы','Hour')+'</button><button class="amkov-tf" data-tf="day">'+tr('Дни','Day')+'</button><button class="amkov-tf" id="amkovX" style="color:#9AA6C4">✕</button></div></div><div class="amkov-cv"><canvas id="amkovCv" style="width:100%;height:100%;display:block"></canvas><div class="amkov-msg" id="amkovMsg"></div></div><div style="margin-top:8px;font-size:11px;color:#66708C">'+tr('Реальные ончейн-свечи. Движение цены токена — не прибыль и не обещание.','Real on-chain candles. Token price action — not profit, not a promise.')+'</div></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click',function(e){if(e.target===ov||e.target.id==='amkovX')close();});
+    ov.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('.amkov-tf[data-tf]');if(b){cur.tf=b.getAttribute('data-tf');[].forEach.call(ov.querySelectorAll('.amkov-tf[data-tf]'),function(x){x.classList.toggle('on',x===b);});loadChart();}});
+    document.addEventListener('keydown',function(e){if(e.key==='Escape')close();});
+    return ov;
+  }
+  function close(){if(ov)ov.classList.remove('on');}
+  function msg(t){var m=document.getElementById('amkovMsg');if(m){m.textContent=t;m.style.display=t?'flex':'none';}}
+  function draw(cs){
+    var cv=document.getElementById('amkovCv');if(!cv)return;var dpr=Math.min(2,window.devicePixelRatio||1),w=cv.clientWidth,h=cv.clientHeight;cv.width=w*dpr;cv.height=h*dpr;var ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);if(!cs.length)return;
+    var padT=12,padB=26,padR=58,plotW=w-padR,priceH=(h-padT-padB)*0.76,volH=(h-padT-padB)*0.24,lo=1/0,hi=-1/0,vmax=0;
+    cs.forEach(function(c){if(c[3]<lo)lo=c[3];if(c[2]>hi)hi=c[2];if(c[5]>vmax)vmax=c[5];});if(!(hi>lo)){hi=lo+1;lo-=1;}
+    var py=function(p){return padT+((hi-p)/(hi-lo))*priceH;};ctx.font="10px monospace";ctx.textBaseline='middle';
+    for(var i=0;i<=4;i++){var pv=hi-((hi-lo)*i)/4,yy=py(pv);ctx.strokeStyle='rgba(130,150,210,.10)';ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(plotW,yy);ctx.stroke();ctx.fillStyle='#66708C';ctx.textAlign='left';ctx.fillText(fmtPrice(pv),plotW+6,yy);}
+    var n=cs.length,slot=plotW/n,bw=Math.max(1.5,Math.min(10,slot*0.6));
+    cs.forEach(function(c,i){var x=i*slot+slot/2,o=c[1],hg=c[2],lw=c[3],cl=c[4],v=c[5],up=cl>=o,col=up?'#34D399':'#F87171';ctx.strokeStyle=col;ctx.beginPath();ctx.moveTo(x,py(hg));ctx.lineTo(x,py(lw));ctx.stroke();var y1=py(Math.max(o,cl)),y2=py(Math.min(o,cl));ctx.fillStyle=col;ctx.fillRect(x-bw/2,y1,bw,Math.max(1,y2-y1));if(vmax>0){var vh=(v/vmax)*volH;ctx.globalAlpha=.3;ctx.fillRect(x-bw/2,h-padB-vh,bw,vh);ctx.globalAlpha=1;}});
+    ctx.fillStyle='#66708C';ctx.textAlign='center';[0,Math.floor(n/2),n-1].forEach(function(idx){var c=cs[idx];if(!c)return;var d=new Date(c[0]*1000),lab=cur.tf==='day'?(d.getDate()+'/'+(d.getMonth()+1)):(d.getHours()+':'+String(d.getMinutes()).padStart(2,'0'));ctx.fillText(lab,Math.min(plotW-14,Math.max(14,idx*slot+slot/2)),h-6);});
+  }
+  function loadChart(){
+    msg(tr('Загрузка…','Loading…'));
+    fetch('/api/public/ohlcv?chain='+encodeURIComponent(cur.chain)+'&pool='+encodeURIComponent(cur.pool)+'&timeframe='+cur.tf+'&limit=120').then(function(r){return r.json();}).then(function(d){if(!d.candles||!d.candles.length){msg(tr('График временно недоступен (лимит источника).','Chart temporarily unavailable (source limit).'));return;}msg('');requestAnimationFrame(function(){draw(d.candles);});}).catch(function(){msg(tr('График временно недоступен.','Chart temporarily unavailable.'));});
+  }
+  function openChart(chain,pool,sym){cur.chain=chain;cur.pool=pool;cur.sym=sym;cur.tf='hour';ensureOverlay();[].forEach.call(ov.querySelectorAll('.amkov-tf[data-tf]'),function(x){x.classList.toggle('on',x.getAttribute('data-tf')==='hour');});document.getElementById('amkovT').textContent=(sym||'—')+' · '+(chain||'').toUpperCase();ov.classList.add('on');loadChart();}
+
+  document.addEventListener('click',function(e){
+    if(!e.target.closest)return;
+    // Клик по любой ссылке с onclick="route(...)" (родной раздел кабинета) → вернуть
+    // .content и дать отработать родному route() (его inline-onclick сработает сам).
+    // Не зависим от контейнера #nav — кабинет перерисовывает меню.
+    var navLink=e.target.closest('a[onclick]');
+    if(navLink && /\broute\s*\(/.test(navLink.getAttribute('onclick')||'')){ showCabinet(); return; }
+    var tb=e.target.closest('.amk-tab'); if(tb){state.tab=tb.getAttribute('data-tab');renderMarket();return;}
+    var ch=e.target.closest('.amk-chain'); if(ch){state.chain=ch.getAttribute('data-chain');renderMarket();return;}
+    var row=e.target.closest('.amk-tr'); if(row&&document.querySelector('.amk-wrap')){var a=row.getAttribute('data-chain'),p=row.getAttribute('data-pool'),s=row.getAttribute('data-sym');if(a&&p){if(typeof window.altsrOpenChart==='function')window.altsrOpenChart(a,p,s);else openChart(a,p,s);}}
+  });
+
+  // ---- self-healing nav item (cabinet re-renders #nav) ----
+  function ensureNav(){
+    var nav=document.getElementById('nav'); if(!nav)return;
+    if(nav.querySelector('[data-k="market"]'))return;
+    var radar=nav.querySelector('[data-k="radar"]'); if(!radar)return;
+    var a=document.createElement('a'); a.setAttribute('data-k','market'); a.setAttribute('onclick','altsrShowMarket()'); a.className=document.querySelector('.amk-wrap')?'on ':' ';
+    a.innerHTML='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V11M9 20V4M14 20v-6M19 20V8"/></svg> '+tr('Рынок','Market');
+    radar.parentNode.insertBefore(a,radar.nextSibling);
+  }
+  function watchNav(){
+    var nav=document.getElementById('nav'); if(!nav)return;
+    try{var mo=new MutationObserver(function(){ensureNav();});mo.observe(nav,{childList:true});}catch(e){}
+  }
+
+  // НЕ трогаем route() кабинета — свои разделы должны работать как прежде. «Рынок»
+  // открываем своей функцией. При клике на другой раздел кабинет сам перерисует
+  // .content (наш market-вид исчезнет), а таймер сам остановится (см. startTimer).
+  window.altsrShowMarket=function(){
+    [].forEach.call(document.querySelectorAll('#nav a'),function(a){a.classList.remove('on');});
+    var m=document.querySelector('[data-k="market"]'); if(m)m.classList.add('on');
+    if(location.hash!=='#market'){try{history.replaceState(null,'','#market');}catch(e){}}
+    renderMarket();
+  };
+
+  function init(){
+    ensureNav(); watchNav();
+    // повторная вставка после возможной перерисовки меню кабинетом
+    [150,500,1200,2500].forEach(function(ms){setTimeout(ensureNav,ms);});
+    if(location.hash==='#market'){setTimeout(function(){try{window.altsrShowMarket();}catch(e){}},300);}
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init); else init();
+  window.addEventListener('load',function(){ensureNav();});
+  // Навигация по hash (логотип #radar и т.п.): уходим из «Рынка» — возвращаем .content.
+  window.addEventListener('hashchange',function(){
+    if(location.hash==='#market'){window.altsrShowMarket();}
+    else{var v=document.getElementById('amkView');if(v&&v.style.display!=='none')showCabinet();}
+  });
+})();
+</script>
+<!--altsr-market-end-->

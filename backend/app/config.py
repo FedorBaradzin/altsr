@@ -29,9 +29,23 @@ class Settings(BaseSettings):
     # --- Discovery: источники ---
     # Какие сети тянуть из GeckoTerminal new_pools (EVM-подобные + solana).
     gecko_networks: str = Field(default="eth,base,bsc,solana", alias="GECKO_NETWORKS")
+    # ТОП-пулы по 24ч-объёму как ОСНОВНОЙ торговый универсум (устоявшиеся ликвидные
+    # монеты). Дискавери тянет их наравне с new/trending; отбор кандидатов их приоритезит.
+    gecko_top_enabled: bool = Field(default=True, alias="GECKO_TOP_ENABLED")
+    gecko_top_pages: int = Field(default=1, alias="GECKO_TOP_PAGES")
+    # При отборе кандидатов сигналов ставить топ/трендовые источники ВПЕРЁД, чтобы их
+    # не топил поток свежих пулов (иначе они не попадают в batch и не торгуются).
+    autotrade_prefer_quality_sources: bool = Field(
+        default=True, alias="AUTOTRADE_PREFER_QUALITY_SOURCES"
+    )
     gecko_base_url: str = Field(
         default="https://api.geckoterminal.com/api/v2", alias="GECKO_BASE_URL"
     )
+    # Платный ключ CoinGecko (onchain-DEX = бывший GeckoTerminal API влит в CoinGecko).
+    # Когда задан — onchain-вызовы идут на pro-api.coingecko.com с заголовком
+    # x-cg-pro-api-key (снимает keyless-лимит ~10/мин, открывает trades/holders/megafilter).
+    # ТОЛЬКО из серверного env, в репозиторий НИКОГДА.
+    coingecko_api_key: str = Field(default="", alias="COINGECKO_API_KEY")
     dexscreener_base_url: str = Field(
         default="https://api.dexscreener.com", alias="DEXSCREENER_BASE_URL"
     )
@@ -88,6 +102,9 @@ class Settings(BaseSettings):
     # Сколько токенов скринить за один тик screener-воркера.
     screen_batch_size: int = Field(default=20, alias="SCREEN_BATCH_SIZE")
     screen_interval_seconds: int = Field(default=15, alias="SCREEN_INTERVAL_SECONDS")
+    # Сколько REVIEW-токенов дополнительно ПЕРЕ-скринить за тик (поднять «мало данных»
+    # до настоящего вердикта; 0 = выключить пере-скрининг).
+    screen_rescreen_per_cycle: int = Field(default=6, alias="SCREEN_RESCREEN_PER_CYCLE")
 
     # --- Cross-source (T10) ---
     # Кросс-проверка сигналов между независимыми источниками для роста доверия.
@@ -102,15 +119,61 @@ class Settings(BaseSettings):
     )
 
     # --- Signal engine (Фаза 2) ---
-    signal_min_liquidity_usd: float = Field(default=5000.0, alias="SIGNAL_MIN_LIQUIDITY_USD")
-    signal_min_age_minutes: int = Field(default=0, alias="SIGNAL_MIN_AGE_MINUTES")
+    signal_min_liquidity_usd: float = Field(default=25000.0, alias="SIGNAL_MIN_LIQUIDITY_USD")
+    signal_min_age_minutes: int = Field(default=30, alias="SIGNAL_MIN_AGE_MINUTES")
     signal_max_age_minutes: int = Field(default=1440, alias="SIGNAL_MAX_AGE_MINUTES")
     signal_min_holders: int = Field(default=0, alias="SIGNAL_MIN_HOLDERS")
     signal_require_pass: bool = Field(default=True, alias="SIGNAL_REQUIRE_PASS")
-    signal_max_risk: int = Field(default=30, alias="SIGNAL_MAX_RISK")
+    signal_max_risk: int = Field(default=15, alias="SIGNAL_MAX_RISK")
+    # --- Ранний вход по реальным сделкам (Gecko trades, платный onchain-ключ) ---
+    # Подтверждаем buy-pressure (перевес покупок) + рост уникальных покупателей
+    # ТОЛЬКО на кандидатах, уже прошедших дешёвые гейты — экономно по квоте API.
+    signal_gecko_trades_enabled: bool = Field(default=False, alias="SIGNAL_GECKO_TRADES_ENABLED")
+    signal_gecko_trades_window_min: int = Field(default=60, alias="SIGNAL_GECKO_TRADES_WINDOW_MIN")
+    # Защита квоты API: максимум подтверждений сделками за один тик.
+    signal_gecko_trades_max_per_tick: int = Field(default=20, alias="SIGNAL_GECKO_TRADES_MAX_PER_TICK")
+    # Порог перевеса покупок: net (buys−sells)/(buys+sells) ∈ [−1,1]. 0.10 = +10% перевес.
+    signal_min_buy_pressure: float = Field(default=0.10, alias="SIGNAL_MIN_BUY_PRESSURE")
+    # Минимум уникальных покупателей в окне (рост покупателей).
+    signal_min_trade_buyers: int = Field(default=4, alias="SIGNAL_MIN_TRADE_BUYERS")
+    # Вклад сильного buy-pressure в уверенность.
+    signal_conf_w_trade_bp: float = Field(default=0.12, alias="SIGNAL_CONF_W_TRADE_BP")
+    # Вклад растущей ликвидности (current > first_liquidity) в уверенность.
+    signal_conf_w_liq_growth: float = Field(default=0.08, alias="SIGNAL_CONF_W_LIQ_GROWTH")
+
+    # Smart-money на входе: опциональный гейт (выкл) + вклад в уверенность.
+    signal_require_smart_money: bool = Field(default=False, alias="SIGNAL_REQUIRE_SMART_MONEY")
+    signal_min_smart_wallets: int = Field(default=2, alias="SIGNAL_MIN_SMART_WALLETS")
+    signal_conf_w_smart: float = Field(default=0.15, alias="SIGNAL_CONF_W_SMART")
+    signal_conf_smart_scale: float = Field(default=3.0, alias="SIGNAL_CONF_SMART_SCALE")
+    # Мягкое условие входа (НЕ жёсткий гейт): среди прошедших моментум берём только
+    # те, где ЕСТЬ smart-money ИЛИ реально свежий сильный рост m5. Отсекает "доехавшие"
+    # пампы (чуть плюсовой h1, но плоский m5, без smart-денег). Полностью env-настраиваемо;
+    # выключается SIGNAL_SOFT_SMART_ENABLED=false. Активно только когда жёсткий гейт выключен.
+    signal_soft_smart_enabled: bool = Field(default=False, alias="SIGNAL_SOFT_SMART_ENABLED")
+    signal_soft_min_smart_wallets: int = Field(default=1, alias="SIGNAL_SOFT_MIN_SMART_WALLETS")
+    signal_soft_strong_m5: float = Field(default=3.0, alias="SIGNAL_SOFT_STRONG_M5")
+    # T10/item 4: «трендовость» как мягкий сигнал. is_trending = токен виден в
+    # trending-ленте GeckoTerminal (веб-визиты + ончейн-активность) — честный признак
+    # РЕАЛЬНОГО движения, которого нет у мёртвого плоского мусора (см. диагноз
+    # застоя −1% от 2026-11-23). Бонус к уверенности действует всегда (ранжирование).
+    # Мягкий гейт (по умолчанию ВЫКЛ): если включён — не входим в НЕ-трендовый токен,
+    # если у него нет smart-money и нет сильного m5. Env: SIGNAL_SOFT_TRENDING_ENABLED.
+    signal_soft_trending_enabled: bool = Field(
+        default=False, alias="SIGNAL_SOFT_TRENDING_ENABLED"
+    )
+    signal_conf_w_trending: float = Field(default=0.10, alias="SIGNAL_CONF_W_TRENDING")
+    # Порог "низкой ликвидности" для радара/лендинга и минимальный возраст
+    # токена, после которого он считается "выжившим" (проверенным).
+    radar_low_liquidity_usd: float = Field(default=15000.0, alias="RADAR_LOW_LIQUIDITY_USD")
+    verified_min_age_hours: float = Field(default=6.0, alias="VERIFIED_MIN_AGE_HOURS")
+    verified_max_liquidity_usd: float = Field(default=5_000_000.0, alias="VERIFIED_MAX_LIQUIDITY_USD")
+    # Потолок роста за 24ч для блока «Растущие» (%). Выше — считаем артефактом
+    # данных (цена у нуля) и не показываем: 900% = ×10, правдоподобный максимум.
+    fresh_max_change_pct: float = Field(default=900.0, alias="FRESH_MAX_CHANGE_PCT")
     # Минимальная уверенность сигнала для входа (0..1). Выше порог → меньше,
     # но качественнее входов, меньше просадок.
-    signal_min_confidence: float = Field(default=0.0, alias="SIGNAL_MIN_CONFIDENCE")
+    signal_min_confidence: float = Field(default=0.88, alias="SIGNAL_MIN_CONFIDENCE")
     # Веса динамической части уверенности: краткосрочный моментум (m5/h1),
     # давление покупок и оборот к ликвидности. Повышают ожидаемую ценность и
     # качество ранжирования входов — это НЕ гарантия прибыли (большинство новых
@@ -186,25 +249,45 @@ class Settings(BaseSettings):
 
     # --- Paper executor (Фаза 3) — ТОЛЬКО бумага, реальных денег нет ---
     paper_start_balance: float = Field(default=100_000.0, alias="PAPER_START_BALANCE")
-    paper_position_size_usd: float = Field(default=500.0, alias="PAPER_POSITION_SIZE_USD")
+    paper_position_size_usd: float = Field(default=300.0, alias="PAPER_POSITION_SIZE_USD")
     paper_max_positions: int = Field(default=10, alias="PAPER_MAX_POSITIONS")
     paper_daily_loss_limit_usd: float = Field(default=500.0, alias="PAPER_DAILY_LOSS_LIMIT_USD")
-    paper_hard_stop_pct: float = Field(default=0.25, alias="PAPER_HARD_STOP_PCT")
-    paper_arm_after_profit_pct: float = Field(default=0.20, alias="PAPER_ARM_AFTER_PROFIT_PCT")
-    paper_trailing_stop_pct: float = Field(default=0.08, alias="PAPER_TRAILING_STOP_PCT")
-    paper_take_profit_x: float = Field(default=2.0, alias="PAPER_TAKE_PROFIT_X")
-    paper_take_profit_fraction: float = Field(default=0.5, alias="PAPER_TAKE_PROFIT_FRACTION")
+    paper_hard_stop_pct: float = Field(default=0.15, alias="PAPER_HARD_STOP_PCT")
+    paper_arm_after_profit_pct: float = Field(default=0.12, alias="PAPER_ARM_AFTER_PROFIT_PCT")
+    paper_trailing_stop_pct: float = Field(default=0.06, alias="PAPER_TRAILING_STOP_PCT")
+    # Реалистичный тейк для мемов: +100% (2x) за всю историю взяла 1 сделка из 115,
+    # а +30% доходили 17 — поэтому фиксируем бóльшую часть на +35%, остаток ведём трейлингом.
+    paper_take_profit_x: float = Field(default=1.35, alias="PAPER_TAKE_PROFIT_X")
+    paper_take_profit_fraction: float = Field(default=0.7, alias="PAPER_TAKE_PROFIT_FRACTION")
     paper_stall_minutes: int = Field(default=15, alias="PAPER_STALL_MINUTES")
     paper_max_hold_minutes: int = Field(default=240, alias="PAPER_MAX_HOLD_MINUTES")
     paper_cost_pct: float = Field(default=0.01, alias="PAPER_COST_PCT")  # издержки на сторону
+    paper_deny_chains: str = Field(default="", alias="PAPER_DENY_CHAINS")  # сети, исключённые из бумажного входа (напр. "base")
     paper_interval_seconds: int = Field(default=10, alias="PAPER_INTERVAL_SECONDS")
     # --- Тренд ликвидности + быстрый выход (T2, рычаги ②⑤) ---
     # Падение ликвидности между срезами больше порога → не входить / немедленный выход.
-    paper_liq_drop_pct: float = Field(default=0.15, alias="PAPER_LIQ_DROP_PCT")
+    paper_liq_drop_pct: float = Field(default=0.10, alias="PAPER_LIQ_DROP_PCT")
+    # --- Лестница выходов (опционально; пусто/False = старое поведение один TP) ---
+    paper_exit_ladder: str = Field(default="", alias="PAPER_EXIT_LADDER")
+    paper_exit_ladder_enabled: bool = Field(default=False, alias="PAPER_EXIT_LADDER_ENABLED")
+    # --- Smart-money (анализ ончейн-сделок; НЕ торговля) ---
+    smartmoney_enabled: bool = Field(default=False, alias="SMARTMONEY_ENABLED")
+    smartmoney_max_tokens_per_cycle: int = Field(default=20, alias="SMARTMONEY_MAX_TOKENS_PER_CYCLE")
+    smartmoney_early_trades: int = Field(default=10, alias="SMARTMONEY_EARLY_TRADES")
+    smartmoney_min_pass_for_notable: int = Field(default=2, alias="SMARTMONEY_MIN_PASS_FOR_NOTABLE")
+    smartmoney_concurrency: int = Field(default=3, alias="SMARTMONEY_CONCURRENCY")
+    smartmoney_recheck_seconds: int = Field(default=3600, alias="SMARTMONEY_RECHECK_SECONDS")
     # Ускоренный опрос цены/ликвидности для ОТКРЫТЫХ позиций (вместо paper_interval).
     paper_open_poll_seconds: int = Field(default=5, alias="PAPER_OPEN_POLL_SECONDS")
     # Рост налога на продажу (абсолютные проценты) считается критическим изменением.
     paper_sell_tax_jump_pct: float = Field(default=5.0, alias="PAPER_SELL_TAX_JUMP_PCT")
+
+    # --- Анти-скам гейт входа автотрейда ---
+    # Не входить в токены с плохим вердиктом безопасности (меньше, но качественнее сделок).
+    # BLOCK = доказанный скам → всегда пропускаем. REVIEW = не подтверждён → пропускаем по
+    # умолчанию. Токены без отчёта (ещё не сканированы) и PASS — входим.
+    paper_skip_block_safety: bool = Field(default=True, alias="PAPER_SKIP_BLOCK_SAFETY")
+    paper_skip_review_safety: bool = Field(default=True, alias="PAPER_SKIP_REVIEW_SAFETY")
 
     # --- Reviewer (T6) — пост-трейд разбор + авто-блеклист ---
     # Мастер-гейт: включает учёт блеклиста на входе executor. Консервативно OFF.
@@ -238,6 +321,13 @@ class Settings(BaseSettings):
     nowpayments_ipn_secret: str = Field(default="", alias="NOWPAYMENTS_IPN_SECRET")
     nowpayments_base_url: str = Field(
         default="https://api.nowpayments.io/v1", alias="NOWPAYMENTS_BASE_URL"
+    )
+    # Скидка приглашённому по реф-ссылке: тот, у кого referred_by_id задан, платит на
+    # столько меньше при оплате тарифа (доля 0..1). 0.05 = −5%. Это РЕАЛЬНАЯ скидка на
+    # покупку, а не бонус-обещание; реферальная комиссия считается от фактически
+    # уплаченной (уже сниженной) суммы. Выключить → 0.0.
+    referral_referred_discount_pct: float = Field(
+        default=0.05, alias="REFERRAL_REFERRED_DISCOUNT_PCT"
     )
 
     # --- ИИ-слой новостей (Фаза 4) ---
@@ -343,6 +433,21 @@ class Settings(BaseSettings):
         """Birdeye включается явным флагом ИЛИ самим наличием ключа (удобнее в настройке)."""
         return self.birdeye_enabled or bool(self.birdeye_api_key)
 
+    # --- Coinglass: МАКРО-режим рынка (деривативы BTC/ETH + весь рынок) ---
+    # Это НЕ детектор микрокап-токенов, а опциональный «market regime»-фильтр
+    # (funding / open interest / ликвидации / long-short). По умолчанию ВЫКЛ и
+    # НИКОГДА не является жёстким гейтом торговли. Ключ — только из env/.env.
+    coinglass_api_key: str = Field(default="", alias="COINGLASS_API_KEY")
+    coinglass_base_url: str = Field(
+        default="https://open-api-v4.coinglass.com", alias="COINGLASS_BASE_URL"
+    )
+    coinglass_enabled: bool = Field(default=False, alias="COINGLASS_ENABLED")
+    # TTL in-memory кэша ответов Coinglass (сек) — бережём лимит тарифа ($35).
+    coinglass_cache_seconds: int = Field(default=120, alias="COINGLASS_CACHE_SECONDS")
+    # Интервал истории. Тариф HOBBYIST допускает только {4h,6h,8h,12h,1d} —
+    # 1h/ниже отдают 403 «not available for your plan». Дефолт 4h (подтверждён живьём).
+    coinglass_interval: str = Field(default="4h", alias="COINGLASS_INTERVAL")
+
     # CORS для фронтенда.
     cors_origins: str = Field(default="http://localhost:3000", alias="CORS_ORIGINS")
 
@@ -353,6 +458,30 @@ class Settings(BaseSettings):
     @property
     def gecko_network_list(self) -> list[str]:
         return [n.strip() for n in self.gecko_networks.split(",") if n.strip()]
+
+    @property
+    def gecko_key_active(self) -> bool:
+        return bool((self.coingecko_api_key or "").strip())
+
+    @property
+    def onchain_base_url(self) -> str:
+        """База для onchain-DEX вызовов: pro-api при наличии ключа, иначе keyless.
+        Относительные пути (/networks/...) совпадают у обоих."""
+        if self.gecko_key_active:
+            return "https://pro-api.coingecko.com/api/v3/onchain"
+        return self.gecko_base_url
+
+    @property
+    def onchain_headers(self) -> dict[str, str]:
+        """Заголовок ключа ТОЛЬКО для gecko-вызовов (не вешаем на общий http —
+        иначе ключ утечёт в dexscreener/rugcheck)."""
+        if self.gecko_key_active:
+            return {"x-cg-pro-api-key": (self.coingecko_api_key or "").strip()}
+        return {}
+
+    @property
+    def paper_deny_chain_list(self) -> list[str]:
+        return [c.strip().lower() for c in self.paper_deny_chains.split(",") if c.strip()]
 
     @property
     def cors_origin_list(self) -> list[str]:

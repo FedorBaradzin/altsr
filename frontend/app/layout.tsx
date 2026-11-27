@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Assistant from "@/components/Assistant";
+import RefCapture from "@/components/RefCapture";
 import { LangProvider } from "@/components/LangProvider";
 import { LANG_COOKIE, normalizeLang, type Lang } from "@/lib/i18n";
 
@@ -58,6 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang={lang}>
       <body>
         <LangProvider initialLang={lang}>
+          <RefCapture />
           {children}
           <Assistant />
         </LangProvider>

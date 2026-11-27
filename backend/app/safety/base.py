@@ -75,6 +75,13 @@ class RedFlag:
     severity: str      # "hard" | "soft" | "info"
     message: str
     weight: int = 0    # вклад в risk_score (для soft/info)
+    # Категория soft-флага:
+    #   "newness"    — структурный признак СВЕЖЕГО токена (концентрация в бондинг-кривой,
+    #                  мало холдеров, низкая репутация, незалоченный LP). Сам по себе это
+    #                  не доказательство скама → в сумме даёт максимум REVIEW, НЕ красный BLOCK.
+    #   "behavioral" — поведенческий риск (налоги, блэклист, hidden owner, непроверенный
+    #                  контракт…), который МОЖЕТ в сумме дать BLOCK.
+    category: str = "behavioral"
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -82,6 +89,7 @@ class RedFlag:
             "severity": self.severity,
             "message": self.message,
             "weight": self.weight,
+            "category": self.category,
         }
 
 

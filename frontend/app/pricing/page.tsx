@@ -40,7 +40,12 @@ export default function Pricing() {
         </div>
       </nav>
       <h1 className="mb-2 font-sg text-3xl font-bold">{t("pricing.title")}</h1>
-      <p className="mb-10 max-w-xl text-muted">{t("pricing.sub")}</p>
+      <p className="mb-3 max-w-xl text-muted">{t("pricing.sub")}</p>
+      <p className="mb-10 text-sm font-medium text-pass">
+        {lang === "ru"
+          ? "Пришёл по реферальной ссылке? −5% на любой платный тариф, скидка применяется автоматически при оплате."
+          : "Came via a referral link? −5% on any paid plan — applied automatically at checkout."}
+      </p>
 
       <div className="mx-auto grid max-w-4xl grid-cols-1 gap-5 md:grid-cols-3">
         {PLANS.map((p) => (

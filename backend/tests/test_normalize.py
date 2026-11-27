@@ -35,7 +35,8 @@ def test_rugcheck_handles_iso_and_unix_time():
     assert tokens[0].created_at is not None
     # Вторая запись — unix-секунды.
     assert tokens[1].created_at is not None
-    assert tokens[1].address == "so11111solmintbbb"
+    # Solana base58 РЕГИСТРОЗАВИСИМ — регистр сохраняется (иначе ломается скрининг).
+    assert tokens[1].address == "So11111SolMintBBB"
 
 
 def test_dexscreener_profiles_links():
@@ -52,7 +53,12 @@ def test_invalid_rows_are_skipped():
     assert dexscreener.normalize_profile({"chainId": "eth"}) is None
 
 
-def test_dedup_key_is_lowercased():
+def test_solana_address_case_preserved_evm_lowercased():
+    # Solana base58 регистрозависим → сохраняем как есть (иначе RugCheck/GoPlus/RPC
+    # не находят минт и токен вечно REVIEW). EVM (0x…) регистронезависим → нижний регистр.
     rows = load_fixture("rugcheck_new_tokens.json")
     t = rugcheck.normalize_mint(rows[0])
-    assert t.dedup_key == "solana:so11111solmintaaa"
+    assert t.dedup_key == "solana:So11111SolMintAAA"
+    from app.discovery.base import NormalizedToken
+    evm = NormalizedToken(chain="Ethereum", address="0xAbCdEf0000000000000000000000000000000001", source="t")
+    assert evm.address == "0xabcdef0000000000000000000000000000000001"

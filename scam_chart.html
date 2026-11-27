@@ -1,0 +1,156 @@
+<!-- altsr-chart-v1 -->
+<style>/*altsr-chart-v1*/
+#altsr-chart-ov{position:fixed;inset:0;z-index:9000;display:none;align-items:center;justify-content:center;background:rgba(3,8,14,.72);backdrop-filter:blur(4px);padding:18px}
+#altsr-chart-ov.open{display:flex}
+#altsr-chart-ov .acw-box{width:min(760px,100%);background:var(--surface,#0c141d);border:1px solid var(--line-soft,#ffffff14);border-radius:18px;padding:18px 18px 14px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+#altsr-chart-ov .acw-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+#altsr-chart-ov .acw-ic{width:34px;height:34px;border-radius:9px;flex:none;display:grid;place-items:center;font-family:'Manrope',sans-serif;font-weight:700;font-size:12px;color:#06101a;background:linear-gradient(135deg,var(--emerald,#34d399),var(--cyan,#22d3ee))}
+#altsr-chart-ov .acw-nm{font-family:'Manrope',sans-serif;font-weight:700;font-size:16px;line-height:1.1}
+#altsr-chart-ov .acw-net{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted,#8ea0b5);margin-top:3px}
+#altsr-chart-ov .acw-x{margin-left:auto;background:none;border:1px solid var(--line-soft,#ffffff22);color:var(--muted,#8ea0b5);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px;line-height:1}
+#altsr-chart-ov .acw-x:hover{color:#fff;border-color:#ffffff44}
+#altsr-chart-ov .acw-tf{display:flex;gap:6px;margin-bottom:10px}
+#altsr-chart-ov .acw-tf button{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;padding:5px 11px;border-radius:7px;cursor:pointer;background:transparent;border:1px solid var(--line-soft,#ffffff1f);color:var(--muted,#8ea0b5)}
+#altsr-chart-ov .acw-tf button.on{background:var(--em-dim,#34d3991f);color:var(--emerald,#34d399);border-color:#34d39955}
+#altsr-chart-ov .acw-cv{position:relative;width:100%;height:320px}
+#altsr-chart-ov canvas{width:100%;height:100%;display:block}
+#altsr-chart-ov .acw-msg{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;color:var(--muted,#8ea0b5);font-size:13px;padding:0 20px}
+#altsr-chart-ov .acw-note{margin-top:10px;font-size:10.5px;color:var(--faint,#5c6b7d);line-height:1.4}
+</style>
+<script>/*altsr-chart-v1*/
+(function(){
+  if(window.altsrOpenChart)return;
+  function L(){return document.documentElement.lang==='en'?'en':'ru';}
+  function t(ru,en){return L()==='en'?en:ru;}
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function shortAddr(a){a=String(a||'');return a.length>12?a.slice(0,6)+'…'+a.slice(-4):a;}
+
+  // Таймфреймы: метка → параметры эндпоинта (timeframe + aggregate).
+  var TFS=[
+    {k:'5m',  tf:'minute',ag:5, ru:'5м',en:'5m'},
+    {k:'1h',  tf:'hour',  ag:1, ru:'1ч',en:'1h'},
+    {k:'1d',  tf:'day',   ag:1, ru:'1д',en:'1d'}
+  ];
+
+  var ov=document.createElement('div');
+  ov.id='altsr-chart-ov';
+  ov.innerHTML=''+
+    '<div class="acw-box" role="dialog" aria-modal="true">'+
+      '<div class="acw-head"><div class="acw-ic" id="acw-ic">?</div>'+
+        '<div><div class="acw-nm" id="acw-nm">—</div><div class="acw-net" id="acw-net"></div></div>'+
+        '<button class="acw-x" id="acw-x" aria-label="close">✕</button></div>'+
+      '<div class="acw-tf" id="acw-tf"></div>'+
+      '<div class="acw-cv"><canvas id="acw-canvas"></canvas><div class="acw-msg" id="acw-msg"></div></div>'+
+      '<div class="acw-note" id="acw-note"></div>'+
+    '</div>';
+  document.body.appendChild(ov);
+
+  var cv=ov.querySelector('#acw-canvas');
+  var msg=ov.querySelector('#acw-msg');
+  var cur={chain:null,pool:null,symbol:null,tf:'1h'};
+
+  function close(){ov.classList.remove('open');}
+  ov.addEventListener('click',function(e){if(e.target===ov)close();});
+  ov.querySelector('#acw-x').addEventListener('click',close);
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')close();});
+
+  function showMsg(txt){msg.textContent=txt;msg.style.display=txt?'flex':'none';}
+
+  function buildTfs(){
+    var box=ov.querySelector('#acw-tf');box.innerHTML='';
+    TFS.forEach(function(f){
+      var b=document.createElement('button');
+      b.textContent=L()==='en'?f.en:f.ru;
+      if(f.k===cur.tf)b.className='on';
+      b.onclick=function(){cur.tf=f.k;buildTfs();load();};
+      box.appendChild(b);
+    });
+  }
+
+  function draw(candles){
+    var dpr=window.devicePixelRatio||1;
+    var w=cv.clientWidth,h=cv.clientHeight;
+    cv.width=w*dpr;cv.height=h*dpr;
+    var ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,w,h);
+    if(!candles||!candles.length){showMsg(t('Нет данных свечей для этого пула.','No candle data for this pool.'));return;}
+    showMsg('');
+    var padR=58,padB=18,padT=8,plotW=w-padR,volH=46,priceH=h-padB-volH-padT;
+    var lo=Infinity,hi=-Infinity,vmax=0;
+    candles.forEach(function(c){if(c[3]<lo)lo=c[3];if(c[2]>hi)hi=c[2];if(c[5]>vmax)vmax=c[5];});
+    if(!(hi>lo)){hi=lo*1.001+1e-9;lo=lo*0.999;}
+    var pad=(hi-lo)*0.06;hi+=pad;lo-=pad;
+    function py(p){return padT+(hi-p)/(hi-lo)*priceH;}
+    var n=candles.length,slot=plotW/n,bw=Math.max(1,Math.min(slot*0.66,14));
+    var css=getComputedStyle(document.documentElement);
+    var up=(css.getPropertyValue('--emerald')||'#34d399').trim()||'#34d399';
+    var down=(css.getPropertyValue('--rose')||'#fb7185').trim()||'#fb7185';
+    var grid=(css.getPropertyValue('--line-soft')||'#ffffff14').trim()||'#ffffff14';
+    var muted=(css.getPropertyValue('--muted')||'#8ea0b5').trim()||'#8ea0b5';
+    // Сетка + ценовые метки справа.
+    ctx.font="10px 'JetBrains Mono',monospace";ctx.textBaseline='middle';
+    for(var g=0;g<=4;g++){
+      var pv=hi-(hi-lo)*g/4,yy=py(pv);
+      ctx.strokeStyle=grid;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(plotW,yy);ctx.stroke();
+      ctx.fillStyle=muted;ctx.textAlign='left';ctx.fillText(fmtPrice(pv),plotW+6,yy);
+    }
+    // Свечи + объём.
+    for(var i=0;i<n;i++){
+      var c=candles[i],o=c[1],hg=c[2],lw=c[3],cl=c[4],v=c[5];
+      var x=i*slot+slot/2,col=cl>=o?up:down;
+      ctx.strokeStyle=col;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,py(hg));ctx.lineTo(x,py(lw));ctx.stroke();
+      var y1=py(Math.max(o,cl)),y2=py(Math.min(o,cl));
+      ctx.fillStyle=col;ctx.fillRect(x-bw/2,y1,bw,Math.max(1,y2-y1));
+      if(vmax>0){var vh=(v/vmax)*volH;ctx.globalAlpha=.35;ctx.fillRect(x-bw/2,h-padB-vh,bw,vh);ctx.globalAlpha=1;}
+    }
+    // Нижние метки времени (первая/средняя/последняя).
+    ctx.fillStyle=muted;ctx.textAlign='center';
+    [0,Math.floor(n/2),n-1].forEach(function(idx){
+      if(idx<0||idx>=n)return;var ts=candles[idx][0]*1000;var d=new Date(ts);
+      var lab=cur.tf==='1d'?(d.getMonth()+1)+'/'+d.getDate():(('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2));
+      ctx.fillText(lab,Math.min(plotW-14,Math.max(14,idx*slot+slot/2)),h-6);
+    });
+  }
+  function fmtPrice(p){p=Number(p);if(!isFinite(p))return'—';if(p>=1)return p.toFixed(p>=100?1:3);if(p>=1e-4)return p.toFixed(6);return p.toExponential(2);}
+
+  var reqId=0;
+  function load(){
+    var mine=++reqId;
+    if(!cur.chain||!cur.pool){showMsg(t('Нет адреса пула для графика.','No pool address for this chart.'));return;}
+    showMsg(t('Загрузка свечей…','Loading candles…'));
+    var f=TFS.filter(function(x){return x.k===cur.tf;})[0]||TFS[1];
+    var u='/api/public/ohlcv?chain='+encodeURIComponent(cur.chain)+'&pool='+encodeURIComponent(cur.pool)+'&timeframe='+f.tf+'&aggregate='+f.ag+'&limit=100';
+    fetch(u).then(function(r){return r.json();}).then(function(d){
+      if(mine!==reqId)return;
+      draw((d&&d.candles)||[]);
+    }).catch(function(){if(mine===reqId)showMsg(t('График временно недоступен.','Chart temporarily unavailable.'));});
+  }
+
+  window.addEventListener('resize',function(){if(ov.classList.contains('open'))load();});
+
+  window.altsrOpenChart=function(chain,pool,symbol){
+    cur.chain=chain;cur.pool=pool;cur.symbol=symbol||'';cur.tf=cur.tf||'1h';
+    var label=symbol?String(symbol):shortAddr(pool);
+    ov.querySelector('#acw-nm').textContent=label;
+    ov.querySelector('#acw-net').textContent=String(chain||'').toUpperCase();
+    ov.querySelector('#acw-ic').textContent=(label.replace(/[^A-Za-zА-Яа-я0-9]/g,'').slice(0,2).toUpperCase())||'?';
+    ov.querySelector('#acw-note').textContent=t(
+      'Реальные ончейн-свечи цены (GeckoTerminal). Это движение цены токена, не прибыль и не обещание доходности.',
+      'Real on-chain price candles (GeckoTerminal). Token price action — not profit or a return guarantee.');
+    buildTfs();
+    ov.classList.add('open');
+    load();
+  };
+
+  // Делегированный клик: любой элемент с [data-chart] (карточки /fresh,/verified)
+  // открывает график по data-chain + data-pool. Без pool — молча игнорируем.
+  document.addEventListener('click',function(e){
+    var el=e.target&&e.target.closest?e.target.closest('[data-chart]'):null;
+    if(!el)return;
+    var pool=el.getAttribute('data-pool'),chain=el.getAttribute('data-chain'),sym=el.getAttribute('data-sym');
+    if(!pool)return;
+    e.preventDefault();
+    window.altsrOpenChart(chain,pool,sym);
+  });
+})();
+</script>

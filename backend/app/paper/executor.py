@@ -17,12 +17,12 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import Settings
-from ..models import PaperAccount, PaperPosition, Signal, Token
+from ..models import PaperAccount, PaperPosition, SafetyReport, Signal, Token
 from ..risk.engine import evaluate as risk_evaluate
 from ..risk.policy import RiskPolicy
 from ..risk.types import PortfolioState, TradeIntent
 from ..risk.types import Position as RiskPosition
-from .exits import ExitConfig, PositionState, evaluate_exit
+from .exits import ExitConfig, PositionState, evaluate_exit, parse_ladder
 from .reviewer import is_blacklisted
 
 logger = logging.getLogger("altsr.paper.executor")
@@ -102,6 +102,10 @@ def config_from_settings(s: Settings) -> ExitConfig:
         stall_minutes=s.paper_stall_minutes,
         max_hold_minutes=s.paper_max_hold_minutes,
         liq_drop_pct=s.paper_liq_drop_pct,
+        # Лестница TP — OPT-IN. getattr: пока orchestrator не добавит настройки в
+        # config.py, безопасные дефолты сохраняют прежнее одноуровневое поведение.
+        ladder_enabled=bool(getattr(s, "paper_exit_ladder_enabled", False)),
+        ladder=parse_ladder(getattr(s, "paper_exit_ladder", "") or ""),
     )
 
 
@@ -167,14 +171,15 @@ async def open_from_signals(
     opened = 0
     # Сигналы без бумажной позиции.
     stmt = (
-        select(Signal, Token.symbol)
+        select(Signal, Token.symbol, SafetyReport.verdict)
         .join(Token, Token.id == Signal.token_id)
+        .outerjoin(SafetyReport, SafetyReport.token_id == Signal.token_id)
         .outerjoin(PaperPosition, PaperPosition.token_id == Signal.token_id)
         .where(PaperPosition.id.is_(None))
         .order_by(Signal.created_at.desc())
     )
     rows = (await session.execute(stmt)).all()
-    for sig, symbol in rows:
+    for sig, symbol, verdict in rows:
         if await _count_open(session) >= s.paper_max_positions:
             break
         if acc.cash < s.paper_position_size_usd:
@@ -183,6 +188,22 @@ async def open_from_signals(
         # Входим только в сигналы с достаточной уверенностью — меньше, но
         # качественнее сделок (снижает просадку и повышает win-rate).
         if (sig.confidence or 0.0) < s.signal_min_confidence:
+            continue
+
+        # Пер-chain отсечка для бумажного входа (напр. убыточная сеть base).
+        if sig.chain and sig.chain.lower() in s.paper_deny_chain_list:
+            logger.info("Пропуск входа %s:%s — сеть в deny-списке", sig.chain, sig.address)
+            continue
+
+        # Анти-скам гейт входа: не входим в доказанный скам (BLOCK) и, по умолчанию,
+        # в неподтверждённые (REVIEW). Токены без отчёта (None) и PASS — проходят.
+        if verdict == "BLOCK" and s.paper_skip_block_safety:
+            logger.info("Пропуск входа %s:%s — вердикт безопасности BLOCK",
+                        sig.chain, sig.address)
+            continue
+        if verdict == "REVIEW" and s.paper_skip_review_safety:
+            logger.info("Пропуск входа %s:%s — вердикт безопасности REVIEW",
+                        sig.chain, sig.address)
             continue
 
         # Reviewer-гейт (T6): не входим в токен, пока он в карантине после убытка.
@@ -200,7 +221,7 @@ async def open_from_signals(
             token_address=sig.address,
             notional_usd=s.paper_position_size_usd,
             recipient="paper",
-            safety_verdict="PASS",
+            safety_verdict=verdict or "PASS",
             strategy="paper",
             is_exit=False,
         )
@@ -270,6 +291,7 @@ async def process_positions(
             minutes_since_open=_minutes(now, pos.opened_at),
             minutes_since_high=_minutes(now, pos.last_high_at),
             tp_taken=pos.tp_taken,
+            tiers_hit=int(getattr(pos, "tp_tiers_hit", 0) or 0),
             kill_switch=bool(ctx and ctx.kill_switch),
             session_stopped=bool(ctx and ctx.session_stopped),
             safety_regression=(ctx.safety_regression if ctx else None),
@@ -284,7 +306,20 @@ async def process_positions(
         if action.kind == "partial":
             acc.cash += _sell(pos, action.fraction, price, s.paper_cost_pct)
             pos.tp_taken = True
+            # Отмечаем сработавшие уровни лестницы, чтобы каждый фиксировался раз.
+            if action.tiers_mask:
+                pos.tp_tiers_hit = int(getattr(pos, "tp_tiers_hit", 0) or 0) | action.tiers_mask
             logger.info("Частичный выход %s: %s", pos.address, action.reason)
+            # Лестница без moon-bag распродала весь размер → закрываем позицию.
+            if pos.remaining_fraction <= 1e-9:
+                pos.status = "closed"
+                pos.closed_at = now
+                pos.exit_reason = action.reason
+                pos.pnl_pct = round(pos.realized_pnl_usd / pos.size_usd * 100, 2)
+                acc.realized_pnl += pos.realized_pnl_usd
+                closed += 1
+                logger.info("Закрыта позиция %s: %s pnl=%.2f (лестница распродана)",
+                            pos.address, action.reason, pos.realized_pnl_usd)
             continue
 
         # close — продаём остаток

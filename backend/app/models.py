@@ -42,16 +42,34 @@ class Token(Base):
     address: Mapped[str] = mapped_column(String(128), nullable=False)
     symbol: Mapped[str | None] = mapped_column(String(64))
     name: Mapped[str | None] = mapped_column(String(256))
+    # URL логотипа токена (CoinGecko/GeckoTerminal image_url); обновляется каждый цикл.
+    image_url: Mapped[str | None] = mapped_column(String(512))
 
     # Время создания токена/пары в сети (из источника).
     created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     liquidity_usd: Mapped[float | None] = mapped_column(Float)
     fdv: Mapped[float | None] = mapped_column(Float)
+    # Текущая цена базового токена (USD) из источника; обновляется каждый цикл.
+    price_usd: Mapped[float | None] = mapped_column(Float)
+    # Цена при ПЕРВОМ обнаружении (базовая для «иксов»); ставится один раз.
+    first_price_usd: Mapped[float | None] = mapped_column(Float)
+    # Ликвидность при ПЕРВОМ обнаружении (база для «растущей ликвидности»); один раз.
+    first_liquidity_usd: Mapped[float | None] = mapped_column(Float)
+    # Изменение цены за 24ч (%) из источника; обновляется каждый цикл.
+    price_change_h24: Mapped[float | None] = mapped_column(Float)
+    price_change_h1: Mapped[float | None] = mapped_column(Float)
+    price_change_h6: Mapped[float | None] = mapped_column(Float)
+    volume_h24: Mapped[float | None] = mapped_column(Float)
+    txns_h24: Mapped[int | None] = mapped_column(Integer)
+    market_cap_usd: Mapped[float | None] = mapped_column(Float)
     pair_address: Mapped[str | None] = mapped_column(String(128))
     dex: Mapped[str | None] = mapped_column(String(64))
     # socials/links как JSON-строка (websites, twitter, telegram, explorer).
     socials: Mapped[str | None] = mapped_column(String(2048))
+
+    # Число notable smart-money кошельков, купивших токен рано (0 = нет/не считано).
+    smart_wallets: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     source: Mapped[str] = mapped_column(String(32), nullable=False)
     # Монотонный ключ для WS-курсора «что нового».
@@ -183,6 +201,8 @@ class PaperPosition(Base):
     last_price: Mapped[float] = mapped_column(Float, nullable=False)
     remaining_fraction: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
     tp_taken: Mapped[bool] = mapped_column(default=False, nullable=False)
+    # Битовая маска сработавших уровней лестницы TP (бит i == уровень i).
+    tp_tiers_hit: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     realized_pnl_usd: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     pnl_pct: Mapped[float | None] = mapped_column(Float)
@@ -298,6 +318,16 @@ class User(Base):
     # Привязанный Telegram-чат пользователя (для личных алертов). NULL = не привязан.
     tg_chat_id: Mapped[str | None] = mapped_column(String(32))
 
+    # --- Реферальная программа ---
+    # Личный код приглашения (ссылка /?ref=CODE). Генерируется лениво.
+    referral_code: Mapped[str | None] = mapped_column(String(16))
+    # Кто пригласил этого пользователя (ставится один раз при регистрации).
+    referred_by_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    # Админский override ставки реферала (доля 0.30–0.50). NULL → авто-ставка по тиру.
+    referral_rate_override: Mapped[float | None] = mapped_column(Float)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, nullable=False
     )
@@ -308,6 +338,8 @@ class User(Base):
     __table_args__ = (
         UniqueConstraint("auth_method", "subject", name="uq_user_identity"),
         Index("ix_users_auth_subject", "auth_method", "subject"),
+        Index("ix_users_referral_code", "referral_code", unique=True),
+        Index("ix_users_referred_by_id", "referred_by_id"),
     )
 
 
@@ -390,6 +422,71 @@ class Payment(Base):
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Payment {self.tier} {self.status}>"
+
+
+class ReferralEarning(Base):
+    """Начисление реферального вознаграждения за оплаченный платёж приглашённого.
+
+    Идемпотентность: одна запись на payment_id (повторный IPN не дублирует).
+    amount_usd = tier_price(payment.tier) * rate; rate фиксируется на момент оплаты.
+    """
+
+    __tablename__ = "referral_earnings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    referrer_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    referred_user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    payment_id: Mapped[int | None] = mapped_column(
+        ForeignKey("payments.id", ondelete="SET NULL")
+    )
+    amount_usd: Mapped[float] = mapped_column(Float, nullable=False)
+    rate: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+
+    __table_args__ = (
+        # Один платёж → не более одного начисления (анти-двойное-начисление).
+        UniqueConstraint("payment_id", name="uq_referral_earning_payment"),
+        Index("ix_referral_earnings_referrer", "referrer_id"),
+        Index("ix_referral_earnings_referred", "referred_user_id"),
+    )
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<ReferralEarning r={self.referrer_id} ${self.amount_usd}>"
+
+
+class ReferralPayout(Base):
+    """Запрос на выплату реферального баланса. Это ЗАПИСЬ для ручной обработки
+    админом (статус-флаг), а не автоматический перевод крипты."""
+
+    __tablename__ = "referral_payouts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    referrer_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    amount_usd: Mapped[float] = mapped_column(Float, nullable=False)
+    # pending | paid | rejected
+    status: Mapped[str] = mapped_column(String(16), default="pending", nullable=False)
+    address: Mapped[str | None] = mapped_column(String(256))
+    note: Mapped[str | None] = mapped_column(String(256))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        Index("ix_referral_payouts_referrer", "referrer_id"),
+        Index("ix_referral_payouts_status", "status"),
+    )
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<ReferralPayout r={self.referrer_id} ${self.amount_usd} {self.status}>"
 
 
 class SignalOutcome(Base):
@@ -526,4 +623,59 @@ class InvestorLead(Base):
     __table_args__ = (
         Index("ix_investor_leads_created_at", "created_at"),
         Index("ix_investor_leads_status", "status"),
+    )
+
+
+class SmartWallet(Base):
+    """«Notable»-кошелёк: ранний повторяющийся покупатель PASS-токенов (эвристика,
+    НЕ сертифицированный прибыльный кошелёк; PnL не считается — см. label)."""
+
+    __tablename__ = "smart_wallets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    # Адрес кошелька: EVM 0x… (lower) или Solana base58 (регистр сохранён).
+    address: Mapped[str] = mapped_column(String(128), nullable=False)
+    # Число РАЗНЫХ PASS-токенов, где кошелёк был ранним покупателем.
+    early_pass_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    notable: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Хук для будущей разметки по реальной прибыли (PnL). NULL = не размечен.
+    label: Mapped[str | None] = mapped_column(String(32))
+    first_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint("address", name="uq_smart_wallet_address"),
+        Index("ix_smart_wallets_notable", "notable"),
+    )
+
+
+class TokenBuyer(Base):
+    """Факт: кошелёк был ранним покупателем токена (одна запись на token+wallet)."""
+
+    __tablename__ = "token_buyers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    token_id: Mapped[int] = mapped_column(
+        ForeignKey("tokens.id", ondelete="CASCADE"), nullable=False
+    )
+    wallet_address: Mapped[str] = mapped_column(String(128), nullable=False)
+    chain: Mapped[str] = mapped_column(String(32), nullable=False)
+    # 0-based позиция среди ранних buy-сделок пула.
+    rank: Mapped[int | None] = mapped_column(Integer)
+    volume_usd: Mapped[float | None] = mapped_column(Float)
+    # Снимок: токен был PASS на момент записи (пересчёт использует живой join с safety).
+    verdict_pass: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    bought_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint("token_id", "wallet_address", name="uq_token_buyer"),
+        Index("ix_token_buyers_wallet", "wallet_address"),
+        Index("ix_token_buyers_token_id", "token_id"),
     )

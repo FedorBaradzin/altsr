@@ -1,0 +1,111 @@
+<style>/*altsr-scw-v1*/
+.altsr-scw{margin:0 0 4px;padding:14px 16px;border-radius:14px;display:flex;gap:12px;align-items:flex-start;
+  animation:altsr-scw-in .25s ease}
+@keyframes altsr-scw-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.altsr-scw-ic{flex:none;width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+  font-size:17px;font-weight:900}
+.altsr-scw-tx{min-width:0}
+.altsr-scw-t{font-size:14.5px;font-weight:800;line-height:1.25;letter-spacing:-.01em}
+.altsr-scw-s{font-size:12px;line-height:1.45;margin-top:3px;opacity:.9}
+.altsr-scw-scam{background:rgba(255,77,96,.14);border:1px solid rgba(255,77,96,.5)}
+.altsr-scw-scam .altsr-scw-ic{background:#ff4d60;color:#fff}
+.altsr-scw-scam .altsr-scw-t{color:#ff8a94}
+.altsr-scw-block{background:rgba(255,93,108,.1);border:1px solid rgba(255,93,108,.38)}
+.altsr-scw-block .altsr-scw-ic{background:rgba(255,93,108,.9);color:#2a0006}
+.altsr-scw-block .altsr-scw-t{color:#ff8a94}
+.altsr-scw-review{background:rgba(240,180,41,.1);border:1px solid rgba(240,180,41,.38)}
+.altsr-scw-review .altsr-scw-ic{background:#f0b429;color:#2a1c00}
+.altsr-scw-review .altsr-scw-t{color:#f0c66a}
+.altsr-scw-s b{color:inherit}
+/* feed row flags */
+#feed tr.altsr-scw-row-scam,#feed tr.altsr-scw-row-block{box-shadow:inset 3px 0 0 #ff4d60}
+#feed tr.altsr-scw-row-review{box-shadow:inset 3px 0 0 #f0b429}
+.altsr-scw-chip{display:inline-block;margin-left:6px;font-size:9.5px;font-weight:800;vertical-align:middle;
+  padding:2px 6px;border-radius:999px;background:#ff4d60;color:#fff;letter-spacing:.02em}
+</style>
+<script>/*altsr-scw-v1*/
+(function(){
+  if(window.__altsrSCW)return; window.__altsrSCW=1;
+  var MAL={};  // SYMBOL -> {mal:bool, v:'pass|review|block'}
+  function refresh(){
+    // include_blocked=true so we know a coin's real status even if the feed hides it
+    fetch('/api/tokens?limit=100&include_blocked=true',{cache:'no-store'})
+      .then(function(r){return r.json();})
+      .then(function(j){
+        (j.items||[]).forEach(function(x){
+          if(!x.symbol)return;
+          MAL[x.symbol.toUpperCase()]={mal:!!x.is_malicious,v:(x.verdict||'').toLowerCase()};
+        });
+        tagFeed();
+      }).catch(function(){});
+  }
+  var CFG={
+    scam:['altsr-scw-scam','⚠','Помечен как скам-токен',
+      'Обнаружены признаки ловушки или мошенничества. Высокий риск потерять <b>все</b> вложенные средства — не заноси деньги.'],
+    block:['altsr-scw-block','⚠','Высокий риск — вероятно небезопасен',
+      'Токен не прошёл анти-скам проверки (BLOCK). Чаще всего это ловушка (honeypot) или контроль предложения. Не является безопасным.'],
+    review:['altsr-scw-review','!','Проверка не завершена',
+      'Часть анти-скам проверок не подтверждена (REVIEW). Будь осторожен — это <b>не</b> безопасный токен. PASS ≠ «безопасно».']
+  };
+  function levelOf(sym){
+    var info=MAL[(sym||'').toUpperCase()];
+    var tok=(window.TOKMAP||{})[sym];
+    var mal=info?info.mal:false;
+    var v=info?info.v:(tok?tok.v:'');
+    if(mal)return 'scam';
+    if(v==='block')return 'block';
+    if(v==='review')return 'review';
+    return null;
+  }
+  function banner(level){
+    var c=CFG[level];
+    return '<div class="altsr-scw '+c[0]+'"><div class="altsr-scw-ic">'+c[1]+'</div>'
+      +'<div class="altsr-scw-tx"><div class="altsr-scw-t">'+c[2]+'</div>'
+      +'<div class="altsr-scw-s">'+c[3]+'</div></div></div>';
+  }
+  function injectDrawer(sym){
+    var d=document.getElementById('drawer'); if(!d)return;
+    var old=d.querySelector('.altsr-scw'); if(old)old.remove();
+    var level=levelOf(sym); if(!level)return;
+    var dh=d.querySelector('.dh');
+    if(dh)dh.insertAdjacentHTML('afterend',banner(level));
+    else d.insertAdjacentHTML('afterbegin',banner(level));
+  }
+  // wrap openTok (global, used by inline onclick in the feed)
+  function wrap(){
+    if(typeof window.openTok!=='function')return false;
+    if(window.openTok.__scw)return true;
+    var orig=window.openTok;
+    var wrapped=function(sym){ var r=orig.apply(this,arguments); try{injectDrawer(sym);}catch(e){} return r; };
+    wrapped.__scw=1; window.openTok=wrapped; return true;
+  }
+  function tagFeed(){
+    var feed=document.getElementById('feed'); if(!feed)return;
+    feed.querySelectorAll('tr').forEach(function(tr){
+      if(tr.getAttribute('data-scw'))return;
+      var oc=tr.getAttribute('onclick')||'';
+      var m=oc.match(/openTok\('([^']+)'\)/);
+      var sym=m?m[1]:null;
+      var level=sym?levelOf(sym):null;
+      tr.setAttribute('data-scw','1');
+      if(!level)return;
+      tr.classList.add('altsr-scw-row-'+level);
+      if(level==='scam'||level==='block'){
+        var tk=tr.querySelector('.tk');
+        if(tk && !tk.querySelector('.altsr-scw-chip'))
+          tk.insertAdjacentHTML('beforeend','<span class="altsr-scw-chip">скам</span>');
+      }
+    });
+  }
+  // feed re-renders on tier change / poll → observe and re-tag
+  var feedEl=document.getElementById('feed');
+  if(feedEl){
+    new MutationObserver(function(){ feedEl.querySelectorAll('tr').forEach(function(tr){tr.removeAttribute('data-scw');}); tagFeed(); })
+      .observe(feedEl,{childList:true});
+  }
+  function boot(){ if(!wrap()){setTimeout(boot,300);} }
+  boot();
+  refresh();
+  setInterval(refresh,45000);
+})();
+</script>

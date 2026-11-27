@@ -1,0 +1,40 @@
+<!--altsr-whatsnew-start-->
+<section class="sec" id="altsr-whatsnew">
+  <style>
+  #altsr-whatsnew .awn-eyebrow{letter-spacing:3px;font-size:12px;color:#8B5CF6;margin:0 0 6px;text-transform:uppercase}
+  #altsr-whatsnew .awn-h{font-size:clamp(22px,3vw,32px);font-weight:800;margin:0 0 4px;color:#EAF0FF}
+  #altsr-whatsnew .awn-sub{color:#9AA6C4;font-size:14px;margin:0;max-width:640px}
+  #altsr-whatsnew .awn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-top:20px}
+  #altsr-whatsnew .awn-card{border:1px solid rgba(130,150,210,.14);border-radius:18px;background:rgba(20,25,44,.5);padding:18px}
+  #altsr-whatsnew .awn-ic{font-size:26px;margin-bottom:8px}
+  #altsr-whatsnew .awn-t{font-weight:700;font-size:16px;color:#EAF0FF}
+  #altsr-whatsnew .awn-d{color:#9AA6C4;font-size:14px;margin-top:4px;line-height:1.45}
+  #altsr-whatsnew .awn-cta{display:inline-block;margin-top:22px;border-radius:12px;padding:12px 22px;font-weight:700;color:#06231c;background:linear-gradient(135deg,#8B5CF6,#22D3EE);text-decoration:none}
+  </style>
+  <p class="awn-eyebrow" data-ru="ЧТО НОВОГО" data-en="WHAT'S NEW">ЧТО НОВОГО</p>
+  <h2 class="awn-h" data-ru="Свежее в ALTSR" data-en="Fresh in ALTSR">Свежее в ALTSR</h2>
+  <p class="awn-sub" data-ru="Недавно добавленные функции — всё на реальных ончейн-данных." data-en="Recently shipped features — all on real on-chain data.">Недавно добавленные функции — всё на реальных ончейн-данных.</p>
+  <div class="awn-grid" id="awnGrid"></div>
+  <a class="awn-cta" href="/landing/cabinet/index.html#market" data-ru="Открыть «Рынок» →" data-en="Open Market →">Открыть «Рынок» →</a>
+  <script>
+  (function(){
+    var L=function(){return document.documentElement.lang==='en'?'en':'ru';};
+    var items=[
+      ['📊','Разделы «Рынок» в кабинете','Market sections in your cabinet','Тренды, Новые пулы, Растущие, Возрождение и Категории — живые ончейн-данные с автообновлением каждые 30 секунд.','Trending, New Pools, Top Gainers, Revival and Categories — live on-chain data, auto-refreshing every 30s.'],
+      ['🕯','Свечные графики','Real candlestick charts','Клик по токену — реальный свечной график по ончейн-данным.','Click any token for a real OHLCV chart from on-chain data.'],
+      ['🛡','Анти-скам вердикт','Anti-scam verdict on every token','PASS / REVIEW / BLOCK и счётчик smart-money на каждой строке.','PASS / REVIEW / BLOCK plus a smart-money count on every row.'],
+      ['📈','Больше метрик','Richer metrics','Рост за 1ч / 6ч / 24ч, объём и ликвидность — без платного ключа.','1h / 6h / 24h change, 24h volume and liquidity — no paid key needed.'],
+      ['🤝','Реферальная скидка −5%','Referral −5% discount','Переход по ссылке реферала даёт 5% скидку на тариф.','Join via a referral link and get 5% off your plan.'],
+      ['🤖','Автотрейд по топ-монетам','Autotrade on top coins','Бумажный автотрейд торгует топ-монеты по объёму. Только симуляция.','Paper autotrade trades the top-by-volume universe. Paper only.']
+    ];
+    function render(){
+      var en=L()==='en',g=document.getElementById('awnGrid'); if(!g)return;
+      g.innerHTML=items.map(function(it){return '<div class="awn-card"><div class="awn-ic">'+it[0]+'</div><div class="awn-t">'+(en?it[2]:it[1])+'</div><div class="awn-d">'+(en?it[4]:it[3])+'</div></div>';}).join('');
+      [].forEach.call(document.querySelectorAll('#altsr-whatsnew [data-ru]'),function(el){el.textContent=en?el.getAttribute('data-en'):el.getAttribute('data-ru');});
+    }
+    render();
+    document.addEventListener('click',function(e){var t=e.target;if(t&&t.closest&&(t.closest('nav')||t.closest('header'))){var txt=(t.textContent||'').trim();if(txt==='RU'||txt==='EN'||txt==='ru'||txt==='en')setTimeout(render,60);}});
+  })();
+  </script>
+</section>
+<!--altsr-whatsnew-end-->

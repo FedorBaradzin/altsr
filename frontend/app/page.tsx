@@ -39,6 +39,7 @@ export default function Landing() {
           </div>
           <nav className="hidden items-center gap-7 text-sm text-muted md:flex">
             <Link href="/radar" className="hover:text-ink">{t("nav.radar")}</Link>
+            <a href="/landing/cabinet/index.html#market" className="hover:text-ink">{t("nav.market")}</a>
             <Link href="/pricing" className="hover:text-ink">{t("nav.pricing")}</Link>
             <Link href="/blog" className="hover:text-ink">{t("nav.blog")}</Link>
             <Link href="/journal" className="hover:text-ink">{t("nav.journal")}</Link>
@@ -104,6 +105,40 @@ export default function Landing() {
         <p className="mt-8 text-xs leading-relaxed text-dim">
           {t("disc.landing")}
         </p>
+      </section>
+
+      {/* WHAT'S NEW — recently shipped features */}
+      <section id="whatsnew" className="mx-auto max-w-5xl px-6 pb-20">
+        <p className="mb-1 text-xs tracking-[3px] text-violet">{lang === "en" ? "WHAT'S NEW" : "ЧТО НОВОГО"}</p>
+        <h2 className="mb-6 font-sg text-2xl font-bold">{lang === "en" ? "Fresh in ALTSR" : "Свежее в ALTSR"}</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {([
+            ["📊", lang === "en" ? "Market sections" : "Разделы «Рынок»",
+              lang === "en" ? "Trending, New Pools, Top Gainers, Revival and Categories — live on-chain data, right in your cabinet." : "Тренды, Новые пулы, Растущие, Возрождение и Категории — живые ончейн-данные прямо в кабинете."],
+            ["🕯", lang === "en" ? "Real candlestick charts" : "Свечные графики",
+              lang === "en" ? "Click any token for a real OHLCV chart from on-chain data." : "Клик по токену — реальный свечной график по ончейн-данным."],
+            ["🛡", lang === "en" ? "Anti-scam verdict on every token" : "Анти-скам вердикт на каждом токене",
+              lang === "en" ? "PASS / REVIEW / BLOCK plus smart-money count on every row." : "PASS / REVIEW / BLOCK и счётчик smart-money в каждой строке."],
+            ["📈", lang === "en" ? "Richer metrics" : "Больше метрик",
+              lang === "en" ? "1h / 6h / 24h change, 24h volume and liquidity — no key needed." : "Рост за 1ч / 6ч / 24ч, объём и ликвидность — без платного ключа."],
+            ["🤝", lang === "en" ? "Referral −5% discount" : "Реферальная скидка −5%",
+              lang === "en" ? "Join via a referral link and get 5% off your plan." : "Приходишь по ссылке реферала — получаешь 5% скидку на тариф."],
+            ["🤖", lang === "en" ? "Autotrade on top coins" : "Автотрейд по топ-монетам",
+              lang === "en" ? "Paper autotrade now trades the top-by-volume universe. Paper only." : "Бумажный автотрейд торгует топ-монеты по объёму. Только симуляция."],
+          ] as [string, string, string][]).map(([icon, title, desc]) => (
+            <div key={title} className="glass rounded-2xl p-5">
+              <div className="mb-2 text-2xl">{icon}</div>
+              <b className="font-sg">{title}</b>
+              <p className="mt-1 text-sm text-muted">{desc}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-8">
+          <a href="/landing/cabinet/index.html#market" className="inline-block rounded-xl px-5 py-3 font-sg text-sm font-semibold text-[#06231c]"
+            style={{ background: "linear-gradient(135deg,#8B5CF6,#22D3EE)" }}>
+            {lang === "en" ? "Open Market →" : "Открыть «Рынок» →"}
+          </a>
+        </div>
       </section>
 
       {/* FOOTER — contact manager on Telegram */}

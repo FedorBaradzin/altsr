@@ -14,6 +14,7 @@ import time
 from ..config import Settings, get_settings
 from ..db import get_sessionmaker
 from ..notify.alerts import SystemAlerter
+from ..smartmoney import update_smart_money
 from . import birdeye, dexscreener, geckoterminal, rugcheck
 from .base import HttpClient
 from .dedup import upsert_tokens
@@ -83,13 +84,25 @@ async def collect_once(
     http: HttpClient, settings: Settings, *, alerter: SystemAlerter | None = None, redis=None
 ) -> list:
     """Один проход по всем источникам. Возвращает список NormalizedToken."""
+    gb = settings.onchain_base_url
+    gh = settings.onchain_headers
     coros = [
         geckoterminal.fetch_new_pools(
-            http, settings.gecko_base_url, settings.gecko_network_list
+            http, gb, settings.gecko_network_list, headers=gh
+        ),
+        geckoterminal.fetch_trending_pools(
+            http, gb, settings.gecko_network_list, headers=gh
         ),
         rugcheck.fetch_new_tokens(http, settings.rugcheck_base_url),
         dexscreener.fetch_latest_profiles(http, settings.dexscreener_base_url),
     ]
+    if settings.gecko_top_enabled:
+        coros.append(
+            geckoterminal.fetch_top_pools(
+                http, gb, settings.gecko_network_list,
+                pages=settings.gecko_top_pages, headers=gh,
+            )
+        )
     if settings.birdeye_active:
         coros.append(_safe_birdeye(http, settings, alerter, redis))
 
@@ -112,10 +125,18 @@ async def run_tick(settings: Settings, redis=None) -> int:
     ) as http:
         tokens = await collect_once(http, settings, alerter=alerter, redis=redis)
 
-    async with get_sessionmaker()() as session:
-        result = await upsert_tokens(
-            session, tokens, redis=redis, dedup_ttl=settings.dedup_ttl_seconds
-        )
+        async with get_sessionmaker()() as session:
+            result = await upsert_tokens(
+                session, tokens, redis=redis, dedup_ttl=settings.dedup_ttl_seconds
+            )
+            # Доп. шаг: smart-money (анализ ончейн-сделок). ПОСЛЕ upsert, чтобы
+            # у токенов были id/verdict. Полностью отказоустойчив: любая ошибка
+            # этого шага НИКОГДА не ломает discovery. Гейтится флагом конфига.
+            if settings.smartmoney_enabled:
+                try:
+                    await update_smart_money(session, settings, http, tokens, redis=redis)
+                except Exception as exc:  # noqa: BLE001 — smart-money не валит тик
+                    logger.warning("smart-money шаг пропущен из-за ошибки: %s", exc)
 
     # Публикуем новинки в шину для живой ленты.
     if redis is not None and result.inserted:

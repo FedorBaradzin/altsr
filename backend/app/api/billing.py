@@ -9,9 +9,9 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..auth.service import current_user
+from ..auth.service import current_user, optional_user
 from ..billing import nowpayments
-from ..billing.tiers import TIERS, tier_price
+from ..billing.tiers import TIERS, apply_discount, tier_price
 from ..config import Settings, get_settings
 from ..db import get_session
 from ..discovery.base import HttpClient
@@ -22,10 +22,29 @@ logger = logging.getLogger("altsr.api.billing")
 router = APIRouter(prefix="/api/billing", tags=["billing"])
 
 
+def _referred_discount(user: User | None, settings: Settings) -> float:
+    """Скидка для ЭТОГО пользователя: 5% если он пришёл по реф-ссылке, иначе 0."""
+    if user is not None and user.referred_by_id is not None:
+        return max(0.0, float(settings.referral_referred_discount_pct or 0.0))
+    return 0.0
+
+
 @router.get("/tiers", response_model=list[TierInfo])
-async def list_tiers() -> list[TierInfo]:
-    return [TierInfo(id=k, name=v["name"], price_usd=float(v["price_usd"]), features=v["features"])
-            for k, v in TIERS.items()]
+async def list_tiers(
+    user: User | None = Depends(optional_user),
+    settings: Settings = Depends(get_settings),
+) -> list[TierInfo]:
+    # Для залогиненного приглашённого показываем его цену со скидкой; для гостя — обычную.
+    disc = _referred_discount(user, settings)
+    out: list[TierInfo] = []
+    for k, v in TIERS.items():
+        price = float(v["price_usd"])
+        d = disc if price > 0 else 0.0
+        out.append(TierInfo(
+            id=k, name=v["name"], price_usd=price, features=v["features"],
+            discount_pct=d, your_price_usd=apply_discount(price, d),
+        ))
+    return out
 
 
 @router.post("/checkout", response_model=CheckoutOut)
@@ -34,9 +53,15 @@ async def checkout(
     user: User = Depends(current_user),
     session: AsyncSession = Depends(get_session), settings: Settings = Depends(get_settings),
 ) -> CheckoutOut:
-    price = tier_price(tier)
-    if price is None or price <= 0:
+    base_price = tier_price(tier)
+    if base_price is None or base_price <= 0:
         raise HTTPException(status_code=400, detail="Неверный платный тариф")
+
+    # Скидка приглашённому по реф-ссылке: платит фактически меньше. Счёт и инвойс
+    # NOWPayments выставляем на сниженную сумму; реферальная комиссия позже считается
+    # от этой же фактической суммы (см. referral.service.credit_referral).
+    discount = _referred_discount(user, settings)
+    price = apply_discount(base_price, discount)
 
     payment = Payment(user_id=user.id, tier=tier, provider="nowpayments",
                       amount_usd=price, status="waiting",
@@ -55,7 +80,8 @@ async def checkout(
         payment.invoice_id = inv.get("id")
     await session.commit()
     return CheckoutOut(invoice_url=inv.get("invoice_url") if inv else None,
-                       payment_id=payment.id, tier=tier)
+                       payment_id=payment.id, tier=tier,
+                       base_price_usd=base_price, discount_pct=discount, amount_usd=price)
 
 
 @router.post("/ipn")
@@ -100,5 +126,12 @@ async def ipn(
                 base = base.replace(tzinfo=timezone.utc)
             user.tier_expires_at = base + timedelta(days=30)
             logger.info("Оплата подтверждена: user=%s tier=%s", user.id, payment.tier)
+            # Реферальное начисление (идемпотентно по payment_id). Ошибка здесь НЕ
+            # должна мешать выдаче тарифа — изолируем в try/except с логом.
+            try:
+                from ..referral.service import credit_referral
+                await credit_referral(session, user, payment)
+            except Exception:  # noqa: BLE001
+                logger.exception("referral credit failed: payment=%s", payment.id)
     await session.commit()
     return {"ok": True}

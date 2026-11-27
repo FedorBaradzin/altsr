@@ -6,12 +6,13 @@ import json
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import Settings, get_settings
 from ..db import get_sessionmaker
 from ..discovery.base import HttpClient
+from ..discovery.geckoterminal import chain_to_network, fetch_pool_trades, fetch_token_top_pool
 from ..models import SafetyReport, Signal, Token
 from ..notify.alerts import format_blocked_scam_alert
 from ..notify.format import format_buy_alert
@@ -40,14 +41,47 @@ def _age_minutes(token: Token, now: datetime) -> float | None:
 
 
 async def _candidates(session: AsyncSession, s: Settings) -> list[tuple[Token, SafetyReport]]:
+    from datetime import timedelta
+    from sqlalchemy import or_
+
+    now = datetime.now(timezone.utc)
     stmt = (
         select(Token, SafetyReport)
         .join(SafetyReport, SafetyReport.token_id == Token.id)
         .outerjoin(Signal, Signal.token_id == Token.id)
         .where(Signal.id.is_(None))
-        .order_by(Token.discovered_at.desc())
-        .limit(s.signal_batch_size)
     )
+    # ПРЕД-ФИЛЬТР батча по жёстким гейтам (ликвидность/возраст/риск): иначе 30 слотов
+    # забиваются заведомо непригодными (старые/мелкие/рисковые) новейшими токенами и
+    # пригодные ранние кандидаты (в т.ч. Solana) не доходят до оценки. Живые гейты
+    # (моментум, buy-pressure, объём) остаются в evaluate_entry.
+    if s.signal_min_liquidity_usd > 0:
+        stmt = stmt.where(
+            Token.liquidity_usd.is_not(None),
+            Token.liquidity_usd >= s.signal_min_liquidity_usd,
+        )
+    if s.signal_max_age_minutes > 0:
+        cutoff = now - timedelta(minutes=s.signal_max_age_minutes)
+        stmt = stmt.where(or_(Token.created_at.is_(None), Token.created_at >= cutoff))
+    if s.signal_max_risk is not None:
+        stmt = stmt.where(
+            or_(SafetyReport.risk_score.is_(None), SafetyReport.risk_score <= s.signal_max_risk)
+        )
+    if s.autotrade_prefer_quality_sources:
+        # Топ/трендовые источники — вперёд, иначе их топит поток свежих пулов и они не
+        # попадают в batch (= не торгуются). Внутри группы — свежайшие первыми.
+        from sqlalchemy import case
+
+        src = func.lower(func.coalesce(Token.source, ""))
+        priority = case(
+            (src.like("%geckoterminal_top%"), 0),
+            (src.like("%trending%"), 0),
+            else_=1,
+        )
+        stmt = stmt.order_by(priority, Token.discovered_at.desc())
+    else:
+        stmt = stmt.order_by(Token.discovered_at.desc())
+    stmt = stmt.limit(s.signal_batch_size)
     if s.signal_require_pass:
         stmt = stmt.where(SafetyReport.verdict == "PASS")
     return list((await session.execute(stmt)).all())
@@ -72,7 +106,11 @@ async def run_batch(
         # Один HttpClient на батч — для моментума (DexScreener) и свежей
         # перепроверки безопасности перед отправкой. Открываем, только если
         # что-то из этого включено; иначе работаем без сети.
-        need_http = settings.momentum_enabled or settings.signal_recheck_safety_before_send
+        need_http = (
+            settings.momentum_enabled
+            or settings.signal_recheck_safety_before_send
+            or settings.signal_gecko_trades_enabled
+        )
         if not need_http:
             created = await _emit_signals(
                 settings, session, rows, {}, now, notifier, redis, None, screen_fn
@@ -127,7 +165,11 @@ async def _recheck_blocks(
         await store_result(session, token, fresh)
     except Exception as exc:  # noqa: BLE001
         logger.debug("store_result при пере-скрининге не удался: %s", exc)
-    if fresh.verdict != "PASS" or fresh.is_malicious:
+    # Блокируем ТОЛЬКО явный скам (BLOCK/malicious). REVIEW на ре-скрине — это, как
+    # правило, пробел в данных источников (особенно Solana: RugCheck/GoPlus непостоянны),
+    # а не скам; токен уже прошёл анти-скам при обнаружении (stored PASS). Раньше любой
+    # не-PASS резал сигнал и это глушило Solana полностью.
+    if fresh.verdict == "BLOCK" or fresh.is_malicious:
         logger.info(
             "БЛОК перед Telegram %s:%s — свежий вердикт %s%s",
             token.chain, token.address, fresh.verdict,
@@ -167,6 +209,7 @@ async def _emit_signals(
     screen_fn,
 ) -> int:
     created = 0
+    trades_calls = 0  # лимит платных trades-вызовов за тик (защита квоты API)
     for token, report in rows:
         mom = moms.get(token.id)
         inp = SignalInput(
@@ -177,6 +220,12 @@ async def _emit_signals(
             holder_count=None,
             verdict=report.verdict,
             risk_score=report.risk_score,
+            smart_wallets=getattr(token, "smart_wallets", None),
+            # Качественный источник (trending ИЛИ top по объёму) проходит soft-гейт и
+            # получает бонус к уверенности — это устоявшиеся ликвидные монеты, не свежак.
+            is_trending=any(
+                k in (token.source or "").lower() for k in ("trending", "top")
+            ),
             price_change_m5=getattr(mom, "price_change_m5", None),
             price_change_h1=getattr(mom, "price_change_h1", None),
             vol_h1=getattr(mom, "vol_h1", None),
@@ -196,6 +245,69 @@ async def _emit_signals(
         if not decision.passed:
             logger.debug("skip %s:%s — %s", token.chain, token.address, decision.rejected)
             continue
+
+        # Ранний вход по РЕАЛЬНЫМ сделкам (Gecko trades, платный ключ). ЭКОНОМНО:
+        # дёргаем trades ТОЛЬКО на кандидатах, уже прошедших дешёвые гейты (единицы
+        # за тик) — перевес покупок (buy-pressure) + рост уникальных покупателей.
+        if (
+            settings.signal_gecko_trades_enabled and http is not None
+            and trades_calls < settings.signal_gecko_trades_max_per_tick
+        ):
+            net = chain_to_network(token.chain)
+            # Нужен адрес ПУЛА. Если pair_address пуст или равен адресу минта токена
+            # (частый случай для Solana pump.fun) — резолвим самый ликвидный пул,
+            # иначе эндпоинт trades отдаёт 404 и buy-pressure по Solana не считается.
+            pool = token.pair_address
+            if net and (not pool or pool == token.address):
+                trades_calls += 1
+                try:
+                    pool = await fetch_token_top_pool(
+                        http, settings.onchain_base_url, net, token.address,
+                        headers=settings.onchain_headers,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("pool-resolve %s не удался: %s", token.address, exc)
+                    pool = None
+            agg = None
+            if net and pool and trades_calls < settings.signal_gecko_trades_max_per_tick:
+                trades_calls += 1
+                try:
+                    agg = await fetch_pool_trades(
+                        http, settings.onchain_base_url, net, pool,
+                        window_minutes=settings.signal_gecko_trades_window_min,
+                        headers=settings.onchain_headers,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("trades %s не получены: %s", token.address, exc)
+                    agg = None
+            # buy_pressure=None при <5 сделок → ранний токен не блокируем.
+            bp = agg.buy_pressure if agg is not None else None
+            if bp is not None:
+                if bp < settings.signal_min_buy_pressure:
+                    logger.debug("skip %s — buy-pressure %.2f < %.2f",
+                                 token.address, bp, settings.signal_min_buy_pressure)
+                    continue
+                if agg.buyers < settings.signal_min_trade_buyers:
+                    logger.debug("skip %s — покупателей %d < %d",
+                                 token.address, agg.buyers, settings.signal_min_trade_buyers)
+                    continue
+                decision.reasons.append(f"перевес покупок {bp:+.2f} ({agg.buyers} покуп.)")
+                decision.confidence = min(
+                    1.0,
+                    decision.confidence + settings.signal_conf_w_trade_bp * min(1.0, bp),
+                )
+
+        # Растущая ликвидность → вклад в уверенность (без API, по first_liquidity_usd).
+        if (
+            settings.signal_conf_w_liq_growth > 0
+            and token.first_liquidity_usd and token.liquidity_usd
+            and token.liquidity_usd > token.first_liquidity_usd
+        ):
+            growth = (token.liquidity_usd - token.first_liquidity_usd) / token.first_liquidity_usd
+            decision.reasons.append(f"ликвидность растёт +{growth*100:.0f}%")
+            decision.confidence = min(
+                1.0, decision.confidence + settings.signal_conf_w_liq_growth * min(1.0, growth)
+            )
 
         # Свежая перепроверка безопасности перед самой отправкой (анти-скам).
         blocked, fresh = await _recheck_blocks(settings, session, http, token, screen_fn)

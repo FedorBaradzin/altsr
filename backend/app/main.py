@@ -15,12 +15,15 @@ from .api.articles import router as articles_router
 from .api.assistant import router as assistant_router
 from .api.auth import router as auth_router
 from .api.billing import router as billing_router
+from .api.coinglass import router as coinglass_router
 from .api.news import router as news_router
 from .api.autotrade import router as autotrade_router
 from .api.investors import admin_router as investors_admin_router
 from .api.investors import router as investors_router
 from .api.paper import router as paper_router
 from .api.public_stats import router as public_stats_router
+from .api.referral import router as referral_router
+from .api.scan import router as scan_router
 from .api.signals import router as signals_router
 from .api.telegram import router as telegram_router
 from .api.telegram import webhook_secret
@@ -90,6 +93,7 @@ app.include_router(signals_router)
 app.include_router(paper_router)
 app.include_router(user_paper_router)
 app.include_router(public_stats_router)
+app.include_router(scan_router)
 app.include_router(telegram_router)
 app.include_router(autotrade_router)
 app.include_router(investors_router)
@@ -99,6 +103,8 @@ app.include_router(articles_router)
 app.include_router(auth_router)
 app.include_router(billing_router)
 app.include_router(assistant_router)
+app.include_router(referral_router)
+app.include_router(coinglass_router)
 app.include_router(admin_router)
 
 

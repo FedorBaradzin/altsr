@@ -24,9 +24,18 @@ class NormalizedToken:
     source: str
     symbol: str | None = None
     name: str | None = None
+    # URL логотипа токена (из CoinGecko/GeckoTerminal image_url). None если нет.
+    image_url: str | None = None
     created_at: datetime | None = None
     liquidity_usd: float | None = None
     fdv: float | None = None
+    price_usd: float | None = None
+    price_change_h24: float | None = None
+    price_change_h1: float | None = None
+    price_change_h6: float | None = None
+    volume_h24: float | None = None
+    txns_h24: int | None = None
+    market_cap_usd: float | None = None
     pair_address: str | None = None
     dex: str | None = None
     socials: dict[str, Any] = field(default_factory=dict)
@@ -34,7 +43,12 @@ class NormalizedToken:
     def __post_init__(self) -> None:
         # Нормализуем ключ дедупа.
         self.chain = (self.chain or "").strip().lower()
-        self.address = (self.address or "").strip().lower()
+        addr = (self.address or "").strip()
+        # EVM-адреса (0x…) регистронезависимы (hex) → нижний регистр для стабильного
+        # дедупа. Solana base58 РЕГИСТРОЗАВИСИМ: нижний регистр ломает минт и весь
+        # скрининг (RugCheck 400, GoPlus-solana пусто, Solana-RPC no-account), из-за
+        # чего Solana-токены вечно висели в REVIEW. Сохраняем оригинальный регистр.
+        self.address = addr.lower() if addr[:2].lower() == "0x" else addr
 
     @property
     def dedup_key(self) -> str:

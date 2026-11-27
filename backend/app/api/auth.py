@@ -43,6 +43,7 @@ async def wallet_nonce(address: str = Body(..., embed=True)) -> NonceOut:
 @router.post("/wallet/verify", response_model=AuthToken)
 async def wallet_verify(
     address: str = Body(...), signature: str = Body(...),
+    ref_code: str | None = Body(default=None),
     session: AsyncSession = Depends(get_session), settings: Settings = Depends(get_settings),
 ) -> AuthToken:
     nonce = take_nonce(address)
@@ -51,7 +52,8 @@ async def wallet_verify(
     if not wallet_auth.verify_eth_signature(address, wallet_auth.build_message(nonce), signature):
         raise HTTPException(status_code=401, detail="Подпись неверна")
     user = await get_or_create_user(session, "wallet", address.lower(),
-                                    display_name=address[:6] + "…" + address[-4:])
+                                    display_name=address[:6] + "…" + address[-4:],
+                                    ref_code=ref_code)
     await session.commit()
     return AuthToken(token=session_token(user, settings), user=_user_out(user, settings))
 
@@ -60,36 +62,45 @@ async def wallet_verify(
 @router.post("/telegram/verify", response_model=AuthToken)
 async def telegram_verify(
     data: dict = Body(...),
+    ref_code: str | None = Query(default=None),
     session: AsyncSession = Depends(get_session), settings: Settings = Depends(get_settings),
 ) -> AuthToken:
     if not tg_auth.verify_telegram_login(data, settings.telegram_bot_token):
         raise HTTPException(status_code=401, detail="Проверка Telegram не пройдена")
     parts = [data.get("first_name"), data.get("last_name")]
     name = " ".join(x for x in parts if x) or data.get("username")
-    user = await get_or_create_user(session, "telegram", str(data["id"]), display_name=name)
+    user = await get_or_create_user(session, "telegram", str(data["id"]), display_name=name,
+                                    ref_code=ref_code)
     await session.commit()
     return AuthToken(token=session_token(user, settings), user=_user_out(user, settings))
 
 
 # ---------- Google ----------
 @router.get("/google/login")
-async def google_login(settings: Settings = Depends(get_settings)) -> RedirectResponse:
+async def google_login(
+    ref_code: str | None = Query(default=None),
+    settings: Settings = Depends(get_settings),
+) -> RedirectResponse:
     if not settings.google_client_id:
         raise HTTPException(status_code=503, detail="Google OAuth не настроен")
-    return RedirectResponse(google_auth.auth_url(settings))
+    # Реф-код приглашения прокидываем через OAuth state → вернётся в callback.
+    return RedirectResponse(google_auth.auth_url(settings, state=(ref_code or "")))
 
 
 @router.get("/google/callback")
 async def google_callback(
     code: str = Query(...),
+    state: str | None = Query(default=None),
     session: AsyncSession = Depends(get_session), settings: Settings = Depends(get_settings),
 ) -> RedirectResponse:
     async with HttpClient(timeout=settings.http_timeout_seconds) as http:
         profile = await google_auth.exchange_code(http, settings, code)
     if not profile:
         raise HTTPException(status_code=401, detail="Google-авторизация не удалась")
+    # OAuth state несёт ref-код приглашения (фронт кладёт его в state при редиректе).
     user = await get_or_create_user(session, "google", profile["sub"],
-                                    email=profile.get("email"), display_name=profile.get("name"))
+                                    email=profile.get("email"), display_name=profile.get("name"),
+                                    ref_code=state)
     await session.commit()
     token = session_token(user, settings)
     # Браузерный поток: вернуть на фронт с токеном во фрагменте.
